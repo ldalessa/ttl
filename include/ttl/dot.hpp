@@ -14,13 +14,13 @@ class dot_writer {
   /// Print a leaf tensor node (we'd like to know its rank).
   auto node(const tensor& t) {
     out_ << "\tnode" << i_ << "[label=\"" << name(t) << "[" << order(t) << "]" << "\"]\n";
-    return std::tuple(i_++, index<0>());
+    return std::tuple(i_++, index());
   }
 
   template <Expression Expr>
   auto node(Expr&& expr) {
     out_ << "\tnode" << i_ << "[label=\"" << name(expr) << "\"]\n";
-    return std::tuple(i_++, index<0>());
+    return std::tuple(i_++, index());
   }
 
 /// Print the children expressions, each of which will return its node id and

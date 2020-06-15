@@ -8,16 +8,18 @@
 
 namespace ttl
 {
-constexpr delta_node delta(index<1> i, index<1> j) {
-  return { i + j };
+template <Index Is>
+constexpr decltype(auto) delta(Is i, Is j) {
+  return delta_node(i + j);
 }
 
-template <Expression A>
-constexpr auto symmetrize(A a) {
-  return rational<1,2>() * (a + rewrite(a, reverse(outer(a))));
-}
-
-constexpr auto symmetrize(const tensor& a) {
-  return symmetrize(bind(a));
+template <Node A>
+constexpr auto symmetrize(A&& a) {
+  if constexpr (Tensor<A>) {
+    return symmetrize(bind(std::forward<A>(a)));
+  }
+  else {
+    return rational<1,2>() * (a + rewrite(a, reverse(outer(a))));
+  }
 }
 }

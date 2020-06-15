@@ -3,6 +3,7 @@
 #include "index.hpp"
 #include <ratio>
 #include <string>
+#include <type_traits>
 
 namespace ttl {
 template <std::ptrdiff_t a, std::ptrdiff_t b>
@@ -23,18 +24,25 @@ template <std::ptrdiff_t a, std::ptrdiff_t b>
 inline constexpr bool is_rational_v<rational<a, b>> = true;
 
 template <typename T>
-concept Rational = is_rational_v<T>;
+concept Rational = is_rational_v<std::remove_cvref_t<T>>;
 
-template <Rational A, Rational B>
-constexpr bool operator==(A, B) {
-  return std::ratio_equal<typename A::q, typename B::q>();
-}
+template <typename>
+inline constexpr bool is_zero_v = false;
 
-template <typename T>
-concept Zero = Rational<T> && (std::remove_cvref<T>() == zero);
+template <std::ptrdiff_t a, std::ptrdiff_t b>
+inline constexpr bool is_zero_v<rational<a, b>> = std::ratio_equal_v<std::ratio<0, 1>, std::ratio<a, b>>;
 
 template <typename T>
-concept One = Rational<T> && (std::remove_cvref<T>() == one);
+concept Zero = is_zero_v<std::remove_cvref<T>>;
+
+template <typename>
+inline constexpr bool is_one_v = false;
+
+template <std::ptrdiff_t a, std::ptrdiff_t b>
+inline constexpr bool is_one_v<rational<a, b>> = std::ratio_equal_v<std::ratio<1, 1>, std::ratio<a, b>>;
+
+template <typename T>
+concept One = is_one_v<std::remove_cvref<T>>;
 
 template <Rational A, Rational B>
 constexpr auto operator+(A, B) {
@@ -73,12 +81,13 @@ constexpr int order(A) {
 }
 
 template <Rational T>
-constexpr index<0> outer(T) {
-  return {};
+constexpr decltype(auto) outer(T) {
+  return index();
 }
 
-template <Rational T>
-constexpr decltype(auto) rewrite(T v, index<0>) {
+template <Rational T, Index Is>
+constexpr decltype(auto) rewrite(T v, Is is) {
+  assert(size(is) == 0);
   return v;
 }
 }

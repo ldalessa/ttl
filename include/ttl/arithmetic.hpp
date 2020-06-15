@@ -1,12 +1,16 @@
 #pragma once
 
+#include "index.hpp"
 #include <concepts>
 #include <string>
+#include <type_traits>
 
 namespace ttl
 {
 template <typename T>
-concept Arithmetic = std::signed_integral<T> || std::floating_point<T>;
+concept Arithmetic =
+ std::signed_integral<std::remove_cvref_t<T>> ||
+ std::floating_point<std::remove_cvref_t<T>>;
 
 template <Arithmetic T>
 constexpr auto name(T v) {
@@ -19,12 +23,14 @@ constexpr int order(T) {
 }
 
 template <Arithmetic T>
-constexpr index<0> outer(T) {
-  return {};
+constexpr decltype(auto) outer(T) {
+  return index();
 }
 
-template <Arithmetic T>
-constexpr decltype(auto) rewrite(T v, index<0>) {
+template <Arithmetic T, Index Is>
+constexpr decltype(auto) rewrite(T v, Is is) {
+  assert(size(is) == 0);
+  assert(v != 0);
   return v;
 }
 }

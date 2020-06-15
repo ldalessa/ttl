@@ -5,17 +5,17 @@
 #include <tuple>
 
 namespace ttl {
-template <int N = 0>
+template <Index Outer = decltype(index())>
 class bind final {
   const tensor& a_;
-  index<N> outer_ = {};
+  Outer outer_ = {};
 
  public:
   constexpr bind(const tensor& a) : a_(a) {
     assert(order(a) == 0);
   }
 
-  constexpr bind(const tensor& a, index<N> outer)
+  constexpr bind(const tensor& a, Outer outer)
       : a_(a)
       , outer_(outer)
   {
@@ -50,8 +50,8 @@ class bind final {
   }
 };
 
-template <typename> inline constexpr bool is_bind_v = false;
-template <int N>    inline constexpr bool is_bind_v<bind<N>> = true;
+template <typename>    inline constexpr bool is_bind_v = false;
+template <Index Outer> inline constexpr bool is_bind_v<bind<Outer>> = true;
 
 template <typename T>
 concept Bind = is_bind_v<std::remove_cvref_t<T>>;

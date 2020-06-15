@@ -4,13 +4,13 @@
 #include "index.hpp"
 
 namespace ttl {
-template <Expression A, int N>
+template <Expression A, Index Direction>
 class partial final {
   A a_;
-  index<N> dx_;
+  Direction dx_;
 
  public:
-  constexpr partial(A a, index<N> dx) : a_(a), dx_(dx) {}
+  constexpr partial(A a, Direction dx) : a_(a), dx_(dx) {}
 
   friend constexpr std::string_view name(const partial&) {
     return "dx";
@@ -45,15 +45,15 @@ class partial final {
   template <Index... Is>
   constexpr decltype(auto) append(Is... is) const {
     index i = (dx_ + ... + is);
-    return partial<A, decltype(i)::capacity()>(a_, i);
+    return partial<A, decltype(i)>(a_, i);
   }
 };
 
 template <typename>
 inline constexpr bool is_partial_v = false;
 
-template <Expression A, int N>
-inline constexpr bool is_partial_v<partial<A, N>> = true;
+template <Expression A, Index Direction>
+inline constexpr bool is_partial_v<partial<A, Direction>> = true;
 
 template <typename T>
 concept Partial = is_partial_v<std::remove_cvref_t<T>>;

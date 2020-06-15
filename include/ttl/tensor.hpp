@@ -5,7 +5,7 @@
 
 namespace ttl
 {
-template <int N> class bind;
+template <Index> class bind;
 
 class tensor {
   int order_;
