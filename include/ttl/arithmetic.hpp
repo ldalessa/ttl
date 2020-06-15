@@ -27,9 +27,9 @@ constexpr decltype(auto) outer(T) {
   return index();
 }
 
-template <Arithmetic T, Index Is>
-constexpr decltype(auto) rewrite(T v, Is is) {
-  assert(size(is) == 0);
+template <Arithmetic T, Index A>
+constexpr decltype(auto) rewrite(T v, A index) {
+  assert(size(index) == 0);
   assert(v != 0);
   return v;
 }
