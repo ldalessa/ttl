@@ -23,7 +23,7 @@ class dot_writer {
     return std::tuple(i_++, index());
   }
 
-/// Print the children expressions, each of which will return its node id and
+  /// Print the children expressions, each of which will return its node id and
   /// outer index, and then print this node and link to the children.
   template <Internal Expr>
   auto node(Expr&& expr) {

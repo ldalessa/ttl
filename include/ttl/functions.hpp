@@ -8,9 +8,9 @@
 
 namespace ttl
 {
-template <Index Is>
-constexpr decltype(auto) delta(Is i, Is j) {
-  return delta_node(i + j);
+template <Index A, Index B>
+constexpr decltype(auto) delta(A&& i, B&& j) {
+  return delta_node(std::forward<A>(i) + std::forward<B>(j));
 }
 
 template <Node A>

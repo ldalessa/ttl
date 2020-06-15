@@ -2,6 +2,7 @@
 
 #include "expression.hpp"
 #include "index.hpp"
+#include "utils.hpp"
 
 namespace ttl {
 template <Expression A, Index Direction>
@@ -28,13 +29,13 @@ class partial final {
     return std::forward_as_tuple(p.a_);
   }
 
-  template <Index Is>
-  friend constexpr decltype(auto) rewrite(const partial& p, Is is) {
-    assert(order(p) == size(is));
+  template <Index B>
+  friend constexpr decltype(auto) rewrite(const partial& p, B index) {
+    assert(order(p) == size(index));
     auto&&  o = outer(p);
     auto&& ai = outer(p.a_);
     auto&& pi = p.dx_;
-    return partial(rewrite(p.a_, replace(o, is, ai)), replace(o, is, pi));
+    return utils::ctad<partial>(rewrite(p.a_, replace(o, index, ai)), replace(o, index, pi));
   }
 
   template <Index... Is>
@@ -44,8 +45,9 @@ class partial final {
 
   template <Index... Is>
   constexpr decltype(auto) append(Is... is) const {
-    index i = (dx_ + ... + is);
-    return partial<A, decltype(i)>(a_, i);
+    // index i = (dx_ + ... + is);
+    // return partial<A, decltype(i)>(a_, i);
+    return utils::ctad<partial>(a_, (dx_ + ... + is));
   }
 };
 

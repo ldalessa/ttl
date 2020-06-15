@@ -38,10 +38,10 @@ class bind final {
     return std::forward_as_tuple(b.a_);
   }
 
-  template <Index Is>
-  friend constexpr decltype(auto) rewrite(const bind& b, Is is) {
-    assert(size(b.outer_) == size(is));
-    return bind(b.a_, is);
+  template <Index A>
+  friend constexpr decltype(auto) rewrite(const bind& b, A index) {
+    assert(size(b.outer_) == size(index));
+    return bind<A>(b.a_, index);
   }
 
   template <Index... Is>

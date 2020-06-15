@@ -3,7 +3,6 @@
 #include "arithmetic.hpp"
 #include "bind.hpp"
 #include "delta.hpp"
-#include "expression.hpp"
 #include "inverse.hpp"
 #include "partial.hpp"
 #include "rational.hpp"

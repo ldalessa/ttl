@@ -1,6 +1,7 @@
 #pragma once
 
 #include "expression.hpp"
+#include "utils.hpp"
 
 namespace ttl {
 template <Expression A, Expression B>
@@ -31,14 +32,14 @@ class sum final {
     return std::forward_as_tuple(s.a_, s.b_);
   }
 
-  template <Index Is>
-  friend constexpr decltype(auto) rewrite(const sum& s, Is is) {
-    assert(order(s) == size(is));
+  template <Index C>
+  friend constexpr decltype(auto) rewrite(const sum& s, C index) {
+    assert(order(s) == size(index));
     auto&& [l, r] = children(s);
     auto&&  o = outer(s);
     auto&& li = outer(l);
     auto&& ri = outer(r);
-    return sum(rewrite(l, replace(o, is, li)), rewrite(r, replace(o, is, ri)));
+    return utils::ctad<sum>(rewrite(l, replace(o, index, li)), rewrite(r, replace(o, index, ri)));
   }
 
   template <Index... Is>

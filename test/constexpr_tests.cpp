@@ -1,10 +1,10 @@
 #include <ttl/ttl.hpp>
 #include <iostream>
 
-constexpr ttl::tensor rho(0, "rho");
-constexpr ttl::tensor v(1, "v");
-constexpr ttl::index i('i');
-constexpr ttl::index j('j');
+constexpr ttl::tensor rho = ttl::scalar("rho");
+constexpr ttl::tensor v = ttl::vector("v");
+constexpr ttl::index i = ttl::idx<'i'>;
+constexpr ttl::index j = ttl::idx<'j'>;
 constexpr ttl::index ij = i + j;
 constexpr ttl::index jj = ij ^ i;
 constexpr ttl::bind bs(rho);

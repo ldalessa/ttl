@@ -1,6 +1,7 @@
 #pragma once
 
 #include "expression.hpp"
+#include "utils.hpp"
 
 namespace ttl {
 template <Expression A, Expression B>
@@ -28,14 +29,14 @@ class product final {
     return std::forward_as_tuple(p.a_, p.b_);
   }
 
-  template <Index Is>
-  friend constexpr decltype(auto) rewrite(const product& p, Is is) {
-    assert(order(p) == size(is));
+  template <Index C>
+  friend constexpr decltype(auto) rewrite(const product& p, C index) {
+    assert(order(p) == size(index));
     auto&& [l, r] = children(p);
     auto&&  o = outer(p);
     auto&& li = outer(l);
     auto&& ri = outer(r);
-    return product(rewrite(l, replace(o, is, li)), rewrite(r, replace(o, is, ri)));
+    return utils::ctad<product>(rewrite(l, replace(o, index, li)), rewrite(r, replace(o, index, ri)));
   }
 
   template <Index... Is>

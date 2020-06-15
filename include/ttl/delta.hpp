@@ -1,6 +1,8 @@
 #pragma once
 
 #include "index.hpp"
+#include "utils.hpp"
+#include <string_view>
 #include <type_traits>
 
 namespace ttl {
@@ -27,15 +29,16 @@ class delta_node final {
     return d.i_;
   }
 
-  friend constexpr decltype(auto) rewrite(const delta_node& d, Outer is) {
-    return delta_node(is);
+  template <Index A>
+  friend constexpr decltype(auto) rewrite(const delta_node&, A index) {
+    return utils::ctad<delta_node>(index);
   }
 
-  template <Index Is>
-  constexpr decltype(auto) operator()(Is a, Is b) const {
+  template <Index A, Index B>
+  constexpr decltype(auto) operator()(A&& a, B&& b) const {
     assert(size(a) == 1);
     assert(size(b) == 1);
-    return rewrite(*this, a + b);
+    return rewrite(*this, std::forward<A>(a) + std::forward<B>(b));
   }
 };
 
