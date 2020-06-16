@@ -47,6 +47,10 @@ struct index {
     return os;
   }
 
+  static constexpr int capacity() {
+    return N;
+  }
+
   friend constexpr int size(index i) {
     return i.n;
   }
@@ -210,6 +214,10 @@ struct index {
     return os;
   }
 
+  static constexpr int capacity() {
+    return N;
+  }
+
   friend constexpr int size(index i) {
     return i.n;
   }
@@ -336,6 +344,10 @@ struct index {
 
   constexpr auto begin() const { return impl.begin(); }
   constexpr auto   end() const { return impl.end(); }
+
+  static constexpr int capacity() {
+    return sizeof...(Is);
+  }
 };
 
 template <char i>
@@ -416,4 +428,7 @@ constexpr auto replace(index<A...> is, index<B...> with, index<C...> in) {
 
 template <char... A>
 inline constexpr bool is_index_v<typed::index<A...>> = true;
+
+template <Index A>
+inline constexpr int capacity_v = A::capacity();
 }
