@@ -2,7 +2,7 @@
 
 #include "expression.hpp"
 #include "index.hpp"
-#include "utils.hpp"
+#include "mp/ctad.hpp"
 
 namespace ttl {
 template <Expression A, Index Direction>
@@ -35,7 +35,7 @@ class partial final {
     auto&&  o = outer(p);
     auto&& ai = outer(p.a_);
     auto&& pi = p.dx_;
-    return utils::ctad<partial>(rewrite(p.a_, replace(o, index, ai)), replace(o, index, pi));
+    return mp::ctad<partial>(rewrite(p.a_, replace(o, index, ai)), replace(o, index, pi));
   }
 
   template <Index... Is>
@@ -45,9 +45,7 @@ class partial final {
 
   template <Index... Is>
   constexpr decltype(auto) append(Is... is) const {
-    // index i = (dx_ + ... + is);
-    // return partial<A, decltype(i)>(a_, i);
-    return utils::ctad<partial>(a_, (dx_ + ... + is));
+    return mp::ctad<partial>(a_, (dx_ + ... + is));
   }
 };
 

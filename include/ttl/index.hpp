@@ -1,21 +1,21 @@
 #pragma once
 
-#include "utils.hpp"
+#include "mp/sequence.hpp"
 #include <cassert>
 #include <ostream>
 #include <optional>
 #include <tuple>
 #include <type_traits>
-#include <utility>
 
 namespace ttl
 {
 template <char i>
-constexpr std::integral_constant<char, i> idx = {};
+inline constexpr auto idx = mp::cv_v<i>;
 
 template <typename> inline constexpr bool is_index_v = false;
 template <typename T> concept Index = is_index_v<std::remove_cvref_t<T>>;
 
+inline
 namespace flexible {
 template <int N>
 struct index {
@@ -25,7 +25,7 @@ struct index {
   constexpr index() = default;
 
   template <char i>
-  constexpr index(std::integral_constant<char, i>) : i{i}, n(1) {}
+  constexpr index(mp::cv<char, i>) : i{i}, n(1) {}
 
   template <typename... Is>
   constexpr index(Is... is) : i{is...}, n(sizeof...(is)) {}
@@ -80,7 +80,7 @@ struct index {
 };
 
 template <char i>
-index(std::integral_constant<char, i>) -> index<1>;
+index(mp::cv<char, i>) -> index<1>;
 
 template <typename... Is>
 index(Is...) -> index<sizeof...(Is)>;
@@ -179,7 +179,7 @@ constexpr index<O> replace(index<N> is, index<M> with, index<O> in) {
 template <int N>
 inline constexpr bool is_index_v<flexible::index<N>> = true;
 
-inline
+//inline
 namespace fixed {
 struct index {
   static constexpr int N = 8;
@@ -190,7 +190,7 @@ struct index {
   constexpr index() = default;
 
   template <char idx>
-  constexpr index(std::integral_constant<char, idx>) : n(1) {
+  constexpr index(mp::cv<char, idx>) : n(1) {
     i[0] = idx;
   }
 
@@ -340,7 +340,7 @@ struct index {
   constexpr index() = default;
 
   template <char i>
-  constexpr index(std::integral_constant<char, i>) {}
+  constexpr index(mp::cv<char, i>) {}
 
   constexpr auto begin() const { return impl.begin(); }
   constexpr auto   end() const { return impl.end(); }
@@ -351,7 +351,7 @@ struct index {
 };
 
 template <char i>
-index(std::integral_constant<char, i>) -> index<i>;
+index(mp::cv<char, i>) -> index<i>;
 
 template <char... A>
 constexpr int size(index<A...>) {
@@ -361,7 +361,7 @@ constexpr int size(index<A...>) {
 template <char... A>
 constexpr auto reverse(index<A...> a) {
   constexpr auto b = reverse(a.impl);
-  return utils::apply<size(b)>([=](auto... i) {
+  return mp::apply<size(b)>([=](auto... i) {
     return index<b[i]...>();
   });
 }
@@ -369,7 +369,7 @@ constexpr auto reverse(index<A...> a) {
 template <char... A>
 constexpr auto unique(index<A...> a) {
   constexpr auto b = unique(a.impl);
-  return utils::apply<size(b)>([=](auto... i) {
+  return mp::apply<size(b)>([=](auto... i) {
     return index<b[i]...>();
   });
 }
@@ -377,7 +377,7 @@ constexpr auto unique(index<A...> a) {
 template <char... A>
 constexpr auto repeated(index<A...> a) {
   constexpr auto b = repeated(a.impl);
-  return utils::apply<size(b)>([=](auto... i) {
+  return mp::apply<size(b)>([=](auto... i) {
     return index<b[i]...>();
   });
 }
@@ -392,7 +392,7 @@ constexpr index<A..., B...> operator+(index<A...>, index<B...>) {
 template <char... A, char... B>
 constexpr auto operator&(index<A...> a, index<B...> b) {
   constexpr auto c = a.impl & b.impl;
-  return utils::apply<size(c)>([=](auto... i) {
+  return mp::apply<size(c)>([=](auto... i) {
     return index<c[i]...>();
   });
 }
@@ -401,7 +401,7 @@ constexpr auto operator&(index<A...> a, index<B...> b) {
 template <char... A, char... B>
 constexpr auto operator-(index<A...> a, index<B...> b) {
   constexpr auto c = a.impl - b.impl;
-  return utils::apply<size(c)>([=](auto... i) {
+  return mp::apply<size(c)>([=](auto... i) {
     return index<c[i]...>();
   });
 }
@@ -420,7 +420,7 @@ constexpr bool permutation(index<A...> a, index<B...> b) {
 template <char... A, char... B, char... C>
 constexpr auto replace(index<A...> is, index<B...> with, index<C...> in) {
   constexpr auto d = replace(is.impl, with.impl, in.impl);
-  return utils::apply<size(d)>([=](auto... i) {
+  return mp::apply<size(d)>([=](auto... i) {
     return index<d[i]...>();
   });
 }

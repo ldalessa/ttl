@@ -1,13 +1,14 @@
 #include <ttl/ttl.hpp>
 #include <iostream>
 
+namespace {
 template <ttl::Node Density, ttl::Node Energy, ttl::Node T>
-static constexpr auto ideal_gas(Density&& rho, Energy&& e, T&& gamma) {
+constexpr auto ideal_gas(Density&& rho, Energy&& e, T&& gamma) {
   return (gamma - 1) * rho * e;
 }
 
 template <ttl::Node Pressure, ttl::Node Velocity, ttl::Node T, ttl::Node U>
-static constexpr auto newtonian_fluid(Pressure&& p, Velocity&& v, T&& mu, U&& muVolume) {
+constexpr auto newtonian_fluid(Pressure&& p, Velocity&& v, T&& mu, U&& muVolume) {
   ttl::index i = ttl::idx<'a'>;
   ttl::index j = ttl::idx<'b'>;
   ttl::index k = ttl::idx<'c'>;
@@ -19,44 +20,50 @@ static constexpr auto newtonian_fluid(Pressure&& p, Velocity&& v, T&& mu, U&& mu
 }
 
 template <ttl::Node Energy, ttl::Node T>
-static constexpr auto calorically_perfect(Energy&& e, T&& specific_heat) {
+constexpr auto calorically_perfect(Energy&& e, T&& specific_heat) {
   return e / specific_heat;
 }
 
 template <ttl::Node Temperature, ttl::Node T>
-static constexpr auto fouriers_law(Temperature&& theta, T&& conductivity) {
+constexpr auto fouriers_law(Temperature&& theta, T&& conductivity) {
   ttl::index i = ttl::idx<'c'>;
   return - D(theta,i) * conductivity;
 }
 
-/// 1. Model parameters.
-static constexpr ttl::tensor    gamma = ttl::scalar("gamma");
-static constexpr ttl::tensor       mu = ttl::scalar("mu");
-static constexpr ttl::tensor muVolume = ttl::scalar("muVolume");
-static constexpr ttl::tensor       cv = ttl::scalar("cv");
-static constexpr ttl::tensor    kappa = ttl::scalar("kappa");
-static constexpr ttl::tensor        g = ttl::vector("g");
+/// Model parameters
+constexpr ttl::tensor    gamma = ttl::scalar("gamma");
+constexpr ttl::tensor       mu = ttl::scalar("mu");
+constexpr ttl::tensor muVolume = ttl::scalar("muVolume");
+constexpr ttl::tensor       cv = ttl::scalar("cv");
+constexpr ttl::tensor    kappa = ttl::scalar("kappa");
+constexpr ttl::tensor        g = ttl::vector("g");
 
-/// 2. Dependent variables.
-static constexpr ttl::tensor rho = ttl::scalar("rho");
-static constexpr ttl::tensor   e = ttl::scalar("e");
-static constexpr ttl::tensor   v = ttl::vector("v");
+/// Dependent variables
+constexpr ttl::tensor rho = ttl::scalar("rho");
+constexpr ttl::tensor   e = ttl::scalar("e");
+constexpr ttl::tensor   v = ttl::vector("v");
 
-/// 3. Tensor indices.
-static constexpr ttl::index i = ttl::idx<'i'>;
-static constexpr ttl::index j = ttl::idx<'j'>;
+/// Tensor indices
+constexpr ttl::index i = ttl::idx<'i'>;
+constexpr ttl::index j = ttl::idx<'j'>;
 
-/// 4. Constitutive model terms.
-static constexpr auto     d = symmetrize(D(v(i),j));
-static constexpr auto     p = ideal_gas(rho, e, gamma);
-static constexpr auto sigma = newtonian_fluid(p, v, mu, muVolume);
-static constexpr auto theta = calorically_perfect(e, cv);
-static constexpr auto     q = fouriers_law(theta, kappa);
+/// Constitutive model terms
+constexpr auto     d = symmetrize(D(v(i),j));
+constexpr auto     p = ideal_gas(rho, e, gamma);
+constexpr auto sigma = newtonian_fluid(p, v, mu, muVolume);
+constexpr auto theta = calorically_perfect(e, cv);
+constexpr auto     q = fouriers_law(theta, kappa);
 
-/// 5. Update equations.
-static constexpr auto rho_rhs = - D(rho,i) * v(i) - rho * D(v(i),i);
-static constexpr auto   v_rhs = - D(v(i),j) * v(j) + D(sigma(i,j),j) / rho + g(i);
-static constexpr auto   e_rhs = - v(i) * D(e,i) + sigma(i,j) * d(i,j) / rho - D(q(i),i) / rho;
+/// Update equations
+constexpr auto rho_rhs = - D(rho,i) * v(i) - rho * D(v(i),i);
+constexpr auto   v_rhs = - D(v(i),j) * v(j) + D(sigma(i,j),j) / rho + g(i);
+constexpr auto   e_rhs = - v(i) * D(e,i) + sigma(i,j) * d(i,j) / rho - D(q(i),i) / rho;
+
+/// Boilerplate
+constexpr auto system = ttl::make_system_of_equations(std::tie(rho, rho_rhs),
+                                                      std::tie(v, v_rhs),
+                                                      std::tie(e, e_rhs));
+}
 
 int main() {
   std::cout << ttl::dot("d") << d << "\n";

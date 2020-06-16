@@ -1,7 +1,7 @@
 #pragma once
 
 #include "expression.hpp"
-#include "utils.hpp"
+#include "mp/ctad.hpp"
 
 namespace ttl {
 template <Expression A, Expression B>
@@ -39,7 +39,7 @@ class sum final {
     auto&&  o = outer(s);
     auto&& li = outer(l);
     auto&& ri = outer(r);
-    return utils::ctad<sum>(rewrite(l, replace(o, index, li)), rewrite(r, replace(o, index, ri)));
+    return mp::ctad<sum>(rewrite(l, replace(o, index, li)), rewrite(r, replace(o, index, ri)));
   }
 
   template <Index... Is>

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "index.hpp"
-#include "utils.hpp"
+#include "mp/ctad.hpp"
 #include <string_view>
 #include <type_traits>
 
@@ -31,7 +31,7 @@ class delta_node final {
 
   template <Index A>
   friend constexpr decltype(auto) rewrite(const delta_node&, A index) {
-    return utils::ctad<delta_node>(index);
+    return mp::ctad<delta_node>(index);
   }
 
   template <Index A, Index B>
