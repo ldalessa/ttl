@@ -19,6 +19,10 @@ struct cs {
   constexpr cs() = default;
   constexpr cs(std::integer_sequence<T, Vs...>) {}
 
+  static constexpr int size() {
+    return sizeof...(Vs);
+  }
+
   static constexpr T data[] = { Vs... };
 
   constexpr auto begin() const { return data; }
@@ -46,4 +50,4 @@ template <auto N, typename Op>
 constexpr auto apply(Op&& op) {
   return apply(std::forward<Op>(op), cs_v<N>);
 }
-}
+} // namespace ttl::mp

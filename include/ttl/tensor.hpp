@@ -2,6 +2,7 @@
 
 #include "index.hpp"
 #include <string_view>
+#include <tuple>
 
 namespace ttl
 {
@@ -28,6 +29,10 @@ class tensor {
 
   friend constexpr std::string_view name(const tensor& t) {
     return t.name_;
+  }
+
+  friend constexpr std::tuple<> children(const tensor&) {
+    return {};
   }
 
   template <Index... Is>

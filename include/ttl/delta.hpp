@@ -3,6 +3,7 @@
 #include "index.hpp"
 #include "mp/ctad.hpp"
 #include <string_view>
+#include <tuple>
 #include <type_traits>
 
 namespace ttl {
@@ -27,6 +28,10 @@ class delta_node final {
 
   friend constexpr decltype(auto) outer(const delta_node& d) {
     return d.i_;
+  }
+
+  friend constexpr std::tuple<> children(const delta_node&) {
+    return {};
   }
 
   template <Index A>

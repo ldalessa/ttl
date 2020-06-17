@@ -21,8 +21,6 @@ constexpr auto system = ttl::make_system_of_equations(std::tie(u, u_rhs));
 }
 
 int main() {
-  std::cout << ttl::dot("u") << u_rhs << "\n";
-
-
+  // std::cout << ttl::dot("u") << u_rhs << "\n";
   return 0;
 }

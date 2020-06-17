@@ -3,6 +3,7 @@
 #include "index.hpp"
 #include <ratio>
 #include <string>
+#include <tuple>
 #include <type_traits>
 
 namespace ttl {
@@ -83,6 +84,11 @@ constexpr int order(A) {
 template <Rational T>
 constexpr decltype(auto) outer(T) {
   return index();
+}
+
+template <Rational T>
+constexpr std::tuple<> children(T) {
+  return {};
 }
 
 template <Rational T, Index Is>

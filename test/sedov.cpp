@@ -60,20 +60,26 @@ constexpr auto   v_rhs = - D(v(i),j) * v(j) + D(sigma(i,j),j) / rho + g(i);
 constexpr auto   e_rhs = - v(i) * D(e,i) + sigma(i,j) * d(i,j) / rho - D(q(i),i) / rho;
 
 /// Boilerplate
-constexpr auto system = ttl::make_system_of_equations(std::tie(rho, rho_rhs),
-                                                      std::tie(v, v_rhs),
-                                                      std::tie(e, e_rhs));
+ auto tsystem = ttl::make_system_of_equations(std::tie(rho, rho_rhs),
+                                                       std::tie(v, v_rhs),
+                                                       std::tie(e, e_rhs));
 }
 
-int main() {
-  std::cout << ttl::dot("d") << d << "\n";
-  std::cout << ttl::dot("p") << p << "\n";
-  std::cout << ttl::dot("sigma") << sigma << "\n";
-  std::cout << ttl::dot("theta") << theta << "\n";
-  std::cout << ttl::dot("q") << q << "\n";
+int main()
+{
+  std::cout << tsystem.size() << "\n";
+  std::cout << tsystem.capacity() << "\n";
+  for (auto n : tsystem) {
+    std::cout << n << "\n";
+  }
+  // std::cout << ttl::dot("d") << d << "\n";
+  // std::cout << ttl::dot("p") << p << "\n";
+  // std::cout << ttl::dot("sigma") << sigma << "\n";
+  // std::cout << ttl::dot("theta") << theta << "\n";
+  // std::cout << ttl::dot("q") << q << "\n";
 
-  std::cout << ttl::dot("rho") << rho_rhs << "\n";
-  std::cout << ttl::dot("v") << v_rhs << "\n";
-  std::cout << ttl::dot("e") << e_rhs << "\n";
+  // std::cout << ttl::dot("rho") << rho_rhs << "\n";
+  // std::cout << ttl::dot("v") << v_rhs << "\n";
+  // std::cout << ttl::dot("e") << e_rhs << "\n";
   return 0;
 }

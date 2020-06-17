@@ -14,7 +14,7 @@ struct cvector {
   constexpr cvector() = default;
 
   template <typename... Is>
-  constexpr cvector(Is... is) : data{is...} {}
+  constexpr cvector(Is... is) : data{is...}, n(sizeof...(is)) {}
 
   constexpr auto  begin() const { return data; }
   constexpr auto    end() const { return data + n; }
@@ -34,9 +34,14 @@ struct cvector {
     return n;
   }
 
-  constexpr void push(int i) {
+  constexpr void push(const T& i) {
     assert(n < N);
     data[n++] = i;
+  }
+
+  constexpr void push(T&& i) {
+    assert(n < N);
+    data[n++] = std::move(i);
   }
 
   template <typename U>
@@ -66,13 +71,22 @@ struct cvector {
     return os;
   }
 
-  // template <int M>
-  // friend constexpr cvector<T, N+M> operator+(cvector a, cvector<T, M> b) {
-  //   cvector<T, N+M> out;
-  //   for (auto&& i : a) out.push(i);
-  //   for (auto&& i : b) out.push(i);
-  //   return out;
-  // }
+  template <int M>
+  friend constexpr cvector<T, N+M> operator+(cvector a, cvector<T, M> b) {
+    cvector<T, N+M> out;
+    for (auto&& i : a) out.push(i);
+    for (auto&& i : b) out.push(i);
+    return out;
+  }
+
+  constexpr cvector& unique() {
+    for (int i = 0, e = std::exchange(n, 0); i < e; ++i) {
+      if (!find(data[i])) {
+        push(data[i]);
+      }
+    }
+    return *this;
+  }
 };
 
 cvector() -> cvector<void, 0>;
@@ -96,4 +110,4 @@ constexpr auto apply(Op&& op, Vector&& v, Is&&... is) {
   }
   return op(std::forward<Is>(is)...);
 }
-}
+} // namespace ttl::mp
