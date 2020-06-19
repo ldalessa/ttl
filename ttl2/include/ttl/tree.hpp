@@ -16,10 +16,10 @@
 namespace ttl
 {
 struct Delta {
-  index a;
+  index outer;
 
   friend constexpr index outer(Delta d) {
-    return d.a;
+    return d.outer;
   }
 };
 
@@ -92,7 +92,6 @@ using Node = std::variant<index, Inverse, Product, Sum, Partial, Bind, Delta,
 template <int M>
 class Tree {
   Node nodes_[M];
-
  public:
   constexpr Tree() = default;
   constexpr Tree(const Tree&) = default;

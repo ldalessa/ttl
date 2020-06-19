@@ -17,16 +17,14 @@ class dot_writer {
     return std::tuple(i_++, index());
   }
 
-  template <Expression Expr>
-  auto node(Expr&& expr) {
+  auto node(LeafNode auto&& expr) {
     out_ << "\tnode" << i_ << "[label=\"" << name(expr) << "\"]\n";
     return std::tuple(i_++, index());
   }
 
   /// Print the children expressions, each of which will return its node id and
   /// outer index, and then print this node and link to the children.
-  template <Internal Expr>
-  auto node(Expr&& expr) {
+  auto node(Internal auto&& expr) {
     std::tuple cs = std::apply([&](auto&&... cs) {
       return std::make_tuple(node(std::forward<decltype(cs)>(cs))...);
     }, children(expr));

@@ -86,6 +86,9 @@ class index {
 template <typename T>
 concept Index = std::same_as<std::remove_cvref_t<T>, index>;
 
+template <char Id>
+constexpr inline index idx = { Id };
+
 constexpr std::string_view name(const index& i) {
   return i.name();
 }

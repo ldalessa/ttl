@@ -40,4 +40,12 @@ constexpr int order(const tensor& t) {
 
 template <typename T>
 concept Tensor = std::same_as<tensor, std::remove_cvref_t<T>>;
+
+constexpr ttl::tensor scalar(std::string_view name) {
+  return { 0, name };
+}
+
+constexpr ttl::tensor vector(std::string_view name) {
+  return { 1, name };
+}
 }

@@ -2,12 +2,12 @@
 #include <iostream>
 
 namespace {
-template <ttl::Node Density, ttl::Node Energy, ttl::Node T>
+template <typename Density, typename Energy, typename T>
 constexpr auto ideal_gas(Density&& rho, Energy&& e, T&& gamma) {
   return (gamma - 1) * rho * e;
 }
 
-template <ttl::Node Pressure, ttl::Node Velocity, ttl::Node T, ttl::Node U>
+template <typename Pressure, typename Velocity, typename T, typename U>
 constexpr auto newtonian_fluid(Pressure&& p, Velocity&& v, T&& mu, U&& muVolume) {
   ttl::index i = ttl::idx<'a'>;
   ttl::index j = ttl::idx<'b'>;
@@ -19,12 +19,12 @@ constexpr auto newtonian_fluid(Pressure&& p, Velocity&& v, T&& mu, U&& muVolume)
   return iso * delta(i,j) + dev;
 }
 
-template <ttl::Node Energy, ttl::Node T>
+template <typename Energy, typename T>
 constexpr auto calorically_perfect(Energy&& e, T&& specific_heat) {
   return e / specific_heat;
 }
 
-template <ttl::Node Temperature, ttl::Node T>
+template <typename Temperature, typename T>
 constexpr auto fouriers_law(Temperature&& theta, T&& conductivity) {
   ttl::index i = ttl::idx<'c'>;
   return - D(theta,i) * conductivity;
@@ -60,26 +60,26 @@ constexpr auto   v_rhs = - D(v(i),j) * v(j) + D(sigma(i,j),j) / rho + g(i);
 constexpr auto   e_rhs = - v(i) * D(e,i) + sigma(i,j) * d(i,j) / rho - D(q(i),i) / rho;
 
 /// Boilerplate
- auto tsystem = ttl::make_system_of_equations(std::tie(rho, rho_rhs),
-                                                       std::tie(v, v_rhs),
-                                                       std::tie(e, e_rhs));
+// constexpr auto tsystem = ttl::make_system_of_equations(std::tie(rho, rho_rhs),
+//                                                        std::tie(v, v_rhs),
+//                                                        std::tie(e, e_rhs));
 }
 
 int main()
 {
-  std::cout << tsystem.size() << "\n";
-  std::cout << tsystem.capacity() << "\n";
-  for (auto n : tsystem) {
-    std::cout << n << "\n";
-  }
-  // std::cout << ttl::dot("d") << d << "\n";
-  // std::cout << ttl::dot("p") << p << "\n";
-  // std::cout << ttl::dot("sigma") << sigma << "\n";
-  // std::cout << ttl::dot("theta") << theta << "\n";
-  // std::cout << ttl::dot("q") << q << "\n";
+  // std::cout << tsystem.size() << "\n";
+  // std::cout << tsystem.capacity() << "\n";
+  // for (auto n : tsystem) {
+  //   std::cout << n << "\n";
+  // }
+  std::cout << ttl::dot("d") << d << "\n";
+  std::cout << ttl::dot("p") << p << "\n";
+  std::cout << ttl::dot("sigma") << sigma << "\n";
+  std::cout << ttl::dot("theta") << theta << "\n";
+  std::cout << ttl::dot("q") << q << "\n";
 
-  // std::cout << ttl::dot("rho") << rho_rhs << "\n";
-  // std::cout << ttl::dot("v") << v_rhs << "\n";
-  // std::cout << ttl::dot("e") << e_rhs << "\n";
+  std::cout << ttl::dot("rho") << rho_rhs << "\n";
+  std::cout << ttl::dot("v") << v_rhs << "\n";
+  std::cout << ttl::dot("e") << e_rhs << "\n";
   return 0;
 }

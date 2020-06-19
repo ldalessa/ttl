@@ -16,5 +16,8 @@ endif (TTL_SANITIZE)
 
 include(FetchContent)
 
-add_subdirectory(include)
+add_subdirectory(ttl1)
+add_subdirectory(ttl2)
+add_subdirectory(ttl3)
+
 add_subdirectory(test)
