@@ -12,3 +12,9 @@ target_link_libraries(burgers2 PRIVATE ttl::ttl2)
 
 add_executable(sedov2 sedov.cpp)
 target_link_libraries(sedov2 PRIVATE ttl::ttl2)
+
+add_executable(burgers3 burgers.cpp)
+target_link_libraries(burgers3 PRIVATE ttl::ttl3)
+
+add_executable(sedov3 sedov.cpp)
+target_link_libraries(sedov3 PRIVATE ttl::ttl3)
