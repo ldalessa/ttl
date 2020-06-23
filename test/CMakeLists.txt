@@ -24,3 +24,9 @@ target_link_libraries(burgers4 PRIVATE ttl::ttl4)
 
 add_executable(sedov4 sedov.cpp)
 target_link_libraries(sedov4 PRIVATE ttl::ttl4)
+
+add_executable(burgers5 burgers.cpp)
+target_link_libraries(burgers5 PRIVATE ttl::ttl5)
+
+add_executable(sedov5 sedov.cpp)
+target_link_libraries(sedov5 PRIVATE ttl::ttl5)
