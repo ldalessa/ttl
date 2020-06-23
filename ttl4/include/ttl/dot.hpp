@@ -31,7 +31,7 @@ class DotWriter
   template <int M>
   std::ostream& operator<<(const Tree<M>& tree) && {
     out_ << "graph " << name_ << " {\n";
-    visit(tree, [&](int i, const auto& node, auto&&... as) {
+    tree.visit([&](int i, const auto& node, auto&&... as) {
       out_ << "\t" << id(i) << "[label=\"" << node << "\"]\n";
       (edge(i, as.first), ...);
       return std::pair(i, outer(node, as.second...));

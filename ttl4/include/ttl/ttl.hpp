@@ -5,6 +5,7 @@
 #include "Tensor.hpp"
 #include "Tree.hpp"
 #include "dot.hpp"
+#include "simplify.hpp"
 
 namespace ttl {
 using index = Index;

@@ -132,24 +132,19 @@ constexpr Index outer(const Tensor&)   { return {}; }
 constexpr Index outer(const Rational&) { return {}; }
 constexpr Index outer(const double&)   { return {}; }
 
-using Node = std::variant<Bind, Product, Sum, Inverse, Partial, Delta, TensorRef, Rational, double>;
+// placing double first gives this a useful default constructor
+using Node = std::variant<double, Bind, Product, Sum, Inverse, Partial, Delta, TensorRef, Rational>;
 
 template <int M>
 class Tree
 {
-  Node nodes_[M] = {};
+  int n_ = 0;
+  Node data_[M];
 
-  template <int A, int B, std::size_t... As, std::size_t... Bs>
-  constexpr Tree(const Tree<A>& a, const Tree<B>& b, Binary auto c,
-                 std::index_sequence<As...>, std::index_sequence<Bs...>)
-      : nodes_ { a[As]..., b[Bs]..., c }
+  constexpr Tree(const Node* begin, int n) : n_(n)
   {
-  }
-
-  template <int A, std::size_t... As>
-  constexpr Tree(const Tree<A>& a, Unary auto b, std::index_sequence<As...>)
-      : nodes_ { a[As]...,  b }
-  {
+    assert(n_ <= M);
+    std::copy_n(begin, n, data_);
   }
 
  public:
@@ -159,50 +154,131 @@ class Tree
 
   /// Join two trees with a binary node.
   template <int A, int B>
-  constexpr Tree(const Tree<A>& a, const Tree<B>& b, Binary auto c)
-      : Tree(a, b, c,
-             std::make_index_sequence<A>(),
-             std::make_index_sequence<B>())
+  constexpr Tree(Binary auto node, const Tree<A>& a, const Tree<B>& b)
   {
+    for (auto&& i : a) {
+      data_[n_++] = i;
+    }
+    for (auto&& i : b) {
+      data_[n_++] = i;
+    }
+    data_[n_++] = Node(node);
   }
 
   /// Wrap a tree in a unary node.
   template <int A>
-  constexpr Tree(const Tree<A>& a, Unary auto b)
-      : Tree(a, b, std::make_index_sequence<A>())
+  constexpr Tree(Unary auto node, const Tree<A>& a)
   {
+    for (auto&& i : a) {
+      data_[n_++] = i;
+    }
+    data_[n_++] = Node(node);
   }
 
   /// Construct a tree from a leaf node.
-  constexpr Tree(Leaf auto leaf)
-      : nodes_ {  leaf }
+  constexpr Tree(Leaf auto node) : n_(1), data_ { node }
   {
   }
 
   constexpr int size() const {
+    return n_;
+  }
+
+  constexpr int capacity() const {
     return M;
   }
 
-  constexpr auto begin() const { return nodes_; }
-  constexpr auto   end() const { return nodes_ + M; }
+  constexpr auto begin() const {
+    return data_;
+  }
+
+  constexpr auto end() const {
+    return data_ + n_;
+  }
 
   /// Access to the underlying data.
   constexpr decltype(auto) operator[](int i) const {
-    assert(0 <= i && i < M);
-    return nodes_[i];
+    assert(0 <= i && i < n_);
+    return data_[i];
+  }
+
+  /// Access to the top of the tree.
+  constexpr decltype(auto) back() const {
+    assert(n_ > 0);
+    return data_[n_ - 1];
+  }
+
+  constexpr void push(const Node& node) {
+    assert(n_ < M);
+    data_[n_++] = node;
+  }
+
+  constexpr void push(Node&& node) {
+    assert(n_ < M);
+    data_[n_++] = node;
   }
 
   /// Rebind the index in a tree.
   constexpr Tree<M + 1> operator()(auto... is) const {
-    return Tree<M + 1>(*this, Bind((is + ... + Index())));
+    return Tree<M + 1>(Bind((is + ... + Index())), *this);
+  }
+
+  template <typename Op>
+  constexpr auto visit(Op&& op) const {
+    using State = decltype(op(0, 1.0));
+    // mp::vector<State> stack;
+    mp::cvector<State, M> stack;
+    for (int i = 0; const Node& n : data_) {
+      std::visit([&](const auto& node) {
+        if constexpr (Binary<decltype(node)>) {
+          auto b = stack.pop();
+          auto a = stack.pop();                   // could use back()
+          stack.push(op(i, node, a, b));
+        }
+        else if constexpr (Unary<decltype(node)>) {
+          auto a = stack.pop();                   // could use back()
+          stack.push(op(i, node, a));
+        }
+        else {
+          assert(Leaf<decltype(node)>);
+          stack.push(op(i, node));
+        }
+      }, n);
+      ++i;
+    }
+    assert(stack.size() == 1);
+    return stack.pop();
+  }
+
+  constexpr int left() const {
+    return visit(mp::overloaded {
+        [](int i, Binary auto&&, int a, int b) {
+          assert(b == i - 1);
+          return a;
+        },
+        [](int i, Unary auto&&, int a) {
+          assert(a == i - 1);
+          return a;
+        },
+        [](int i, Leaf auto&&) {
+          return i;
+        }});
+  }
+
+  constexpr std::tuple<Node, Tree<M-1>, Tree<M-1>> split() const {
+    // Find the left child of the root of the tree and split the tree, removing the
+    // top node.
+    int n = left();
+    int m = size() - n;
+    return std::tuple(data_[M - 1], Tree(data_, n), Tree(data_ + n, m));
   }
 };
 
 template <int A, int B>
-Tree(const Tree<A>&, const Tree<B>&, Binary auto) -> Tree<A + B + 1>;
+Tree(Binary auto, Tree<A>, Tree<B>) -> Tree<A + B + 1>;
 
 template <int A>
-Tree(const Tree<A>&, Unary auto) -> Tree<A + 1>;
+Tree(Unary auto, Tree<A>) -> Tree<A + 1>;
 
 Tree(Leaf auto) -> Tree<1>;
 
@@ -225,37 +301,16 @@ Tree(Leaf auto) -> Tree<1>;
 /// @param           op The node handler.
 ///
 /// @returns            The value returned by the root node in the tree.
-template <int M, typename Op>
-constexpr auto visit(const Tree<M>& tree, Op&& op) {
-  using State = decltype(op(0, 1.0));
-  mp::cvector<State, M> stack;
-  for (int i = 0; const Node& n : tree) {
-    std::visit([&](const auto& node) {
-      if constexpr (Binary<decltype(node)>) {
-        auto b = stack.pop();
-        auto a = stack.pop();                   // could use back()
-        stack.push(op(i, node, a, b));
-      }
-      else if constexpr (Unary<decltype(node)>) {
-        auto a = stack.pop();                   // could use back()
-        stack.push(op(i, node, a));
-      }
-      else {
-        assert(Leaf<decltype(node)>);
-        stack.push(op(i, node));
-      }
-    }, n);
-    ++i;
-  }
-  assert(stack.size() == 1);
-  return stack.pop();
+template <typename Op, int M>
+constexpr auto visit(Op&& op, const Tree<M>& tree) {
+  return tree.visit(std::forward<Op>(op));
 }
 
 /// We need to execute the tree in order to know what its outer index is
 /// supposed to be.
 template <int M>
 constexpr Index outer(const Tree<M>& tree) {
-  return visit(tree, [&](int, const auto& node, auto&&... args) {
+  return tree.visit([&](int, const auto& node, auto&&... args) {
     return outer(node, std::forward<decltype(args)>(args)...);
   });
 }
@@ -271,7 +326,7 @@ concept Expression =
  std::signed_integral<T>;
 
 constexpr Tree<2> Tensor::operator()(auto... is) const {
-  return Tree(Tree(std::cref(*this)), Bind((is + ... + Index())));
+  return Tree(Bind((is + ... + Index())), Tree(std::cref(*this)));
 }
 
 constexpr auto bind(const Tensor& t) {
@@ -305,17 +360,17 @@ constexpr auto operator+(A&& a) {
 
 template <Expression A, Expression B>
 constexpr auto operator+(A&& a, B&& b) {
-  return Tree(bind(std::forward<A>(a)), bind(std::forward<B>(b)), Sum());
+  return Tree(Sum(), bind(std::forward<A>(a)), bind(std::forward<B>(b)));
 }
 
 template <Expression A, Expression B>
 constexpr auto operator*(A&& a, B&& b) {
-  return Tree(bind(std::forward<A>(a)), bind(std::forward<B>(b)), Product());
+  return Tree(Product(), bind(std::forward<A>(a)), bind(std::forward<B>(b)));
 }
 
 template <Expression A, Expression B>
 constexpr auto operator/(A&& a, B&& b) {
-  return Tree(bind(std::forward<A>(a)), bind(std::forward<B>(b)), Inverse());
+  return Tree(Inverse(), bind(std::forward<A>(a)), bind(std::forward<B>(b)));
 }
 
 template <Expression A>
@@ -330,7 +385,21 @@ constexpr auto operator-(A&& a, B&& b) {
 
 template <Expression A>
 constexpr auto D(A&& a, auto... is) {
-  return Tree(bind(std::forward<A>(a)), Partial((is + ... + Index())));
+  // if constexpr (is_tree_v<std::remove_cvref_t<A>(a)) {
+  //   auto&& [b, left, right] = split(std::forward<A>(a));
+  //   return std::visit([]<typename T>(const T& node) {
+  //       if constexpr (std::same_as<Sum, std::remove_cvref_t<T>) {
+  //         // M + M + 1
+  //         return D(std::forward<decltype(left)>(left), is...) + D(std::forward<decltype(right)>(right), is...);
+  //       }
+  //       else {
+  //         return
+  //       }
+  //   }, b);
+  // }
+  // else {
+    return Tree(Partial((is + ... + Index())), bind(std::forward<A>(a)));
+  // }
 }
 
 constexpr auto delta(Index a, Index b) {
