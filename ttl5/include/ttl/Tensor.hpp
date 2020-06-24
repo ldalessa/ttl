@@ -1,11 +1,12 @@
 #pragma once
 
+#include "Index.hpp"
 #include "Nodes.hpp"
 #include <ostream>
 #include <string_view>
 
 namespace ttl {
-template <char... Ts> class Tree;
+template <NodeType...> class Tree;
 
 class Tensor {
   int order_;
@@ -31,7 +32,7 @@ class Tensor {
     return os << a.name_ << "(" << a.order_ << ")";
   }
 
-  constexpr Tree<BIND, TENSOR> operator()(auto... is) const;
+  constexpr Tree<TENSOR, BIND> operator()(IsIndex auto... is) const;
 };
 
 constexpr int order(const Tensor& t) {

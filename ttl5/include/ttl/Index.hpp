@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cassert>
+#include <concepts>
 #include <iterator>
 #include <optional>
 #include <ostream>
@@ -92,6 +93,9 @@ class alignas(int) Index {
     return std::string(name());
   }
 };
+
+template <typename T>
+concept IsIndex = std::same_as<std::remove_cvref_t<T>, Index>;
 
 constexpr std::string_view name(const Index& i) {
   return i.name();

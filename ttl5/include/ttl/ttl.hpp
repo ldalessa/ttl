@@ -4,6 +4,7 @@
 #include "Rational.hpp"
 #include "Tensor.hpp"
 #include "Tree.hpp"
+#include "dot.hpp"
 
 namespace ttl {
 using index = Index;

@@ -23,7 +23,7 @@ constexpr auto u_rhs = nu * D(u(i),i,j) - (u(i) + c(i)) * D(u(i),j);
 }
 
 int main() {
-  // std::cout << ttl::dot("u") << u_rhs << "\n";
+  std::cout << ttl::dot("u") << u_rhs << "\n";
   // std::cout << uu << "\n";
   return 0;
 }
