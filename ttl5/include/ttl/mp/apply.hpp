@@ -1,6 +1,5 @@
 #pragma once
 
-#include <concepts>
 #include <utility>
 
 namespace ttl::mp {
@@ -9,7 +8,7 @@ namespace ttl::mp {
 /// This supports a model where integer sequences look like tuples of
 /// `integral_constant`s. Because the values are encoded as integral constants
 /// they can be used in `constexpr` context inside of the `op`.
-template <typename Op, std::signed_integral T, T... Vs>
+template <typename Op, typename T, T... Vs>
 constexpr auto apply(Op&& op, std::integer_sequence<T, Vs...>) {
   return std::forward<Op>(op)(std::integral_constant<T, Vs>()...);
 }

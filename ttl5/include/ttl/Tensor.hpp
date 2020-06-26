@@ -2,12 +2,11 @@
 
 #include "Index.hpp"
 #include "Nodes.hpp"
+#include "Tree.hpp"
 #include <ostream>
 #include <string_view>
 
 namespace ttl {
-template <NodeType...> class Tree;
-
 class Tensor {
   int order_;
   std::string_view name_;
@@ -32,7 +31,9 @@ class Tensor {
     return os << a.name_ << "(" << a.order_ << ")";
   }
 
-  constexpr Tree<TENSOR, BIND> operator()(IsIndex auto... is) const;
+  constexpr auto operator()(IsIndex auto... is) const {
+    return make_tree(Bind((is + ... + Index())), make_tree(std::cref(*this)));
+  }
 };
 
 constexpr int order(const Tensor& t) {

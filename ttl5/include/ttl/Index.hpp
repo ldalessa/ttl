@@ -48,20 +48,14 @@ class alignas(int) Index {
     return data_[i];
   }
 
-  constexpr const char* begin() const {
-    return data_;
-  }
-  constexpr auto rbegin() const {
-    return std::reverse_iterator(data_ + n_);
-  }
+  constexpr const char* begin() const { return data_; }
+  constexpr const char*   end() const { return data_ + n_; }
 
-  constexpr const char* end() const {
-    return data_ + n_;
-  }
+  constexpr       char* begin() { return data_; }
+  constexpr const char*   end() { return data_ + n_; }
 
-  constexpr auto rend() const {
-    return std::reverse_iterator(data_);
-  }
+  constexpr auto rbegin() const { return std::reverse_iterator(data_ + n_); }
+  constexpr auto   rend() const { return std::reverse_iterator(data_); }
 
   constexpr std::string_view name() const {
     return std::string_view(data_, n_);
@@ -87,6 +81,15 @@ class alignas(int) Index {
       m += (data_[i] == c);
     }
     return m;
+  }
+
+  constexpr Index& replace(const Index& is, const Index& with) {
+    for (char& c : *this) {
+      if (auto n = is.find(c)) {
+        c = with[*n];
+      }
+    }
+    return *this;
   }
 
   std::string str() const {
@@ -149,9 +152,17 @@ constexpr Index repeated(Index a) {
   return out;
 }
 
+/// In-place set concatenation
+constexpr Index& operator+=(Index& a, Index b) {
+  for (char c : b) {
+    a.push(c);
+  }
+  return a;
+}
+
 /// Set concatenation
 constexpr Index operator+(Index a, Index b) {
-  return Index(a, b);
+  return a += b;
 }
 
 /// Set intersection
@@ -187,5 +198,9 @@ constexpr int order(Index i) {
 
 constexpr bool permutation(Index a, Index b) {
   return size(a - b) == 0 && size(b - a) == 0;
+}
+
+constexpr Index replace(const Index& is, const Index& with, Index in) {
+  return in.replace(is, with);
 }
 }
