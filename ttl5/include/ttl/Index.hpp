@@ -23,9 +23,13 @@ class alignas(int) Index {
   }
 
   constexpr friend bool operator==(const Index& a, const Index& b) {
-    if (a.n_ != b.n_) return false;
+    if (a.n_ != b.n_) {
+      return false;
+    }
     for (int i = 0; i < a.n_; ++i) {
-      if (a.data_[i] != b.data_[i]) return false;
+      if (a.data_[i] != b.data_[i]) {
+        return false;
+      }
     }
     return true;
   }
@@ -184,7 +188,7 @@ constexpr Index operator-(Index a, Index b) {
       out.push(c);
     }
   }
-  return unique(out);
+  return unique(out); // NB: is this really necessary?
 }
 
 /// Set symmetric difference

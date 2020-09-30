@@ -19,28 +19,20 @@ class Tensor {
   constexpr Tensor(int order, std::string_view name) : order_(order), name_(name) {
   }
 
-  constexpr int order() const {
-    return order_;
+  friend constexpr int order(const Tensor& t) {
+    return t.order_;
   }
 
-  constexpr std::string_view name() const {
-    return name_;
+  friend constexpr std::string_view name(const Tensor& t) {
+    return t.name_;
   }
 
   friend std::ostream& operator<<(std::ostream& os, const Tensor& a) {
-    return os << a.name_ << "(" << a.order_ << ")";
+    return os << a.name_ << "(" + std::string(name(a)) + ")";
   }
 
   constexpr auto operator()(IsIndex auto... is) const {
     return make_tree(Bind((is + ... + Index())), make_tree(std::cref(*this)));
   }
 };
-
-constexpr int order(const Tensor& t) {
-  return t.order();
-}
-
-constexpr std::string_view name(const Tensor& t) {
-  return t.name();
-}
 }

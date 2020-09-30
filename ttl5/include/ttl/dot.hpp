@@ -24,7 +24,7 @@ class DotWriter
   }
 
  public:
-  explicit DotWriter(std::ostream& out, std::string_view name)
+  DotWriter(std::ostream& out, std::string_view name)
       : out_(out)
       , name_(name)
   {

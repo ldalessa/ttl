@@ -5,9 +5,11 @@
 #include "Rational.hpp"
 #include "mp/apply.hpp"
 #include "mp/cvector.hpp"
+#include <cassert>
 #include <concepts>
 #include <functional>
 #include <tuple>
+#include <type_traits>
 #include <variant>
 
 namespace ttl
@@ -20,6 +22,8 @@ enum NodeType : char {
   BIND,
   PARTIAL,
   DELTA,
+  ZERO,
+  ONE,
   TENSOR,
   RATIONAL,
   DOUBLE,
@@ -38,46 +42,49 @@ constexpr int is_leaf_type(NodeType type) {
   return DELTA <= type && type < INVALID;
 }
 
-template <typename> constexpr inline NodeType type_of = INVALID;
+template <typename> constexpr inline NodeType type_of             = INVALID;
+template <>         constexpr inline NodeType type_of<Sum>        = SUM;
+template <>         constexpr inline NodeType type_of<Difference> = DIFFERENCE;
+template <>         constexpr inline NodeType type_of<Product>    = PRODUCT;
+template <>         constexpr inline NodeType type_of<Inverse>    = INVERSE;
+template <>         constexpr inline NodeType type_of<Bind>       = BIND;
+template <>         constexpr inline NodeType type_of<Partial>    = PARTIAL;
+template <>         constexpr inline NodeType type_of<Delta>      = DELTA;
+template <>         constexpr inline NodeType type_of<Zero>       = ZERO;
+template <>         constexpr inline NodeType type_of<One>        = ONE;
+template <>         constexpr inline NodeType type_of<TensorRef>  = TENSOR;
+template <>         constexpr inline NodeType type_of<Rational>   = RATIONAL;
+template <>         constexpr inline NodeType type_of<double>     = DOUBLE;
 
-template <> constexpr inline NodeType type_of<Sum>        = SUM;
-template <> constexpr inline NodeType type_of<Difference> = DIFFERENCE;
-template <> constexpr inline NodeType type_of<Product>    = PRODUCT;
-template <> constexpr inline NodeType type_of<Inverse>    = INVERSE;
-template <> constexpr inline NodeType type_of<Bind>       = BIND;
-template <> constexpr inline NodeType type_of<Partial>    = PARTIAL;
-template <> constexpr inline NodeType type_of<Delta>      = DELTA;
-template <> constexpr inline NodeType type_of<TensorRef>  = TENSOR;
-template <> constexpr inline NodeType type_of<Rational>   = RATIONAL;
-template <> constexpr inline NodeType type_of<double>     = DOUBLE;
-
-struct Node
+union Node
 {
-  union {
-    std::monostate _;
-    Sum sum;
-    Difference difference;
-    Product product;
-    Inverse inverse;
-    Bind bind;
-    Partial partial;
-    Delta delta;
-    TensorRef tensor;
-    Rational q;
-    double d;
-  };
+  std::monostate _;
+  Sum        sum;
+  Difference difference;
+  Product    product;
+  Inverse    inverse;
+  Bind       bind;
+  Partial    partial;
+  Delta      delta;
+  Zero       zero;
+  One        one;
+  TensorRef  tensor;
+  Rational   q;
+  double     d;
 
   constexpr Node() : _() {}
-  constexpr Node(const Sum& sum) : sum(sum) {}
-  constexpr Node(const Difference& difference) : difference(difference) {}
-  constexpr Node(const Product& product) : product(product) {}
-  constexpr Node(const Inverse& inverse) : inverse(inverse) {}
-  constexpr Node(const Bind& bind) : bind(bind) {}
-  constexpr Node(const Partial& partial) : partial(partial) {}
-  constexpr Node(const Delta& delta) : delta(delta) {}
+  constexpr Node(Sum sum) : sum(sum) {}
+  constexpr Node(Difference difference) : difference(difference) {}
+  constexpr Node(Product product) : product(product) {}
+  constexpr Node(Inverse inverse) : inverse(inverse) {}
+  constexpr Node(Bind bind) : bind(bind) {}
+  constexpr Node(Partial partial) : partial(partial) {}
+  constexpr Node(Delta delta) : delta(delta) {}
+  constexpr Node(Zero zero) : zero(zero) {}
+  constexpr Node(One one) : one(one) {}
   constexpr Node(TensorRef tensor) : tensor(tensor) {}
-  constexpr Node(const Rational& q) : q(q) {}
-  constexpr Node(const double& d) : d(d) {}
+  constexpr Node(Rational q) : q(q) {}
+  constexpr Node(double d) : d(d) {}
 
   /// Standard visit functionality just calls op with the cast union.
   template <typename Op>
@@ -90,6 +97,8 @@ struct Node
      case BIND:       return op(bind);
      case PARTIAL:    return op(partial);
      case DELTA:      return op(delta);
+     case ZERO:       return op(zero);
+     case ONE:        return op(sum);
      case TENSOR:     return op(tensor);
      case RATIONAL:   return op(q);
      case DOUBLE:     return op(d);
@@ -110,6 +119,8 @@ struct Node
      case BIND:       return op(bind);
      case PARTIAL:    return op(partial);
      case DELTA:      return op(delta);
+     case ZERO:       return op(zero);
+     case ONE:        return op(sum);
      case TENSOR:     return op(tensor);
      case RATIONAL:   return op(q);
      case DOUBLE:     return op(d);
@@ -121,8 +132,8 @@ struct Node
   }
 
   /// Fancy visit op allows different return types based on Type.
-  template <typename Op, NodeType Type>
-  constexpr auto visit(Op&& op, std::integral_constant<NodeType, Type>) const {
+  template <NodeType Type, typename Op>
+  constexpr auto visit(Op&& op, std::integral_constant<NodeType, Type> = {}) const {
     if constexpr (Type == SUM) {
       return op(sum);
     }
@@ -143,6 +154,12 @@ struct Node
     }
     if constexpr (Type == DELTA) {
       return op(delta);
+    }
+    if constexpr (Type == ZERO) {
+      return op(zero);
+    }
+    if constexpr (Type == ONE) {
+      return op(one);
     }
     if constexpr (Type == TENSOR) {
       return op(tensor);
@@ -156,8 +173,8 @@ struct Node
     __builtin_unreachable();
   }
 
-  template <typename Op, NodeType Type>
-  constexpr auto visit(Op&& op, std::integral_constant<NodeType, Type>) {
+  template <NodeType Type, typename Op>
+  constexpr auto visit(Op&& op, std::integral_constant<NodeType, Type> = {}) {
     if constexpr (Type == SUM) {
       return op(sum);
     }
@@ -178,6 +195,12 @@ struct Node
     }
     if constexpr (Type == DELTA) {
       return op(delta);
+    }
+    if constexpr (Type == ZERO) {
+      return op(zero);
+    }
+    if constexpr (Type == ONE) {
+      return op(one);
     }
     if constexpr (Type == TENSOR) {
       return op(tensor);
@@ -211,7 +234,7 @@ class Tree
       return count(i - 1) + 1;
     }
 
-    // the count the number of nodes in the right subtree tells us where the
+    // the count of the number of nodes in the right subtree tells us where the
     // left subtree starts
     int right = count(i - 1);
     assert(0 <= i - right - 1);
@@ -303,6 +326,7 @@ class Tree
     }
   }
 
+  /// Create a tree from two subtrees and a binary node.
   template <Binary T, NodeType... As, NodeType... Bs>
   constexpr Tree(const T& data, const Tree<As...>& a, const Tree<Bs...>& b) {
     int i = 0;
@@ -312,6 +336,8 @@ class Tree
     for (const Node& data : b.data_) {
       data_[i++] = data;
     }
+    data_[i++] = data;
+    assert(i == M);
   }
 
   template <Unary T, NodeType... As>
@@ -331,7 +357,7 @@ class Tree
 
   template <IsIndex... Is>
   constexpr auto operator()(Is... is) && {
-    return std::move(*this).rebind((is + ...));
+    return std::move(*this).rebind((is + ... + Index()));
   }
 
   template <IsIndex... Is>
@@ -341,21 +367,20 @@ class Tree
 
   template <typename Op>
   constexpr auto visit_root(Op&& op) const {
-    return data_[M-1].visit(std::forward<Op>(op), std::integral_constant<NodeType, types_[M-1]>());
+    return data_[M-1].visit<types_[M-1]>(std::forward<Op>(op));
   }
 
-  constexpr Tree& extend_partial(Index i) & {
-    assert(type() == PARTIAL);
-    data_[M-1].partial.extend(i);
-    return *this;
+  constexpr Tree extend_partial(Index i) const {
+    assert(M == 2 || M == 3);
+    assert(types_[0] == TENSOR);
+    assert(types_[1] == PARTIAL || types_[1] == BIND);
+    assert(types_[M-1] == PARTIAL);
+    Tree copy(*this);
+    copy.data_[M-1].partial.extend(i);
+    return copy;
   }
 
-  constexpr Tree&& extend_partial(Index i) && {
-    assert(type() == PARTIAL);
-    data_[M-1].partial.extend(i);
-    return std::move(*this);
-  }
-
+  /// Visit nodes in the tree in a bottom-up order.
   template <typename Op>
   constexpr auto visit(Op&& op) const {
     using State = decltype(op(0, 1.0));
@@ -383,7 +408,8 @@ class Tree
   }
 
   constexpr auto split() const {
-    assert(2 <= M);
+    static_assert(is_binary_type(types_[M-1]));
+
     constexpr int R = count(M - 2);      // number of nodes in the right subtree
     constexpr int L = M - R - 1;         // number of nodes in the left subtree
 
@@ -399,6 +425,31 @@ class Tree
 
     // return the tuple
     return std::tuple(std::move(left), std::move(right));
+  }
+
+  constexpr Index get_outer() const {
+    return visit([&](int, const auto& node, auto&&... args) {
+      return outer(node, std::forward<decltype(args)>(args)...);
+    });
+  }
+
+  constexpr friend Index outer(const Tree& tree) {
+    return tree.get_outer();
+  }
+
+  std::string get_name() const {
+    return visit([&](int, const auto& node, auto&&... args) -> std::string {
+      int i = 0;
+      std::string out = "(";
+      out.append(name(node));
+      ((out.append((i++ < sizeof...(args)) ? ", " : ""), out.append(args)), ...);
+      out.append(")");
+      return out;
+    });
+  }
+
+  friend std::string name(const Tree& tree) {
+    return tree.get_name();
   }
 };
 
@@ -419,6 +470,9 @@ constexpr Tree<type_of<T>> make_tree(const T& data) {
 
 template <NodeType... Ts> constexpr inline NodeType type_of<Tree<Ts...>> = Tree<Ts...>::type();
 
+// template <...> std::true_type is_tree(Tree<...>) {};
+// std::false_type is_tree(...) {};
+
 template <typename>       constexpr inline bool is_tree_v = false;
 template <NodeType... Ts> constexpr inline bool is_tree_v<Tree<Ts...>> = true;
 
@@ -428,22 +482,13 @@ template <NodeType... Ts> constexpr inline bool is_tree_constant_v<Tree<Ts...>> 
 template <typename>       constexpr inline bool is_constant_v = false;
 template <NodeType... Ts> constexpr inline bool is_constant_v<Tree<Ts...>> = Tree<Ts...>::is_constant();
 
-/// We need to visit a tree in order to know what its outer index is supposed to
-/// be.
-template <typename Tree> requires is_tree_v<Tree>
-constexpr Index outer(const Tree& tree) {
-  return tree.visit([&](int, const auto& node, auto&&... args) {
-    return outer(node, std::forward<decltype(args)>(args)...);
-  });
-}
-
 template <typename T>
 concept Expression =
- std::same_as<std::remove_cvref_t<T>, Tensor> ||
- std::same_as<std::remove_cvref_t<T>, Rational> ||
- std::same_as<std::remove_cvref_t<T>, double> ||
- std::signed_integral<std::remove_cvref_t<T>> ||
- is_tree_v<std::remove_cvref_t<T>>;
+ std::same_as<T, Tensor> ||
+ std::same_as<T, Rational> ||
+ std::same_as<T, double> ||
+ std::signed_integral<T> ||
+ is_tree_v<T>;
 
 constexpr auto bind(const Tensor& t) {
   return make_tree(std::cref(t));
@@ -468,72 +513,122 @@ constexpr decltype(auto) bind(A&& a) {
 }
 
 template <Expression A>
-constexpr auto operator+(A&& a) {
-  return std::forward<A>(a);
+constexpr auto operator+(const A& a) {
+  return a;
 }
 
 template <Expression A, Expression B>
-constexpr auto operator+(A&& a, B&& b) {
-  return make_tree(Sum(), bind(std::forward<A>(a)), bind(std::forward<B>(b)));
+constexpr auto operator+(const A& a, const B& b) {
+  if constexpr (type_of<B> == ZERO) {
+    return a;
+  }
+  else if constexpr (type_of<A> == ZERO) {
+    return b;
+  }
+  else {
+    assert(permutation(outer(a), outer(b)));
+    return make_tree(Sum(), bind(a), bind(b));
+  }
 }
 
 template <Expression A, Expression B>
-constexpr auto operator*(A&& a, B&& b) {
-  return make_tree(Product(), bind(std::forward<A>(a)), bind(std::forward<B>(b)));
+constexpr auto operator*(const A& a, const B& b) {
+  if constexpr (type_of<B> == ONE) {
+    return a;
+  }
+  else if constexpr (type_of<A> == ONE) {
+    return b;
+  }
+  else if constexpr (type_of<B> == ZERO) {
+    return b;
+  }
+  else if constexpr (type_of<A> == ZERO) {
+    return a;
+  }
+  else {
+    return make_tree(Product(), bind(a), bind(b));
+  }
 }
 
 template <Expression A, Expression B>
-constexpr auto operator/(A&& a, B&& b) {
-  return make_tree(Inverse(), bind(std::forward<A>(a)), bind(std::forward<B>(b)));
+constexpr auto operator/(const A& a, const B& b) {
+  static_assert(type_of<B> != ZERO);
+
+  if constexpr (type_of<B> == ONE) {
+    return a;
+  }
+  else if constexpr (type_of<A> == ZERO) {
+    return a;
+  }
+  else if constexpr (type_of<B> == DOUBLE) {
+    return a * (1/b);
+  }
+  else if constexpr (type_of<B> == RATIONAL) {
+    return a * b.inverse();
+  }
+  // else detect if a == b ... is this even possible?
+  else {
+    return make_tree(Inverse(), bind(a), bind(b));
+  }
 }
 
 template <Expression A>
-constexpr auto operator-(A&& a) {
-  return Rational(-1) * bind(std::forward<A>(a));
+constexpr auto operator-(const A& a) {
+  return Rational(-1) * a;
 }
 
 template <Expression A, Expression B>
-constexpr auto operator-(A&& a, B&& b) {
-  return make_tree(Difference(), bind(std::forward<A>(a)), bind(std::forward<B>(b)));
+constexpr auto operator-(const A& a, const B& b) {
+  if constexpr (type_of<B> == ZERO) {
+    return a;
+  }
+  else if constexpr (type_of<A> == ZERO) {
+    return -b;
+  }
+  else {
+    assert(permutation(outer(a), outer(b)));
+    return make_tree(Difference(), bind(a), bind(b));
+  }
 }
 
-template <Expression A>
-constexpr auto D(A&& a, IsIndex auto... is) {
+template <Expression A, IsIndex... Is>
+constexpr auto D(const A& a, Is... is) {
   assert(sizeof...(is) != 0);
 
-  // if constexpr (is_constant_v<std::remove_cvref_t<A>>) {
-  //   return make_tree(Rational(0));
-  // }
-  // else
-    if constexpr (type_of<std::remove_cvref_t<A>> == SUM) {
-    auto&& [l, r] = a.split();
-    return D(std::forward<decltype(l)>(l), is...) + D(std::forward<decltype(r)>(r), is...);
+  if constexpr (is_constant_v<A>) {
+    return make_tree(Zero());
   }
-  else if constexpr (type_of<std::remove_cvref_t<A>> == DIFFERENCE) {
-    auto&& [l, r] = a.split();
-    return D(std::forward<decltype(l)>(l), is...) - D(std::forward<decltype(r)>(r), is...);
+  else if constexpr (type_of<A> == SUM) {
+    auto [l, r] = a.split();
+    return D(l, is...) + D(r, is...);
   }
-  else if constexpr (type_of<std::remove_cvref_t<A>> == PRODUCT) {
-    auto&& [l, r] = a.split();
-    if constexpr (is_constant_v<std::remove_cvref_t<decltype(r)>>) {
-      return D(std::forward<decltype(l)>(l), is...) * std::forward<decltype(r)>(r);
+  else if constexpr (type_of<A> == DIFFERENCE) {
+    auto [l, r] = a.split();
+    return D(l, is...) - D(r, is...);
+  }
+  else if constexpr (type_of<A> == PRODUCT) {
+    auto [l, r] = a.split();
+    if constexpr (is_constant_v<decltype(r)>) {
+      return D(l, is...) * r;
     }
-    else if constexpr (is_constant_v<std::remove_cvref_t<decltype(l)>>) {
-      return std::forward<decltype(l)>(l) * D(std::forward<decltype(r)>(r), is...);
+    else if constexpr (is_constant_v<decltype(l)>) {
+      return l * D(r, is...);
     }
     else {
-      return D(l, is...) * r + l * D(r, is...);
+      Tree  left = D(l, is...) * r;
+      Tree right = l * D(r, is...);
+      return left + right;
     }
   }
-  // else if constexpr (type_of<std::remove_cvref_t<A>> == PARTIAL) {
-  //   return std::forward<A>(a).extend_partial((is + ...));
-  // }
-  else if constexpr (type_of<std::remove_cvref_t<A>> == INVERSE) {
-    auto&& [l, r] = a.split();
-    if constexpr (is_constant_v<std::remove_cvref_t<decltype(r)>>) {
-      return D(std::forward<decltype(l)>(l), is...) / std::forward<decltype(r)>(r);
+  else if constexpr (type_of<A> == PARTIAL) {
+    return a.extend_partial((is + ...));
+  }
+  else if constexpr (type_of<A> == INVERSE) {
+    auto [l, r] = a.split();
+    if constexpr (is_constant_v<decltype(r)>) {
+      return D(l, is...) / r;
     }
-    else if constexpr (is_constant_v<std::remove_cvref_t<decltype(l)>>) {
+    else if constexpr (is_constant_v<decltype(l)>) {
       return - l * D(r, is...) / (r * r);
     }
     else {
@@ -541,9 +636,8 @@ constexpr auto D(A&& a, IsIndex auto... is) {
     }
   }
   else {
-    // assert(type_of<std::remove_cvref_t<A>> == BIND ||
-    //        type_of<std::remove_cvref_t<A>> == TENSOR);
-    return make_tree(Partial((is + ...)), bind(std::forward<A>(a)));
+    assert(type_of<A> == BIND || type_of<A> == TENSOR || (std::is_same_v<A, Tensor> == true));
+    return make_tree(Partial((is + ...)), bind(a));
   }
 }
 

@@ -56,8 +56,12 @@ struct Rational {
     return a * b.inverse();
   }
 
+  friend std::string name(Rational a) {
+    return std::to_string(a.p) + "/" + std::to_string(a.q);
+  }
+
   friend std::ostream& operator<<(std::ostream& os, Rational a) {
-    return os << a.p << "/" << a.q;
+    return os << name(a);
   }
 };
 }

@@ -15,8 +15,12 @@ struct Sum {
     return a;
   }
 
-  friend std::ostream& operator<<(std::ostream& os, const Sum&) {
-    return os << "+";
+  constexpr friend std::string_view name(const Sum&) {
+    return "+";
+  }
+
+  friend std::ostream& operator<<(std::ostream& os, const Sum& sum) {
+    return os << name(sum);
   }
 };
 
@@ -26,8 +30,12 @@ struct Difference {
     return a;
   }
 
-  friend std::ostream& operator<<(std::ostream& os, const Difference&) {
-    return os << "-";
+  constexpr friend std::string_view name(const Difference&) {
+    return "-";
+  }
+
+  friend std::ostream& operator<<(std::ostream& os, const Difference& diff) {
+    return os << name(diff);
   }
 };
 
@@ -36,8 +44,12 @@ struct Product {
     return a ^ b;
   }
 
-  friend std::ostream& operator<<(std::ostream& os, const Product&) {
-    return os << "*";
+  constexpr friend std::string_view name(const Product&) {
+    return "*";
+  }
+
+  friend std::ostream& operator<<(std::ostream& os, const Product& product) {
+    return os << name(product);
   }
 };
 
@@ -46,8 +58,12 @@ struct Inverse {
     return a ^ b;
   }
 
-  friend std::ostream& operator<<(std::ostream& os, const Inverse&) {
-    return os << "/";
+  constexpr friend std::string_view name(const Inverse&) {
+    return "/";
+  }
+
+  friend std::ostream& operator<<(std::ostream& os, const Inverse& inv) {
+    return os << name(inv);
   }
 };
 
@@ -67,12 +83,17 @@ struct Bind
     index.replace(is, with);
   }
 
+  friend std::string name(const Bind& bind) {
+    return "bind(" + std::string(name(bind.index)) + ")";
+  }
+
   friend std::ostream& operator<<(std::ostream& os, const Bind& bind) {
-    return os << "bind(" << bind.index << ")";
+    return os << name(bind);
   }
 };
 
-struct Partial {
+struct Partial
+{
   Index index;
 
   constexpr Partial(Index index) : index(index) {}
@@ -91,16 +112,21 @@ struct Partial {
     index += i;
   }
 
+  friend std::string name(const Partial& dx) {
+    return "dx(" + std::string(name(dx.index)) + ")";
+  }
+
   friend std::ostream& operator<<(std::ostream& os, const Partial& dx) {
-    return os << "dx(" << dx.index << ")";
+    return os << name(dx);
   }
 };
 
-struct Delta {
+struct Delta
+{
   Index index;
 
   constexpr Delta(Index index) : index(index) {
-    assert(index.size() == 2);
+    assert(size(index) == 2);
   }
 
   constexpr friend const Index& outer(const Delta& delta) {
@@ -108,16 +134,41 @@ struct Delta {
   }
 
   constexpr std::tuple<Index> rebind(Index i) {
-    assert(i.size() == 2);
+    assert(size(i) == 2);
     index = i;
     return std::tuple(index);
   }
 
+  friend std::string name(const Delta& delta) {
+    return "delta(" + std::string(name(delta.index)) + ")";
+  }
+
   friend std::ostream& operator<<(std::ostream& os, const Delta& delta) {
-    return os << "delta(" << delta.index << ")";
+    return os << name(delta);
   }
 };
 
+struct Zero {
+  constexpr friend std::string_view name(const Zero&) {
+    return "0";
+  }
+
+  friend std::ostream& operator<<(std::ostream& os, const Zero& zero) {
+    return os << name(zero);
+  }
+};
+
+struct One {
+  constexpr friend std::string_view name(const One&) {
+    return "1";
+  }
+
+  friend std::ostream& operator<<(std::ostream& os, const One& one) {
+    return os << name(1);
+  }
+};
+
+/// Node concepts.
 template <typename T>
 concept Binary =
  std::same_as<std::remove_cvref_t<T>, Sum> ||
@@ -133,6 +184,8 @@ concept Unary =
 template <typename T>
 concept Leaf =
  std::same_as<std::remove_cvref_t<T>, Delta> ||
+ std::same_as<std::remove_cvref_t<T>, Zero> ||
+ std::same_as<std::remove_cvref_t<T>, One> ||
  std::same_as<std::remove_cvref_t<T>, TensorRef> ||
  std::same_as<std::remove_cvref_t<T>, Rational> ||
  std::same_as<std::remove_cvref_t<T>, double>;
@@ -216,10 +269,14 @@ constexpr std::tuple<Index> rebind(Delta& n, Index i) {
 
 /// These leaf nodes don't have outer indices, and thus have trivial rebind as
 /// well.
+constexpr Index outer(const Zero&)     { return {}; }
+constexpr Index outer(const One&)      { return {}; }
 constexpr Index outer(const Tensor&)   { return {}; }
 constexpr Index outer(const Rational&) { return {}; }
 constexpr Index outer(const double&)   { return {}; }
 
+constexpr Index rebind(Zero&,         Index i) { assert(i.size() == 0); return {}; }
+constexpr Index rebind(One&,          Index i) { assert(i.size() == 0); return {}; }
 constexpr Index rebind(const Tensor&, Index i) { assert(i.size() == 0); return {}; }
 constexpr Index rebind(Rational&,     Index i) { assert(i.size() == 0); return {}; }
 constexpr Index rebind(double&,       Index i) { assert(i.size() == 0); return {}; }
