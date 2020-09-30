@@ -14,7 +14,15 @@ if (TTL_SANITIZE)
   set(CMAKE_LINKER_FLAGS "${CMAKE_LINKER_FLAGS} -fsanitize=${TTL_SANITIZE}")
 endif (TTL_SANITIZE)
 
+# -----------------------------------------------------------------------------
+# External project dependencies
+# -----------------------------------------------------------------------------
 include(FetchContent)
+
+FetchContent_Declare(fmt
+  GIT_REPOSITORY     https://github.com/fmtlib/fmt.git
+  GIT_TAG            master)
+FetchContent_MakeAvailable(fmt)
 
 add_subdirectory(ttl1)
 add_subdirectory(ttl2)
