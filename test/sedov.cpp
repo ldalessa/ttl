@@ -60,9 +60,9 @@ constexpr auto   v_rhs = - D(v(i),j) * v(j) + D(sigma(i,j),j) / rho + g(i);
 constexpr auto   e_rhs = - v(i) * D(e,i) + sigma(i,j) * d(i,j) / rho - D(q(i),i) / rho;
 
 /// Boilerplate
-// constexpr auto tsystem = ttl::make_system_of_equations(std::tie(rho, rho_rhs),
-//                                                        std::tie(v, v_rhs),
-//                                                        std::tie(e, e_rhs));
+constexpr auto tsystem = ttl::make_system_of_equations(std::tie(rho, rho_rhs),
+                                                       std::tie(v, v_rhs),
+                                                       std::tie(e, e_rhs));
 }
 
 int main()

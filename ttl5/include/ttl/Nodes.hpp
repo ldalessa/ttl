@@ -18,10 +18,6 @@ struct Sum {
   constexpr friend std::string_view name(const Sum&) {
     return "+";
   }
-
-  friend std::ostream& operator<<(std::ostream& os, const Sum& sum) {
-    return os << name(sum);
-  }
 };
 
 struct Difference {
@@ -33,10 +29,6 @@ struct Difference {
   constexpr friend std::string_view name(const Difference&) {
     return "-";
   }
-
-  friend std::ostream& operator<<(std::ostream& os, const Difference& diff) {
-    return os << name(diff);
-  }
 };
 
 struct Product {
@@ -47,10 +39,6 @@ struct Product {
   constexpr friend std::string_view name(const Product&) {
     return "*";
   }
-
-  friend std::ostream& operator<<(std::ostream& os, const Product& product) {
-    return os << name(product);
-  }
 };
 
 struct Inverse {
@@ -60,10 +48,6 @@ struct Inverse {
 
   constexpr friend std::string_view name(const Inverse&) {
     return "/";
-  }
-
-  friend std::ostream& operator<<(std::ostream& os, const Inverse& inv) {
-    return os << name(inv);
   }
 };
 
@@ -85,10 +69,6 @@ struct Bind
 
   friend std::string name(const Bind& bind) {
     return "bind(" + std::string(name(bind.index)) + ")";
-  }
-
-  friend std::ostream& operator<<(std::ostream& os, const Bind& bind) {
-    return os << name(bind);
   }
 };
 
@@ -115,10 +95,6 @@ struct Partial
   friend std::string name(const Partial& dx) {
     return "dx(" + std::string(name(dx.index)) + ")";
   }
-
-  friend std::ostream& operator<<(std::ostream& os, const Partial& dx) {
-    return os << name(dx);
-  }
 };
 
 struct Delta
@@ -142,29 +118,17 @@ struct Delta
   friend std::string name(const Delta& delta) {
     return "delta(" + std::string(name(delta.index)) + ")";
   }
-
-  friend std::ostream& operator<<(std::ostream& os, const Delta& delta) {
-    return os << name(delta);
-  }
 };
 
 struct Zero {
   constexpr friend std::string_view name(const Zero&) {
     return "0";
   }
-
-  friend std::ostream& operator<<(std::ostream& os, const Zero& zero) {
-    return os << name(zero);
-  }
 };
 
 struct One {
   constexpr friend std::string_view name(const One&) {
     return "1";
-  }
-
-  friend std::ostream& operator<<(std::ostream& os, const One& one) {
-    return os << name(1);
   }
 };
 
@@ -189,6 +153,12 @@ concept Leaf =
  std::same_as<std::remove_cvref_t<T>, TensorRef> ||
  std::same_as<std::remove_cvref_t<T>, Rational> ||
  std::same_as<std::remove_cvref_t<T>, double>;
+
+/// Nodes can be streamed by name.
+template <typename T> requires Binary<T> || Unary<T> || Leaf<T>
+std::ostream& operator<<(std::ostream& os, const T& node) {
+  return os << name(node);
+}
 
 /// Get the outer index for a binary node.
 template <Binary Node>
