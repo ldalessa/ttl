@@ -69,17 +69,17 @@ int main()
 {
   // std::cout << tsystem.size() << "\n";
   // std::cout << tsystem.capacity() << "\n";
-  // for (auto n : tsystem) {
-  //   std::cout << n << "\n";
-  // }
-  std::cout << ttl::dot("d") << d << "\n";
-  std::cout << ttl::dot("p") << p << "\n";
-  std::cout << ttl::dot("sigma") << sigma << "\n";
-  std::cout << ttl::dot("theta") << theta << "\n";
-  std::cout << ttl::dot("q") << q << "\n";
+  for (auto&& c : tsystem.constants()) {
+    std::cout << c << "\n";
+  }
+  // std::cout << ttl::dot("d") << d << "\n";
+  // std::cout << ttl::dot("p") << p << "\n";
+  // std::cout << ttl::dot("sigma") << sigma << "\n";
+  // std::cout << ttl::dot("theta") << theta << "\n";
+  // std::cout << ttl::dot("q") << q << "\n";
 
-  std::cout << ttl::dot("rho") << rho_rhs << "\n";
-  std::cout << ttl::dot("v") << v_rhs << "\n";
-  std::cout << ttl::dot("e") << e_rhs << "\n";
+  // std::cout << ttl::dot("rho") << rho_rhs << "\n";
+  // std::cout << ttl::dot("v") << v_rhs << "\n";
+  // std::cout << ttl::dot("e") << e_rhs << "\n";
   return 0;
 }

@@ -31,8 +31,12 @@ class Tensor {
     return os << a.name_ << "(" + std::string(name(a)) + ")";
   }
 
-  constexpr auto operator()(IsIndex auto... is) const {
+  constexpr auto operator()(std::same_as<Index> auto... is) const {
     return make_tree(Bind((is + ... + Index())), make_tree(std::cref(*this)));
+  }
+
+  constexpr friend bool operator==(const Tensor& a, const Tensor& b) {
+    return a.name_ == b.name_;
   }
 };
 }

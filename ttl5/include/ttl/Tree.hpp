@@ -5,6 +5,8 @@
 #include "Rational.hpp"
 #include "mp/apply.hpp"
 #include "mp/cvector.hpp"
+#include "mp/overloaded.hpp"
+#include <fmt/core.h>
 #include <cassert>
 #include <concepts>
 #include <functional>
@@ -55,6 +57,10 @@ template <>         constexpr inline NodeType type_of<One>        = ONE;
 template <>         constexpr inline NodeType type_of<TensorRef>  = TENSOR;
 template <>         constexpr inline NodeType type_of<Rational>   = RATIONAL;
 template <>         constexpr inline NodeType type_of<double>     = DOUBLE;
+
+constexpr bool is_type(auto&& node, NodeType type) {
+  return type_of<std::remove_cvref_t<decltype(node)>> == type;
+}
 
 union Node
 {
@@ -304,8 +310,12 @@ class Tree
     return types_[M-1];
   }
 
+  constexpr static int count(NodeType type) {
+    return ((type == Types) + ...);
+  }
+
   constexpr static bool is_constant() {
-    return ((Types != TENSOR) && ...);
+    return count(TENSOR) == 0;
   }
 
   constexpr Tree() = delete;
@@ -355,13 +365,26 @@ class Tree
     data_[0] = data;
   }
 
-  template <IsIndex... Is>
-  constexpr auto operator()(Is... is) && {
+  constexpr auto begin() const { return std::begin(data_); }
+  constexpr auto   end() const { return   std::end(data_); }
+
+  template <typename... Ops>
+  constexpr void for_each(Ops&&... ops) const {
+    mp::overloaded op = {
+      [](...) {},
+      std::forward<Ops>(ops)...
+    };
+
+    for (int i = 0; i < M; ++i) {
+      data_[i].visit(op, types_[i]);
+    }
+  }
+
+  constexpr auto operator()(std::same_as<Index> auto... is) && {
     return std::move(*this).rebind((is + ... + Index()));
   }
 
-  template <IsIndex... Is>
-  constexpr auto operator()(Is... is) const & {
+  constexpr auto operator()(std::same_as<Index> auto... is) const & {
     return Tree(*this)(is...);
   }
 
@@ -403,7 +426,7 @@ class Tree
     };
     ((data_[i].visit(expand, Types), ++i), ...);
     assert(i == M);
-    assert(stack.size() == 1);
+    assert(size(stack) == 1);
     return stack.pop();
   }
 
@@ -553,23 +576,24 @@ constexpr auto operator*(const A& a, const B& b) {
 template <Expression A, Expression B>
 constexpr auto operator/(const A& a, const B& b) {
   static_assert(type_of<B> != ZERO);
+  return make_tree(Inverse(), bind(a), bind(b));
 
-  if constexpr (type_of<B> == ONE) {
-    return a;
-  }
-  else if constexpr (type_of<A> == ZERO) {
-    return a;
-  }
-  else if constexpr (type_of<B> == DOUBLE) {
-    return a * (1/b);
-  }
-  else if constexpr (type_of<B> == RATIONAL) {
-    return a * b.inverse();
-  }
-  // else detect if a == b ... is this even possible?
-  else {
-    return make_tree(Inverse(), bind(a), bind(b));
-  }
+  // if constexpr (type_of<B> == ONE) {
+  //   return a;
+  // }
+  // else if constexpr (type_of<A> == ZERO) {
+  //   return a;
+  // }
+  // else if constexpr (type_of<B> == DOUBLE) {
+  //   return a * (1/b);
+  // }
+  // else if constexpr (type_of<B> == RATIONAL) {
+  //   return a * b.inverse();
+  // }
+  // // else detect if a == b ... is this even possible?
+  // else {
+  //   return make_tree(Inverse(), bind(a), bind(b));
+  // }
 }
 
 template <Expression A>
@@ -591,59 +615,60 @@ constexpr auto operator-(const A& a, const B& b) {
   }
 }
 
-template <Expression A, IsIndex... Is>
-constexpr auto D(const A& a, Is... is) {
+template <Expression A>
+constexpr auto D(const A& a, std::same_as<Index> auto... is) {
   assert(sizeof...(is) != 0);
+  return make_tree(Partial((is + ...)), bind(a));
 
-  if constexpr (is_constant_v<A>) {
-    return make_tree(Zero());
-  }
-  else if constexpr (type_of<A> == SUM) {
-    auto [l, r] = a.split();
-    return D(l, is...) + D(r, is...);
-  }
-  else if constexpr (type_of<A> == DIFFERENCE) {
-    auto [l, r] = a.split();
-    return D(l, is...) - D(r, is...);
-  }
-  else if constexpr (type_of<A> == PRODUCT) {
-    auto [l, r] = a.split();
-    if constexpr (is_constant_v<decltype(r)>) {
-      return D(l, is...) * r;
-    }
-    else if constexpr (is_constant_v<decltype(l)>) {
-      return l * D(r, is...);
-    }
-    else {
-      Tree  left = D(l, is...) * r;
-      Tree right = l * D(r, is...);
-      return left + right;
-    }
-  }
-  else if constexpr (type_of<A> == PARTIAL) {
-    return a.extend_partial((is + ...));
-  }
-  else if constexpr (type_of<A> == INVERSE) {
-    auto [l, r] = a.split();
-    if constexpr (is_constant_v<decltype(r)>) {
-      return D(l, is...) / r;
-    }
-    else if constexpr (is_constant_v<decltype(l)>) {
-      return - l * D(r, is...) / (r * r);
-    }
-    else {
-      return (D(l, is...) * r - l * D(r, is...)) / (r * r);
-    }
-  }
-  else {
-    assert(type_of<A> == BIND || type_of<A> == TENSOR || (std::is_same_v<A, Tensor> == true));
-    return make_tree(Partial((is + ...)), bind(a));
-  }
+  // if constexpr (is_constant_v<A>) {
+  //   return make_tree(Zero());
+  // }
+  // else if constexpr (type_of<A> == SUM) {
+  //   auto [l, r] = a.split();
+  //   return D(l, is...) + D(r, is...);
+  // }
+  // else if constexpr (type_of<A> == DIFFERENCE) {
+  //   auto [l, r] = a.split();
+  //   return D(l, is...) - D(r, is...);
+  // }
+  // else if constexpr (type_of<A> == PRODUCT) {
+  //   auto [l, r] = a.split();
+  //   if constexpr (is_constant_v<decltype(r)>) {
+  //     return D(l, is...) * r;
+  //   }
+  //   else if constexpr (is_constant_v<decltype(l)>) {
+  //     return l * D(r, is...);
+  //   }
+  //   else {
+  //     Tree  left = D(l, is...) * r;
+  //     Tree right = l * D(r, is...);
+  //     return left + right;
+  //   }
+  // }
+  // else if constexpr (type_of<A> == PARTIAL) {
+  //   return a.extend_partial((is + ...));
+  // }
+  // else if constexpr (type_of<A> == INVERSE) {
+  //   auto [l, r] = a.split();
+  //   if constexpr (is_constant_v<decltype(r)>) {
+  //     return D(l, is...) / r;
+  //   }
+  //   else if constexpr (is_constant_v<decltype(l)>) {
+  //     return - l * D(r, is...) / (r * r);
+  //   }
+  //   else {
+  //     return (D(l, is...) * r - l * D(r, is...)) / (r * r);
+  //   }
+  // }
+  // else {
+  //   assert(type_of<A> == BIND || type_of<A> == TENSOR || (std::is_same_v<A, Tensor> == true));
+  //   return make_tree(Partial((is + ...)), bind(a));
+  // }
 }
 
 constexpr auto delta(Index a, Index b) {
-  assert(a.size() == 1);
-  assert(b.size() == 1);
+  assert(size(a) == 1);
+  assert(size(b) == 1);
   return make_tree(Delta(a + b));
 }
 

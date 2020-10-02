@@ -245,9 +245,9 @@ constexpr Index outer(const Tensor&)   { return {}; }
 constexpr Index outer(const Rational&) { return {}; }
 constexpr Index outer(const double&)   { return {}; }
 
-constexpr Index rebind(Zero&,         Index i) { assert(i.size() == 0); return {}; }
-constexpr Index rebind(One&,          Index i) { assert(i.size() == 0); return {}; }
-constexpr Index rebind(const Tensor&, Index i) { assert(i.size() == 0); return {}; }
-constexpr Index rebind(Rational&,     Index i) { assert(i.size() == 0); return {}; }
-constexpr Index rebind(double&,       Index i) { assert(i.size() == 0); return {}; }
+constexpr Index rebind(Zero&,         Index i) { assert(size(i) == 0); return {}; }
+constexpr Index rebind(One&,          Index i) { assert(size(i) == 0); return {}; }
+constexpr Index rebind(const Tensor&, Index i) { assert(size(i) == 0); return {}; }
+constexpr Index rebind(Rational&,     Index i) { assert(size(i) == 0); return {}; }
+constexpr Index rebind(double&,       Index i) { assert(size(i) == 0); return {}; }
 }
