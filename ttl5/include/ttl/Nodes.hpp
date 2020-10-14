@@ -89,7 +89,7 @@ struct Partial
   }
 
   constexpr void extend(Index i) {
-    index += i;
+    index = index + i;
   }
 
   friend std::string name(const Partial& dx) {

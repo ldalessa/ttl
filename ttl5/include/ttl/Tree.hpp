@@ -3,9 +3,6 @@
 #include "Index.hpp"
 #include "Nodes.hpp"
 #include "Rational.hpp"
-#include "mp/apply.hpp"
-#include "mp/cvector.hpp"
-#include "mp/overloaded.hpp"
 #include <fmt/core.h>
 #include <cassert>
 #include <concepts>
@@ -16,6 +13,10 @@
 
 namespace ttl
 {
+
+template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
+template<class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
+
 enum NodeType : char {
   SUM,
   DIFFERENCE,
@@ -64,7 +65,7 @@ constexpr bool is_type(auto&& node, NodeType type) {
 
 union Node
 {
-  std::monostate _;
+  struct {}  _;                             // provides a default active variant
   Sum        sum;
   Difference difference;
   Product    product;
@@ -78,19 +79,20 @@ union Node
   Rational   q;
   double     d;
 
-  constexpr Node() : _() {}
-  constexpr Node(Sum sum) : sum(sum) {}
-  constexpr Node(Difference difference) : difference(difference) {}
-  constexpr Node(Product product) : product(product) {}
-  constexpr Node(Inverse inverse) : inverse(inverse) {}
-  constexpr Node(Bind bind) : bind(bind) {}
-  constexpr Node(Partial partial) : partial(partial) {}
-  constexpr Node(Delta delta) : delta(delta) {}
-  constexpr Node(Zero zero) : zero(zero) {}
-  constexpr Node(One one) : one(one) {}
-  constexpr Node(TensorRef tensor) : tensor(tensor) {}
-  constexpr Node(Rational q) : q(q) {}
-  constexpr Node(double d) : d(d) {}
+  constexpr  Node()                      : _()                    {}
+  constexpr  Node(Sum sum)               : sum(sum)               {}
+  constexpr  Node(Difference difference) : difference(difference) {}
+  constexpr  Node(Product product)       : product(product)       {}
+  constexpr  Node(Inverse inverse)       : inverse(inverse)       {}
+  constexpr  Node(Bind bind)             : bind(bind)             {}
+  constexpr  Node(Partial partial)       : partial(partial)       {}
+  constexpr  Node(Delta delta)           : delta(delta)           {}
+  constexpr  Node(Zero zero)             : zero(zero)             {}
+  constexpr  Node(One one)               : one(one)               {}
+  constexpr  Node(TensorRef tensor)      : tensor(tensor)         {}
+  constexpr  Node(Rational q)            : q(q)                   {}
+  constexpr  Node(double d)              : d(d)                   {}
+  constexpr ~Node() = default;
 
   /// Standard visit functionality just calls op with the cast union.
   template <typename Op>
@@ -318,32 +320,41 @@ class Tree
     return count(TENSOR) == 0;
   }
 
-  constexpr Tree() = delete;
+  constexpr Tree() = default;
 
-  constexpr Tree(const Tree& rhs) {
-    for (int i = 0; i < M; ++i) {
-      rhs.data_[i].visit([&](const auto& node) {
-        data_[i] = node;
-      }, rhs.types_[i]);
-    }
-  }
+  constexpr Tree(const Tree& rhs) = default;
+  // {
+  //   for (int i = 0; i < M; ++i) {
+  //     rhs.data_[i].visit([&](const auto& node) {
+  //       data_[i] = node;
+  //     }, rhs.types_[i]);
+  //   }
+  // }
 
-  constexpr Tree(Tree&& rhs) {
-    for (int i = 0; i < M; ++i) {
-      rhs.data_[i].visit([&](const auto& node) {
-        data_[i] = node;
-      }, rhs.types_[i]);
-    }
-  }
+  constexpr Tree(Tree&& rhs) = default;
+  // {
+  //   for (int i = 0; i < M; ++i) {
+  //     rhs.data_[i].visit([&](const auto& node) {
+  //       data_[i] = node;
+  //     }, rhs.types_[i]);
+  //   }
+  // }
 
   /// Create a tree from two subtrees and a binary node.
   template <Binary T, NodeType... As, NodeType... Bs>
   constexpr Tree(const T& data, const Tree<As...>& a, const Tree<Bs...>& b) {
     int i = 0;
+
     for (const Node& data : a.data_) {
+      // data.visit([&](const auto& node) {
+      //   data_[i++] = node;
+      // }, a.types_[i]);
       data_[i++] = data;
     }
     for (const Node& data : b.data_) {
+      // data.visit([&](const auto& node) {
+      //   data_[i++] = node;
+      // }, b.types_[i]);
       data_[i++] = data;
     }
     data_[i++] = data;
@@ -354,6 +365,9 @@ class Tree
   constexpr Tree(const T& data, const Tree<As...>& a) {
     int i = 0;
     for (const Node& data : a.data_) {
+      // data.visit([&](const auto& node) {
+      //   data_[i++] = node;
+      // }, a.types_[i]);
       data_[i++] = data;
     }
     data_[i++] = data;
@@ -361,8 +375,7 @@ class Tree
   }
 
   template <Leaf T>
-  constexpr Tree(const T& data) {
-    data_[0] = data;
+  constexpr Tree(const T& data) : data_ { data } {
   }
 
   constexpr auto begin() const { return std::begin(data_); }
@@ -370,7 +383,7 @@ class Tree
 
   template <typename... Ops>
   constexpr void for_each(Ops&&... ops) const {
-    mp::overloaded op = {
+    overloaded op = {
       [](...) {},
       std::forward<Ops>(ops)...
     };
@@ -407,27 +420,27 @@ class Tree
   template <typename Op>
   constexpr auto visit(Op&& op) const {
     using State = decltype(op(0, 1.0));
-    mp::cvector<State, M> stack;
+    ce::cvector<State, M> stack;
     int i = 0;
     auto expand = [&](const auto& data) {
       if constexpr (Binary<decltype(data)>) {
-        auto b = stack.pop();
-        auto a = stack.pop();                   // could use back()
-        stack.push(op(i, data, a, b));
+        auto b = stack.pop_back();
+        auto a = stack.pop_back();
+        stack.push_back(op(i, data, a, b));
       }
       else if constexpr(Unary<decltype(data)>) {
-        auto a = stack.pop();                   // could use back()
-        stack.push(op(i, data, a));
+        auto a = stack.pop_back();
+        stack.push_back(op(i, data, a));
       }
       else {
         assert(Leaf<decltype(data)>);
-        stack.push(op(i, data));
+        stack.push_back(op(i, data));
       }
     };
     ((data_[i].visit(expand, Types), ++i), ...);
     assert(i == M);
     assert(size(stack) == 1);
-    return stack.pop();
+    return stack.pop_back();
   }
 
   constexpr auto split() const {
@@ -437,14 +450,14 @@ class Tree
     constexpr int L = M - R - 1;         // number of nodes in the left subtree
 
     // create the left subtree by unpacking the first L nodes
-    auto left = mp::apply([&](auto... is) {
-      return ttl::Tree<types_[is()]...>(data_);
-    }, std::make_index_sequence<L>());
+    auto left = [&]<auto... is>(std::index_sequence<is...>) {
+      return ttl::Tree<types_[is]...>(data_);
+    }(std::make_index_sequence<L>());
 
     // create the right subtree by unpacking the next R nodes
-    auto right = mp::apply([&](auto... is) {
-      return ttl::Tree<types_[L + is()]...>(data_ + L);
-    }, std::make_index_sequence<R>());
+    auto right = [&]<auto... is>(std::index_sequence<is...>) {
+      return ttl::Tree<types_[L + is]...>(data_ + L);
+    }(std::make_index_sequence<R>());
 
     // return the tuple
     return std::tuple(std::move(left), std::move(right));
@@ -618,52 +631,52 @@ constexpr auto operator-(const A& a, const B& b) {
 template <Expression A>
 constexpr auto D(const A& a, std::same_as<Index> auto... is) {
   assert(sizeof...(is) != 0);
-  return make_tree(Partial((is + ...)), bind(a));
+  // return make_tree(Partial((is + ...)), bind(a));
 
-  // if constexpr (is_constant_v<A>) {
-  //   return make_tree(Zero());
-  // }
-  // else if constexpr (type_of<A> == SUM) {
-  //   auto [l, r] = a.split();
-  //   return D(l, is...) + D(r, is...);
-  // }
-  // else if constexpr (type_of<A> == DIFFERENCE) {
-  //   auto [l, r] = a.split();
-  //   return D(l, is...) - D(r, is...);
-  // }
-  // else if constexpr (type_of<A> == PRODUCT) {
-  //   auto [l, r] = a.split();
-  //   if constexpr (is_constant_v<decltype(r)>) {
-  //     return D(l, is...) * r;
-  //   }
-  //   else if constexpr (is_constant_v<decltype(l)>) {
-  //     return l * D(r, is...);
-  //   }
-  //   else {
-  //     Tree  left = D(l, is...) * r;
-  //     Tree right = l * D(r, is...);
-  //     return left + right;
-  //   }
-  // }
-  // else if constexpr (type_of<A> == PARTIAL) {
-  //   return a.extend_partial((is + ...));
-  // }
-  // else if constexpr (type_of<A> == INVERSE) {
-  //   auto [l, r] = a.split();
-  //   if constexpr (is_constant_v<decltype(r)>) {
-  //     return D(l, is...) / r;
-  //   }
-  //   else if constexpr (is_constant_v<decltype(l)>) {
-  //     return - l * D(r, is...) / (r * r);
-  //   }
-  //   else {
-  //     return (D(l, is...) * r - l * D(r, is...)) / (r * r);
-  //   }
-  // }
-  // else {
-  //   assert(type_of<A> == BIND || type_of<A> == TENSOR || (std::is_same_v<A, Tensor> == true));
-  //   return make_tree(Partial((is + ...)), bind(a));
-  // }
+  if constexpr (is_constant_v<A>) {
+    return make_tree(Zero());
+  }
+  else if constexpr (type_of<A> == SUM) {
+    auto [l, r] = a.split();
+    return D(l, is...) + D(r, is...);
+  }
+  else if constexpr (type_of<A> == DIFFERENCE) {
+    auto [l, r] = a.split();
+    return D(l, is...) - D(r, is...);
+  }
+  else if constexpr (type_of<A> == PRODUCT) {
+    auto [l, r] = a.split();
+    if constexpr (is_constant_v<decltype(r)>) {
+      return D(l, is...) * r;
+    }
+    else if constexpr (is_constant_v<decltype(l)>) {
+      return l * D(r, is...);
+    }
+    else {
+      Tree  left = D(l, is...) * r;
+      Tree right = l * D(r, is...);
+      return left + right;
+    }
+  }
+  else if constexpr (type_of<A> == PARTIAL) {
+    return a.extend_partial((is + ...));
+  }
+  else if constexpr (type_of<A> == INVERSE) {
+    auto [l, r] = a.split();
+    if constexpr (is_constant_v<decltype(r)>) {
+      return D(l, is...) / r;
+    }
+    else if constexpr (is_constant_v<decltype(l)>) {
+      return - l * D(r, is...) / (r * r);
+    }
+    else {
+      return (D(l, is...) * r - l * D(r, is...)) / (r * r);
+    }
+  }
+  else {
+    assert(type_of<A> == BIND || type_of<A> == TENSOR || (std::is_same_v<A, Tensor> == true));
+    return make_tree(Partial((is + ...)), bind(a));
+  }
 }
 
 constexpr auto delta(Index a, Index b) {
@@ -674,6 +687,8 @@ constexpr auto delta(Index a, Index b) {
 
 template <Expression A>
 constexpr auto symmetrize(A&& a) {
-  return Rational(1,2) * (bind(a) + a(reverse(outer(a))));
+  Index i = outer(a);
+  std::ranges::reverse(i);
+  return Rational(1,2) * (bind(a) + a(i));
 }
 }

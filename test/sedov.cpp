@@ -67,6 +67,12 @@ constexpr auto tsystem = ttl::make_system_of_equations(std::tie(rho, rho_rhs),
 
 int main()
 {
+  // auto     d = symmetrize(D(v(i),j));
+  // // auto     p = ideal_gas(rho, e, gamma);
+  // auto sigma = newtonian_fluid(p, v, mu, muVolume);
+  // auto theta = calorically_perfect(e, cv);
+  // auto     q = fouriers_law(theta, kappa);
+
   // std::cout << tsystem.size() << "\n";
   // std::cout << tsystem.capacity() << "\n";
   for (auto&& c : tsystem.constants()) {

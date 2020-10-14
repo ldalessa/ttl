@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Tensor.hpp"
+#include "ce/cvector.hpp"
 #include <fmt/core.h>
 #include <tuple>
 
@@ -26,18 +27,19 @@ struct System {
     // Count the number of tensor nodes there are in the tree.
     constexpr int capacity = (Trees::count(TENSOR) + ...);
 
-    mp::cvector<std::string_view, M> scalars;
+    ce::cvector<std::string_view, M> scalars;
     for (const auto& tensor : lhs) {
-      scalars.push(name(tensor));
+      scalars.push_back(name(tensor));
     }
 
     // Gather all of the tensor strings.
-    mp::cvector<std::string_view, capacity> constants;
+    ce::cvector<std::string_view, capacity> constants;
 
     auto gather = [&](const auto& tree) {
       tree.for_each([&](const Tensor& t) {
-        if (!scalars.find(name(t))) {
-          constants.push(name(t));
+        if (std::find(scalars.begin(), scalars.end(), name(t)) == scalars.end())
+        {
+          constants.push_back(name(t));
         }
       });
     };
@@ -46,7 +48,10 @@ struct System {
       (gather(trees), ...);
     }, rhs);
 
-    return unique(constants);
+    std::sort(constants.begin(), constants.end());
+    auto i = std::unique(constants.begin(), constants.end());
+    constants.resize(std::distance(constants.begin(), i));
+    return constants;
   }
 };
 

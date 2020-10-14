@@ -24,6 +24,11 @@ FetchContent_Declare(fmt
   GIT_TAG            master)
 FetchContent_MakeAvailable(fmt)
 
+FetchContent_Declare(ce
+  GIT_REPOSITORY     git@github.com:ldalessa/ce.git
+  GIT_TAG            main)
+FetchContent_MakeAvailable(ce)
+
 add_subdirectory(ttl1)
 add_subdirectory(ttl2)
 add_subdirectory(ttl3)
