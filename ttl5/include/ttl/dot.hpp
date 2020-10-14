@@ -30,7 +30,7 @@ class DotWriter
   {
   }
 
-  template <NodeType... Ts>
+  template <NodeTag... Ts>
   std::ostream& operator<<(const Tree<Ts...>& tree) && {
     out_ << "graph " << name_ << " {\n";
     tree.visit([&](int i, const auto& node, auto&&... as) {

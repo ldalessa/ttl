@@ -21,6 +21,9 @@ struct System {
   }
 
   constexpr auto tensors() const {
+    return std::apply([](const auto&... rhs) {
+      return ce::cvector(std::in_place, name(rhs)...);
+    }, rhs);
   }
 
   constexpr auto constants() const {
