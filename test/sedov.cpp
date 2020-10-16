@@ -1,5 +1,5 @@
 #include <ttl/ttl.hpp>
-#include <iostream>
+#include <fmt/core.h>
 
 namespace {
 template <typename Density, typename Energy, typename T>
@@ -9,9 +9,9 @@ constexpr auto ideal_gas(Density&& rho, Energy&& e, T&& gamma) {
 
 template <typename Pressure, typename Velocity, typename T, typename U>
 constexpr auto newtonian_fluid(Pressure&& p, Velocity&& v, T&& mu, U&& muVolume) {
-  ttl::index i = ttl::idx<'a'>;
-  ttl::index j = ttl::idx<'b'>;
-  ttl::index k = ttl::idx<'c'>;
+  ttl::Index i = 'a';
+  ttl::Index j = 'b';
+  ttl::Index k = 'c';
 
   auto   d = symmetrize(D(v(i),j));
   auto iso = p + muVolume * D(v(k),k);
@@ -26,26 +26,26 @@ constexpr auto calorically_perfect(Energy&& e, T&& specific_heat) {
 
 template <typename Temperature, typename T>
 constexpr auto fouriers_law(Temperature&& theta, T&& conductivity) {
-  ttl::index i = ttl::idx<'c'>;
+  ttl::Index i = 'd';
   return - D(theta,i) * conductivity;
 }
 
 /// Model parameters
-constexpr ttl::tensor    gamma = ttl::scalar("gamma");
-constexpr ttl::tensor       mu = ttl::scalar("mu");
-constexpr ttl::tensor muVolume = ttl::scalar("muVolume");
-constexpr ttl::tensor       cv = ttl::scalar("cv");
-constexpr ttl::tensor    kappa = ttl::scalar("kappa");
-constexpr ttl::tensor        g = ttl::vector("g");
+constexpr ttl::Tensor    gamma = ttl::scalar("gamma");
+constexpr ttl::Tensor       mu = ttl::scalar("mu");
+constexpr ttl::Tensor muVolume = ttl::scalar("muVolume");
+constexpr ttl::Tensor       cv = ttl::scalar("cv");
+constexpr ttl::Tensor    kappa = ttl::scalar("kappa");
+constexpr ttl::Tensor        g = ttl::vector("g");
 
 /// Dependent variables
-constexpr ttl::tensor rho = ttl::scalar("rho");
-constexpr ttl::tensor   e = ttl::scalar("e");
-constexpr ttl::tensor   v = ttl::vector("v");
+constexpr ttl::Tensor rho = ttl::scalar("rho");
+constexpr ttl::Tensor   e = ttl::scalar("e");
+constexpr ttl::Tensor   v = ttl::vector("v");
 
 /// Tensor indices
-constexpr ttl::index i = ttl::idx<'i'>;
-constexpr ttl::index j = ttl::idx<'j'>;
+constexpr ttl::Index i = 'i';
+constexpr ttl::Index j = 'j';
 
 /// Constitutive model terms
 constexpr auto     d = symmetrize(D(v(i),j));
@@ -60,9 +60,9 @@ constexpr auto   v_rhs = - D(v(i),j) * v(j) + D(sigma(i,j),j) / rho + g(i);
 constexpr auto   e_rhs = - v(i) * D(e,i) + sigma(i,j) * d(i,j) / rho - D(q(i),i) / rho;
 
 /// Boilerplate
-constexpr auto tsystem = ttl::make_system_of_equations(std::tie(rho, rho_rhs),
-                                                       std::tie(v, v_rhs),
-                                                       std::tie(e, e_rhs));
+// constexpr auto tsystem = ttl::make_system_of_equations(std::tie(rho, rho_rhs),
+//                                                        std::tie(v, v_rhs),
+//                                                        std::tie(e, e_rhs));
 }
 
 int main()
@@ -75,9 +75,9 @@ int main()
 
   // std::cout << tsystem.size() << "\n";
   // std::cout << tsystem.capacity() << "\n";
-  for (auto&& c : tsystem.constants()) {
-    std::cout << c << "\n";
-  }
+  // for (auto&& c : tsystem.constants()) {
+  //   std::cout << c << "\n";
+  // }
   // std::cout << ttl::dot("d") << d << "\n";
   // std::cout << ttl::dot("p") << p << "\n";
   // std::cout << ttl::dot("sigma") << sigma << "\n";
@@ -87,5 +87,13 @@ int main()
   // std::cout << ttl::dot("rho") << rho_rhs << "\n";
   // std::cout << ttl::dot("v") << v_rhs << "\n";
   // std::cout << ttl::dot("e") << e_rhs << "\n";
+  fmt::print("rho_rhs = {:eqn}\n", rho_rhs);
+  fmt::print("  v_rhs = {:eqn}\n", v_rhs);
+  fmt::print("  e_rhs = {:eqn}\n", e_rhs);
+
+  fmt::print("graph rho {{\n{:dot}}}\n", rho_rhs);
+  fmt::print("graph v {{\n{:dot}}}\n", v_rhs);
+  fmt::print("graph e {{\n{:dot}}}\n", e_rhs);
+
   return 0;
 }

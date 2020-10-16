@@ -3,27 +3,25 @@
 
 namespace {
 /// Model parameters
-constexpr ttl::tensor nu = ttl::scalar("nu");
-constexpr ttl::tensor  c = ttl::vector("c");
+constexpr ttl::Tensor nu = ttl::scalar("nu");
+constexpr ttl::Tensor  c = ttl::vector("c");
 
 /// Dependent variables
-constexpr ttl::tensor u = ttl::vector("u");
+constexpr ttl::Tensor u = ttl::vector("u");
 
 /// Indices
-constexpr ttl::index i = ttl::idx<'i'>;
-constexpr ttl::index j = ttl::idx<'j'>;;
+constexpr ttl::Index i = 'i';
+constexpr ttl::Index j = 'j';;
 
 /// Update equations
 constexpr auto u_rhs = nu * D(u(i),i,j) - (u(i) + c(i)) * D(u(i),j);
-
-// constexpr auto uu = ttl::simplify(u_rhs);
 
 /// Boilerplate
 // constexpr auto system = ttl::make_system_of_equations(std::tie(u, u_rhs));
 }
 
 int main() {
-  std::cout << ttl::dot("u") << u_rhs << "\n";
-  // std::cout << uu << "\n";
+  fmt::print("u_rhs = {:eqn}\n", u_rhs);
+  fmt::print("graph u {{\n{:dot}}}\n", u_rhs);
   return 0;
 }

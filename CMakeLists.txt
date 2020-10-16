@@ -1,13 +1,6 @@
 cmake_minimum_required(VERSION 3.18)
 project(ttl CXX)
 
-# -----------------------------------------------------------------------------
-# Set our basic C++ standards
-# -----------------------------------------------------------------------------
-set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQURED ON)
-set(CMAKE_CXX_EXTENSIONS OFF)
-
 set(TTL_SANITIZE "" CACHE STRING "-fsanitize compiler options")
 if (TTL_SANITIZE)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-omit-frame-pointer -fsanitize=${TTL_SANITIZE}")
@@ -29,10 +22,10 @@ FetchContent_Declare(ce
   GIT_TAG            main)
 FetchContent_MakeAvailable(ce)
 
-add_subdirectory(ttl1)
-add_subdirectory(ttl2)
-add_subdirectory(ttl3)
-add_subdirectory(ttl4)
-add_subdirectory(ttl5)
+add_library(ttl_lib INTERFACE)
+target_include_directories(ttl_lib INTERFACE $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>)
+target_link_libraries(ttl_lib INTERFACE fmt::fmt ce::ce)
+target_compile_features(ttl_lib INTERFACE cxx_std_20)
+add_library(ttl::ttl ALIAS ttl_lib)
 
 add_subdirectory(test)
