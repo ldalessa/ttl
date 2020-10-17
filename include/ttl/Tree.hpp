@@ -19,41 +19,39 @@ enum Tag {
   PRODUCT,
   INVERSE,
   BIND,
-  PARTIAL,  // last binary
-  INDEX,    // last index state
+  PARTIAL,
+  INDEX,
   TENSOR,
   RATIONAL,
   DOUBLE
 };
 
-// Tag queries.
-constexpr bool      is_binary(Tag tag) { return tag < INDEX; }
-constexpr bool        is_leaf(Tag tag) { return !is_binary(tag); }
-constexpr bool is_index_valid(Tag tag) { return tag < TENSOR; }
+struct Node {
+  Tag tag_;
 
-union State {
-  struct {} _ = {};                             // default state
-  Index index;
-  Tensor tensor;
-  Rational q;
-  double d;
-};
+  union {
+    Index   index_;
+    Tensor tensor_;
+    Rational    q_;
+    double      d_;
+  };
 
-constexpr auto visit(Tag tag, auto&& state, auto&& op) {
-  switch (tag) {
-   case SUM:
-   case DIFFERENCE:
-   case PRODUCT:
-   case INVERSE:
-   case BIND:
-   case PARTIAL:
-   case INDEX:    return op(state.index);
-   case TENSOR:   return op(state.tensor);
-   case RATIONAL: return op(state.q);
-   case DOUBLE:   return op(state.d);
+  constexpr bool is(Tag tag) const {
+    return tag == tag_;
   }
-  __builtin_unreachable();
-}
+
+  constexpr bool is_binary() const {
+    return tag_ < INDEX;
+  }
+
+  constexpr const Index* index() const {
+    return (tag_ < TENSOR) ? &index_ : nullptr;
+  }
+
+  constexpr Index* index() {
+    return (tag_ < TENSOR) ? &index_ : nullptr;
+  }
+};
 
 template <int M = 1>
 struct Tree
@@ -61,58 +59,50 @@ struct Tree
   constexpr friend std::true_type is_tree_v(Tree) { return {}; }
 
   ce::cvector<int, M> left;
-  ce::cvector<Tag, M> tags;
-  ce::cvector<State, M> state;
+  ce::cvector<Node, M> nodes;
 
-  constexpr Tree() = default;
-  constexpr Tree(const Tree&) = default;
-  constexpr Tree(Tree&&) = default;
-  constexpr Tree& operator=(const Tree&) = default;
-  constexpr Tree& operator=(Tree&&) = default;
+  constexpr Tree() noexcept = default;
+  constexpr Tree(const Tree&) noexcept = default;
+  constexpr Tree(Tree&&) noexcept = default;
+  constexpr Tree& operator=(const Tree&) noexcept = default;
+  constexpr Tree& operator=(Tree&&) noexcept = default;
 
-  constexpr Tree(Tensor tensor)
+  constexpr Tree(Tensor tensor) noexcept
       :  left(std::in_place, -1)
-      ,  tags(std::in_place, TENSOR)
-      , state(std::in_place, State{.tensor = tensor})
+      , nodes(std::in_place, Node{.tag_ = TENSOR, .tensor_ = tensor})
   {
   }
 
-  constexpr Tree(Index index)
+  constexpr Tree(Index index) noexcept
       :  left(std::in_place, -1)
-      ,  tags(std::in_place, INDEX)
-      , state(std::in_place, State{.index = index})
+      , nodes(std::in_place, Node{.tag_ = INDEX, .index_ = index})
   {
   }
 
-  constexpr Tree(Rational q)
+  constexpr Tree(Rational q) noexcept
       :  left(std::in_place, -1)
-      ,  tags(std::in_place, RATIONAL)
-      , state(std::in_place, State{.q = q})
+      , nodes(std::in_place, Node{.tag_ = RATIONAL, .q_ = q})
   {
   }
 
-  constexpr Tree(double d)
+  constexpr Tree(double d) noexcept
       :  left(std::in_place, -1)
-      ,  tags(std::in_place, DOUBLE)
-      , state(std::in_place, State{.d = d})
+      , nodes(std::in_place, Node{.tag_ = DOUBLE, .d_ = d})
   {
   }
 
   template <int A, int B>
-  constexpr Tree(Tag tag, Tree<A> a, Tree<B> b)
+  constexpr Tree(Tag tag, Tree<A> a, Tree<B> b) noexcept
   {
     for (int i = 0; i < a.size(); ++i) {
       left.push_back(a.left[i]);
-      tags.push_back(a.tags[i]);
-      state.push_back(a.state[i]);
+      nodes.push_back(a.nodes[i]);
     }
     for (int i = 0; i < b.size(); ++i) {
       left.push_back(b.left[i] + a.size());
-      tags.push_back(b.tags[i]);
-      state.push_back(b.state[i]);
+      nodes.push_back(b.nodes[i]);
     }
     left.push_back(a.size() - 1);
-    tags.push_back(tag);
 
     Index l = a.outer();
     Index r = b.outer();
@@ -120,15 +110,15 @@ struct Tree
      case SUM:
      case DIFFERENCE:
       assert(permutation(l, r));
-      state.push_back({.index = l});
+      nodes.push_back(Node{.tag_ = tag, .index_ = l});
       break;
      case PRODUCT:
      case INVERSE:
-      state.push_back({.index = l ^ r});
+      nodes.push_back(Node{.tag_ = tag, .index_ = l ^ r});
       break;
      case BIND:
      case PARTIAL:
-      state.push_back({.index = exclusive(l + r)});
+      nodes.push_back(Node{.tag_ = tag, .index_ = exclusive(l + r)});
       break;
      default: __builtin_unreachable();
     }
@@ -146,9 +136,9 @@ struct Tree
     // won't have an impact on the correctness of the tree.
     Index search = outer();
     assert(replace.size() == search.size());
-    for (int i = 0; i < size(); ++i) {
-      if (is_index_valid(tags[i])) {
-        state[i].index.search_and_replace(search, replace);
+    for (auto &&node : nodes) {
+      if (Index *idx = node.index()) {
+        idx->search_and_replace(search, replace);
       }
     }
   }
@@ -160,25 +150,10 @@ struct Tree
   }
 
   constexpr Index outer() const {
-    if (is_index_valid(tags.back())) {
-      return state.back().index;
+    if (const Index *i = nodes.back().index()) {
+      return *i;
     }
     return {};
-  }
-
-  constexpr auto visit(const auto& op, int i) const {
-    switch (tags[i]) {
-     case TENSOR:   return op(state[i].tensor);
-     case INDEX:    return op(state[i].index);
-     case RATIONAL: return op(state[i].q);
-     case DOUBLE:   return op(state[i].d);
-     default: return op(tags[i], visit(op, left[i]), visit(op, i - 1));
-    };
-    __builtin_unreachable();
-  }
-
-  constexpr auto visit(const auto&... ops) const {
-    return visit(overloaded { ops...}, size() - 1);
   }
 };
 
@@ -285,11 +260,34 @@ struct fmt::formatter<ttl::Tag> {
      case ttl::DOUBLE:     return format_to(ctx.out(), "{}", "d");
      default:
       __builtin_unreachable();
-      return ctx.out();
     }
   }
 };
 
+template <>
+struct fmt::formatter<ttl::Node> {
+  constexpr auto parse(format_parse_context& ctx) {
+    return ctx.begin();
+  }
+
+  template <typename FormatContext>
+  auto format(const ttl::Node& node, FormatContext& ctx) {
+    switch (node.tag_) {
+     case ttl::SUM:
+     case ttl::DIFFERENCE:
+     case ttl::PRODUCT:
+     case ttl::INVERSE:
+     case ttl::BIND:
+     case ttl::PARTIAL:    return format_to(ctx.out(), "{}", node.tag_);
+     case ttl::INDEX:      return format_to(ctx.out(), "{}", node.index_.to_string());
+     case ttl::TENSOR:     return format_to(ctx.out(), "{}", node.tensor_.id());
+     case ttl::RATIONAL:   return format_to(ctx.out(), "{}", node.q_.to_string());
+     case ttl::DOUBLE:     return format_to(ctx.out(), "{}", std::to_string(node.d_));
+     default:
+      __builtin_unreachable();
+    }
+  }
+};
 
 template <int M>
 struct fmt::formatter<ttl::Tree<M>>
@@ -329,55 +327,51 @@ struct fmt::formatter<ttl::Tree<M>>
 
   auto format(const ttl::Tree<M>& a, auto& ctx) {
     assert(dot_^ eqn_);
-    if (dot_) {
-      return dot(a, ctx);
-    }
-    return format_to(ctx.out(), "{}", eqn(a));
+    return (dot_) ? dot(a, ctx) : eqn(a, ctx);
   }
 
  private:
   auto dot(const ttl::Tree<M>& a, auto& ctx) const {
-    for (int i = 0; i < a.size(); ++i) {
-      ttl::Tag tag = a.tags[i];
-      if (ttl::is_binary(tag)) {
-        format_to(ctx.out(), "\tnode{}[label=\"{}\"]\n", i, tag);
+    for (int i = 0; const auto& node : a.nodes) {
+      format_to(ctx.out(), "\tnode{}[label=\"{}\"]\n", i, node);
+      if (node.is_binary()) {
         format_to(ctx.out(), "\tnode{} -- node{}\n", i, a.left[i]);
         format_to(ctx.out(), "\tnode{} -- node{}\n", i, i - 1);
       }
-      else {
-        std::string label = visit(tag, a.state[i], [](auto a) {
-          return to_string(a);
-        });
-        format_to(ctx.out(), "\tnode{}[label=\"{}\"]\n", i, label);
-      }
+      ++i;
     }
     return ctx.out();
   }
 
-  std::string eqn(const ttl::Tree<M>& a) const {
-    return a.visit(
-        [](auto leaf) {
-          return fmt::format("{}", leaf);
-        },
-        [](ttl::Tag tag, auto l, auto r) {
-          switch (tag) {
-           case ttl::SUM:
-           case ttl::PRODUCT:
-           case ttl::DIFFERENCE:
-           case ttl::INVERSE:
-            return fmt::format("({} {} {})", l, tag, r);
-           case ttl::PARTIAL:
-            return fmt::format("D({},{})", l, r);
-           case ttl::BIND:
-            if (r.size()) {
-              return fmt::format("{}({})", l, r);
-            }
-            else {
-              return fmt::format("{}", l);
-            }
-           default:
-            __builtin_unreachable();
-          };
-        });
+  auto eqn(const ttl::Tree<M>& a, auto& ctx) const {
+    auto visit = [&](int i, const auto& next) {
+      const ttl::Node& node = a.nodes[i];
+      if (!node.is_binary()) {
+        return format_to(ctx.out(), "{}", node);
+      }
+
+      if (node.is(ttl::PARTIAL)) {
+        format_to(ctx.out(), "{}(", "D");
+        next(a.left[i], next);
+        format_to(ctx.out(), "{}", ",");
+        next(i - 1, next);
+        return format_to(ctx.out(), "{}", ")");
+      }
+
+      if (node.is(ttl::BIND)) {
+        next(a.left[i], next);
+        format_to(ctx.out(), "{}", "(");
+        next(i - 1, next);
+        return format_to(ctx.out(), "{}", ")");
+      }
+
+      format_to(ctx.out(), "{}", "(");
+      next(a.left[i], next);
+      format_to(ctx.out(), "{}", node);
+      next(i - 1, next);
+      return format_to(ctx.out(), "{}", ")");
+    };
+
+    return visit(a.size() - 1, visit);
   }
 };

@@ -17,10 +17,6 @@ struct Tensor
   std::string_view id_;
 
  public:
-  constexpr Tensor() = delete;
-  constexpr Tensor(const Tensor&) = default;
-  constexpr Tensor(Tensor&&) = default;
-
   constexpr Tensor(int order, std::string_view id) : order_(order), id_(id) {
   }
 
@@ -52,7 +48,6 @@ constexpr ttl::Tensor vector(std::string_view id) {
   return { 1, id };
 }
 }
-
 
 template <>
 struct fmt::formatter<ttl::Tensor> {
