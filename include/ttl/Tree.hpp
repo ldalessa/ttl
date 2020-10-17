@@ -36,6 +36,11 @@ struct Node {
     double      d_;
   };
 
+  constexpr Node(Index index, Tag tag = INDEX) : tag_(tag), index_(index) {}
+  constexpr Node(Tensor tensor) : tag_(TENSOR), tensor_(tensor) {}
+  constexpr Node(Rational q) : tag_(RATIONAL), q_(q) {}
+  constexpr Node(double d) : tag_(DOUBLE), d_(d) {}
+
   constexpr bool is(Tag tag) const {
     return tag == tag_;
   }
@@ -69,25 +74,25 @@ struct Tree
 
   constexpr Tree(Tensor tensor) noexcept
       :  left(std::in_place, -1)
-      , nodes(std::in_place, Node{.tag_ = TENSOR, .tensor_ = tensor})
+      , nodes(std::in_place, tensor)
   {
   }
 
   constexpr Tree(Index index) noexcept
       :  left(std::in_place, -1)
-      , nodes(std::in_place, Node{.tag_ = INDEX, .index_ = index})
+      , nodes(std::in_place, index)
   {
   }
 
   constexpr Tree(Rational q) noexcept
       :  left(std::in_place, -1)
-      , nodes(std::in_place, Node{.tag_ = RATIONAL, .q_ = q})
+      , nodes(std::in_place, q)
   {
   }
 
   constexpr Tree(double d) noexcept
       :  left(std::in_place, -1)
-      , nodes(std::in_place, Node{.tag_ = DOUBLE, .d_ = d})
+      , nodes(std::in_place, d)
   {
   }
 
@@ -110,15 +115,15 @@ struct Tree
      case SUM:
      case DIFFERENCE:
       assert(permutation(l, r));
-      nodes.push_back(Node{.tag_ = tag, .index_ = l});
+      nodes.emplace_back(l, tag);
       break;
      case PRODUCT:
      case INVERSE:
-      nodes.push_back(Node{.tag_ = tag, .index_ = l ^ r});
+      nodes.emplace_back(l ^ r, tag);
       break;
      case BIND:
      case PARTIAL:
-      nodes.push_back(Node{.tag_ = tag, .index_ = exclusive(l + r)});
+      nodes.emplace_back(exclusive(l + r), tag);
       break;
      default: __builtin_unreachable();
     }
@@ -154,6 +159,22 @@ struct Tree
       return *i;
     }
     return {};
+  }
+
+  // Apply the ops in a postfix traversal. Leaves are applied as op(node) while
+  // internal nodes are applied recursively as op(node, op(left), op(right))
+  // ish.
+  constexpr auto postfix(auto&&... ops) const {
+    overloaded op = { ops... };
+    using T = decltype(op(nodes[0]));
+    auto handler = [&](int i, auto&& Y) -> T {
+      const Node& node = nodes[i];
+      if (node.is_binary()) {
+        return op(node, Y(left[i], Y), Y(i - 1, Y));
+      }
+      return op(node);
+    };
+    return handler(size() - 1, handler);
   }
 };
 
@@ -246,7 +267,7 @@ struct fmt::formatter<ttl::Tag> {
   }
 
   template <typename FormatContext>
-  auto format(const ttl::Tag& tag, FormatContext& ctx) {
+  constexpr auto format(const ttl::Tag& tag, FormatContext& ctx) {
     switch (tag) {
      case ttl::SUM:        return format_to(ctx.out(), "{}", "+");
      case ttl::DIFFERENCE: return format_to(ctx.out(), "{}", "-");
@@ -271,7 +292,7 @@ struct fmt::formatter<ttl::Node> {
   }
 
   template <typename FormatContext>
-  auto format(const ttl::Node& node, FormatContext& ctx) {
+  constexpr auto format(const ttl::Node& node, FormatContext& ctx) {
     switch (node.tag_) {
      case ttl::SUM:
      case ttl::DIFFERENCE:
@@ -333,10 +354,10 @@ struct fmt::formatter<ttl::Tree<M>>
  private:
   auto dot(const ttl::Tree<M>& a, auto& ctx) const {
     for (int i = 0; const auto& node : a.nodes) {
-      format_to(ctx.out(), "\tnode{}[label=\"{}\"]\n", i, node);
+      format_to(ctx.out(), FMT_STRING("\tnode{}[label=\"{}\"]\n"), i, node);
       if (node.is_binary()) {
-        format_to(ctx.out(), "\tnode{} -- node{}\n", i, a.left[i]);
-        format_to(ctx.out(), "\tnode{} -- node{}\n", i, i - 1);
+        format_to(ctx.out(), FMT_STRING("\tnode{} -- node{}\n"), i, a.left[i]);
+        format_to(ctx.out(), FMT_STRING("\tnode{} -- node{}\n"), i, i - 1);
       }
       ++i;
     }
@@ -344,34 +365,19 @@ struct fmt::formatter<ttl::Tree<M>>
   }
 
   auto eqn(const ttl::Tree<M>& a, auto& ctx) const {
-    auto visit = [&](int i, const auto& next) {
-      const ttl::Node& node = a.nodes[i];
-      if (!node.is_binary()) {
-        return format_to(ctx.out(), "{}", node);
-      }
-
-      if (node.is(ttl::PARTIAL)) {
-        format_to(ctx.out(), "{}(", "D");
-        next(a.left[i], next);
-        format_to(ctx.out(), "{}", ",");
-        next(i - 1, next);
-        return format_to(ctx.out(), "{}", ")");
-      }
-
-      if (node.is(ttl::BIND)) {
-        next(a.left[i], next);
-        format_to(ctx.out(), "{}", "(");
-        next(i - 1, next);
-        return format_to(ctx.out(), "{}", ")");
-      }
-
-      format_to(ctx.out(), "{}", "(");
-      next(a.left[i], next);
-      format_to(ctx.out(), "{}", node);
-      next(i - 1, next);
-      return format_to(ctx.out(), "{}", ")");
-    };
-
-    return visit(a.size() - 1, visit);
+    auto str = a.postfix(
+        [](auto leaf) {
+          return fmt::format(FMT_STRING("{}"), leaf);
+        },
+        [](auto node, auto l, auto r) {
+          if (node.is(ttl::PARTIAL)) {
+            return fmt::format(FMT_STRING("D({},{})"), l, r);
+          }
+          if (node.is(ttl::BIND)) {
+            return fmt::format(FMT_STRING("{}({})"), l, r);
+          }
+          return fmt::format(FMT_STRING("({} {} {})"), l, node, r);
+        });
+    return format_to(ctx.out(), FMT_STRING("{}"), str);
   }
 };
