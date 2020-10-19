@@ -21,5 +21,8 @@ constexpr auto burgers = ttl::system(u = u_rhs);
 int main() {
   fmt::print("u_rhs = {:eqn}\n", u_rhs);
   fmt::print("graph u {{\n{:dot}}}\n", u_rhs);
+
+  fmt::print("test = {}\n", D(u(i) + c(i), j));
+
   return 0;
 }

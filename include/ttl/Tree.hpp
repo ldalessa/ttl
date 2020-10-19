@@ -2,11 +2,11 @@
 
 #include "Index.hpp"
 #include "Tensor.hpp"
+#include "concepts.hpp"
 
 #include <ce/cvector.hpp>
 #include <fmt/format.h>
 #include <cassert>
-#include <concepts>
 #include <string_view>
 
 namespace ttl {
@@ -69,7 +69,7 @@ struct Node {
 template <int M = 1>
 struct Tree
 {
-  constexpr friend std::true_type is_tree_v(Tree) { return {}; }
+  constexpr static std::true_type is_tree_tag = {};
 
   ce::cvector<int, M> left;
   ce::cvector<Node, M> nodes;
@@ -104,8 +104,7 @@ struct Tree
   {
   }
 
-  template <int A, int B>
-  constexpr Tree(Tag tag, Tree<A> a, Tree<B> b) noexcept
+  constexpr Tree(Tag tag, is_tree auto&& a, is_tree auto&& b) noexcept
   {
     for (int i = 0; i < a.size(); ++i) {
       left.push_back(a.left[i]);
@@ -194,11 +193,6 @@ template <int A, int B>
 Tree(Tag, Tree<A>, Tree<B>) -> Tree<A + B + 1>;
 
 template <typename T>
-concept is_tree = requires (T t) {
-  { is_tree_v(t) };
-};
-
-template <typename T>
 concept is_expression =
  is_tree<T> ||
  std::same_as<T, Tensor> ||
@@ -265,7 +259,8 @@ constexpr auto symmetrize(is_expression auto a) {
   return Rational(1,2) * (t + t(reverse(i)));
 }
 
-constexpr Tree<3> Tensor::operator()(std::same_as<Index> auto... is) const {
+constexpr auto
+Tensor::operator()(std::same_as<Index> auto... is) const {
   Index i = (is + ... + Index{});
   assert(i.size() == order_);
   return Tree(BIND, Tree(*this), Tree(i));

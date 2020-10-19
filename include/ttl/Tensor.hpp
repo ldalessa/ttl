@@ -1,15 +1,12 @@
 #pragma once
 
 #include "Index.hpp"
+#include "concepts.hpp"
 
 #include <fmt/format.h>
-#include <concepts>
 #include <string_view>
 
 namespace ttl {
-template <int M>
-struct Tree;
-
 struct Tensor
 {
  private:
@@ -29,7 +26,7 @@ struct Tensor
   }
 
   // Implemented in Tree.hpp to avoid circular include.
-  constexpr Tree<3> operator()(std::same_as<Index> auto... is) const;
+  constexpr auto operator()(std::same_as<Index> auto... is) const;
 
   constexpr bool operator==(const Tensor& b) const {
     return id_ == b.id_;
@@ -40,8 +37,7 @@ struct Tensor
   }
 
   // Implemented in Equation to avoid circular include.
-  template <int M> constexpr auto operator=(const Tree<M>&) const;
-  template <int M> constexpr auto operator=(Tree<M>&&) const;
+  constexpr auto operator=(is_tree auto&&) const;
 };
 
 constexpr ttl::Tensor scalar(std::string_view id) {
