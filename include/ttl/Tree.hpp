@@ -37,7 +37,7 @@ struct Node {
   };
 
   constexpr Node(Index index, Tag tag = INDEX) : tag_(tag), index_(index) {}
-  constexpr Node(Tensor tensor) : tag_(TENSOR), tensor_(tensor) {}
+  constexpr Node(const Tensor& tensor) : tag_(TENSOR), tensor_(tensor) {}
   constexpr Node(Rational q) : tag_(RATIONAL), q_(q) {}
   constexpr Node(double d) : tag_(DOUBLE), d_(d) {}
 
@@ -55,6 +55,14 @@ struct Node {
 
   constexpr Index* index() {
     return (tag_ < TENSOR) ? &index_ : nullptr;
+  }
+
+  constexpr Tensor* tensor() {
+    return (tag_ == TENSOR) ? &tensor_ : nullptr;
+  }
+
+  constexpr const Tensor* tensor() const {
+    return (tag_ == TENSOR) ? &tensor_ : nullptr;
   }
 };
 
@@ -129,6 +137,10 @@ struct Tree
     }
   }
 
+  constexpr static int capacity() {
+    return M;
+  }
+
   constexpr int size() const {
     return left.size();
   }
@@ -199,7 +211,7 @@ constexpr auto bind(std::signed_integral auto i) {
   return Tree(Rational(i));
 }
 
-constexpr auto bind(Tensor t) {
+constexpr auto bind(const Tensor& t) {
   assert(t.order() == 0);
   return Tree(BIND, Tree(t), Tree(Index()));
 }

@@ -38,6 +38,10 @@ struct Tensor
   constexpr auto operator<=>(const Tensor& b) const {
     return id_ <=> b.id_;
   }
+
+  // Implemented in Equation to avoid circular include.
+  template <int M> constexpr auto operator=(const Tree<M>&) const;
+  template <int M> constexpr auto operator=(Tree<M>&&) const;
 };
 
 constexpr ttl::Tensor scalar(std::string_view id) {

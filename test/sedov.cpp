@@ -54,15 +54,16 @@ constexpr auto sigma = newtonian_fluid(p, v, mu, muVolume);
 constexpr auto theta = calorically_perfect(e, cv);
 constexpr auto     q = fouriers_law(theta, kappa);
 
-/// Update equations
+/// System of equations.
 constexpr auto rho_rhs = - D(rho,i) * v(i) - rho * D(v(i),i);
 constexpr auto   v_rhs = - D(v(i),j) * v(j) + D(sigma(i,j),j) / rho + g(i);
 constexpr auto   e_rhs = - v(i) * D(e,i) + sigma(i,j) * d(i,j) / rho - D(q(i),i) / rho;
 
-/// Boilerplate
-// constexpr auto tsystem = ttl::make_system_of_equations(std::tie(rho, rho_rhs),
-//                                                        std::tie(v, v_rhs),
-//                                                        std::tie(e, e_rhs));
+constexpr ttl::System sedov = {
+  rho = rho_rhs,
+  v = v_rhs,
+  e = e_rhs
+};
 }
 
 int main()
@@ -75,9 +76,15 @@ int main()
 
   // std::cout << tsystem.size() << "\n";
   // std::cout << tsystem.capacity() << "\n";
-  // for (auto&& c : tsystem.constants()) {
-  //   std::cout << c << "\n";
-  // }
+  fmt::print("tensors:\n");
+  for (auto&& c : sedov.tensors()) {
+    fmt::print("{}\n", c);
+  }
+
+  fmt::print("constants:\n");
+  for (auto&& c : sedov.constants()) {
+    fmt::print("{}\n", c);
+  }
   // std::cout << ttl::dot("d") << d << "\n";
   // std::cout << ttl::dot("p") << p << "\n";
   // std::cout << ttl::dot("sigma") << sigma << "\n";
@@ -87,13 +94,13 @@ int main()
   // std::cout << ttl::dot("rho") << rho_rhs << "\n";
   // std::cout << ttl::dot("v") << v_rhs << "\n";
   // std::cout << ttl::dot("e") << e_rhs << "\n";
-  fmt::print("rho_rhs = {:eqn}\n", rho_rhs);
-  fmt::print("  v_rhs = {:eqn}\n", v_rhs);
-  fmt::print("  e_rhs = {:eqn}\n", e_rhs);
+  fmt::print("rho_rhs = {}\n", rho_rhs);
+  fmt::print("  v_rhs = {}\n", v_rhs);
+  fmt::print("  e_rhs = {}\n", e_rhs);
 
-  fmt::print("graph rho {{\n{:dot}}}\n", rho_rhs);
-  fmt::print("graph v {{\n{:dot}}}\n", v_rhs);
-  fmt::print("graph e {{\n{:dot}}}\n", e_rhs);
+  // fmt::print("graph rho {{\n{:dot}}}\n", rho_rhs);
+  // fmt::print("graph v {{\n{:dot}}}\n", v_rhs);
+  // fmt::print("graph e {{\n{:dot}}}\n", e_rhs);
 
   return 0;
 }

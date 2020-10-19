@@ -13,11 +13,9 @@ constexpr ttl::Tensor u = ttl::vector("u");
 constexpr ttl::Index i = 'i';
 constexpr ttl::Index j = 'j';;
 
-/// Update equations
-constexpr auto u_rhs = nu * D(u(i),i,j) - (u(i) + c(i)) * D(u(i),j);
-
-/// Boilerplate
-// constexpr auto system = ttl::make_system_of_equations(std::tie(u, u_rhs));
+/// System of equations.
+constexpr auto   u_rhs = nu * D(u(i),i,j) - (u(i) + c(i)) * D(u(i),j);
+constexpr auto burgers = ttl::system(u = u_rhs);
 }
 
 int main() {
