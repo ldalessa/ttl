@@ -3,16 +3,13 @@
 #include "Index.hpp"
 #include "Tensor.hpp"
 #include "concepts.hpp"
-
+#include "utils.hpp"
 #include <ce/cvector.hpp>
 #include <fmt/format.h>
 #include <cassert>
 #include <string_view>
 
 namespace ttl {
-template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
-template<class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
-
 enum Tag {
   SUM,
   DIFFERENCE,
@@ -176,7 +173,7 @@ struct Tree
   // internal nodes are applied recursively as op(node, op(left), op(right))
   // ish.
   constexpr auto postfix(auto&&... ops) const {
-    overloaded op = { ops... };
+    utils::overloaded op = { ops... };
     using T = decltype(op(nodes[0]));
     auto handler = [&](int i, auto&& Y) -> T {
       const Node& node = nodes[i];
