@@ -43,6 +43,18 @@ struct Index : ce::cvector<char, 8>
   }
 };
 
+constexpr static inline bool operator==(const Index& a, const Index& b) {
+  if (a.size() != b.size()) {
+    return false;
+  }
+  for (int i = 0; i < a.size(); ++i) {
+    if (a[i] != b[i]) {
+      return false;
+    }
+  }
+  return true;
+}
+
 constexpr Index reverse(Index a) {
   Index out;
   for (auto i = a.rbegin(), e = a.rend(); i != e; ++i) {
