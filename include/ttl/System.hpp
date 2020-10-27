@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Equation.hpp"
+#include "utils.hpp"
 #include <array>
 #include <tuple>
 
@@ -40,8 +41,8 @@ struct System
     auto search = [&](auto& tree) {
       for (int i = 0; i < tree.M; ++i) {
         if (auto* t = tree.at(i).tensor()) {
-          if (std::find(lhs.begin(), lhs.end(), *t) == lhs.end()) {
-            if (std::find(out.begin(), out.end(), t->id()) == out.end()) {
+          if (not utils::index_of(lhs, *t)) {
+            if (not utils::index_of(out, t->id())) {
               out.push_back(t->id());
             }
           }

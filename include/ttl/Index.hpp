@@ -1,5 +1,6 @@
 #pragma once
 
+#include "utils.hpp"
 #include <ce/cvector.hpp>
 #include <fmt/format.h>
 #include <algorithm>
@@ -19,11 +20,8 @@ struct Index : ce::cvector<char, 8>
   }
 
   // Return the index of the first instance of `c` in the index, or nullopt.
-  constexpr std::optional<int> find(char c) const {
-    if (auto i = std::find(begin(), end(), c); i != end()) {
-      return std::distance(begin(), i);
-    }
-    return std::nullopt;
+  constexpr std::optional<int> index_of(char c) const {
+    return utils::index_of(*this, c);
   }
 
   // Hopefully obviously, search for chars in `search` and replace with the
@@ -31,7 +29,7 @@ struct Index : ce::cvector<char, 8>
   constexpr Index& search_and_replace(Index search, Index replace) {
     assert(search.size() == replace.size());
     for (char& c : *this) {
-      if (auto&& i = search.find(c)) {
+      if (auto&& i = search.index_of(c)) {
         c = replace[*i];
       }
     }
@@ -76,7 +74,7 @@ constexpr Index unique(Index a) {
 constexpr Index repeated(Index a) {
   Index out;
   for (char c : a) {
-    if (a.count(c) > 1 && !out.find(c)) {
+    if (a.count(c) > 1 && !out.index_of(c)) {
       out.push_back(c);
     }
   }
@@ -104,7 +102,7 @@ constexpr Index operator+(Index a, Index b) {
 constexpr Index operator&(Index a, Index b) {
   Index out;
   for (char c : a) {
-    if (b.find(c)) {
+    if (b.index_of(c)) {
       out.push_back(c);
     }
   }
@@ -114,7 +112,7 @@ constexpr Index operator&(Index a, Index b) {
 constexpr Index operator-(Index a, Index b) {
   Index out;
   for (char c : a) {
-    if (!b.find(c)) {
+    if (!b.index_of(c)) {
       out.push_back(c);
     }
   }
