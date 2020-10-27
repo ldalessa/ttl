@@ -87,8 +87,9 @@ struct TaggedTree {
   constexpr TaggedTree(Rational q)    noexcept : nodes { q }      {}
   constexpr TaggedTree(double d)      noexcept : nodes { d }      {}
 
-  template <Tag... As, Tag... Bs, Tag C> requires(C < INDEX)
-    constexpr TaggedTree(TaggedTree<As...> a, TaggedTree<Bs...> b, tag_t<C>) {
+  template <Tag... As, Tag... Bs, Tag C>
+  requires(C < INDEX)
+  constexpr TaggedTree(TaggedTree<As...> a, TaggedTree<Bs...> b, tag_t<C>) {
     int i = 0;
     for (auto&& a : a.nodes) nodes[i++] = a;
     for (auto&& b : b.nodes) nodes[i++] = b;
@@ -98,35 +99,47 @@ struct TaggedTree {
      case SUM:
      case DIFFERENCE:
       assert(permutation(ai, bi));
-      nodes[i].index = ai;
+      nodes[i++].index = ai;
       break;
      case PRODUCT:
      case INVERSE:
-      nodes[i].index = ai ^ bi;
+      nodes[i++].index = ai ^ bi;
       break;
      case BIND:
      case PARTIAL:
-      nodes[i].index = exclusive(ai + bi);
+      nodes[i++].index = exclusive(ai + bi);
       break;
      default:
       __builtin_unreachable();
     };
   }
 
+  constexpr static Tag tag(int i) {
+    return tags[M - i - 1];
+  }
+
+  constexpr const Node& node(int i) const {
+    return nodes[i];
+  }
+
+  constexpr Node& node(int i) {
+    return nodes[i];
+  }
+
   constexpr TaggedNode<const Node> at(int i) const {
-    return { tags[i], nodes[i] };
+    return { tag(i), node(i) };
   }
 
   constexpr TaggedNode<Node> at(int i) {
-    return { tags[i], nodes[i] };
+    return { tag(i), node(i) };
   }
 
-  constexpr TaggedNode<const Node> back() const {
-    return { tags.back(), nodes.back() };
+  constexpr TaggedNode<const Node> root() const {
+    return { tag(M - 1), node(M - 1) };
   }
 
   constexpr Index outer() const {
-    if (const Index* i = back().index()) {
+    if (const Index* i = root().index()) {
       return *i;
     }
     return {};
@@ -175,8 +188,10 @@ TaggedTree(Index)    -> TaggedTree<INDEX>;
 TaggedTree(Rational) -> TaggedTree<RATIONAL>;
 TaggedTree(double)   -> TaggedTree<DOUBLE>;
 
-template <Tag... As, Tag... Bs, Tag C> requires(C < INDEX)
-TaggedTree(TaggedTree<As...>, TaggedTree<Bs...>, tag_t<C>) -> TaggedTree<As..., Bs..., C>;
+template <Tag... As, Tag... Bs, Tag C>
+requires(C < INDEX)
+TaggedTree(TaggedTree<As...>, TaggedTree<Bs...>, tag_t<C>) ->
+  TaggedTree<C, Bs..., As...>;
 
 template <typename T>
 concept is_expression =
