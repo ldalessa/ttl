@@ -34,12 +34,12 @@ struct System
   }
 
   constexpr auto constants() const {
-    constexpr int M = (Rhs::capacity() + ... + 0);
+    constexpr int M = (Rhs::M + ... + 0);
     ce::cvector<std::string_view, M> out;
 
     auto search = [&](auto& tree) {
-      for (auto&& node : tree.nodes) {
-        if (auto* t = node.tensor()) {
+      for (int i = 0; i < tree.M; ++i) {
+        if (auto* t = tree.at(i).tensor()) {
           if (std::find(lhs.begin(), lhs.end(), *t) == lhs.end()) {
             if (std::find(out.begin(), out.end(), t->id()) == out.end()) {
               out.push_back(t->id());

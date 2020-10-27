@@ -68,39 +68,27 @@ constexpr ttl::System sedov = {
 
 int main()
 {
-  // auto     d = symmetrize(D(v(i),j));
-  // // auto     p = ideal_gas(rho, e, gamma);
-  // auto sigma = newtonian_fluid(p, v, mu, muVolume);
-  // auto theta = calorically_perfect(e, cv);
-  // auto     q = fouriers_law(theta, kappa);
-
   // std::cout << tsystem.size() << "\n";
   // std::cout << tsystem.capacity() << "\n";
   fmt::print("tensors:\n");
   for (auto&& c : sedov.tensors()) {
     fmt::print("{}\n", c);
   }
+  fmt::print("\n");
 
   fmt::print("constants:\n");
   for (auto&& c : sedov.constants()) {
     fmt::print("{}\n", c);
   }
-  // std::cout << ttl::dot("d") << d << "\n";
-  // std::cout << ttl::dot("p") << p << "\n";
-  // std::cout << ttl::dot("sigma") << sigma << "\n";
-  // std::cout << ttl::dot("theta") << theta << "\n";
-  // std::cout << ttl::dot("q") << q << "\n";
+  fmt::print("\n");
 
-  // std::cout << ttl::dot("rho") << rho_rhs << "\n";
-  // std::cout << ttl::dot("v") << v_rhs << "\n";
-  // std::cout << ttl::dot("e") << e_rhs << "\n";
   fmt::print("rho_rhs = {}\n", rho_rhs);
   fmt::print("  v_rhs = {}\n", v_rhs);
   fmt::print("  e_rhs = {}\n", e_rhs);
 
-  // fmt::print("graph rho {{\n{:dot}}}\n", rho_rhs);
-  // fmt::print("graph v {{\n{:dot}}}\n", v_rhs);
-  // fmt::print("graph e {{\n{:dot}}}\n", e_rhs);
+  fmt::print("graph rho {{\n{:dot}}}\n", rho_rhs);
+  fmt::print("graph v {{\n{:dot}}}\n", v_rhs);
+  fmt::print("graph e {{\n{:dot}}}\n", e_rhs);
 
   return 0;
 }
