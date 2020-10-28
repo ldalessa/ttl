@@ -81,12 +81,31 @@ struct TaggedTree {
 
   std::array<Node, M> nodes;
 
-  constexpr TaggedTree()              noexcept = default;
+  /// Leaf tree construction.
+  ///
+  /// There are CTAD guides that infer the right tag type for each of these
+  /// four leaf operations.
   constexpr TaggedTree(Tensor tensor) noexcept : nodes { tensor } {}
   constexpr TaggedTree(Index index)   noexcept : nodes { index }  {}
   constexpr TaggedTree(Rational q)    noexcept : nodes { q }      {}
   constexpr TaggedTree(double d)      noexcept : nodes { d }      {}
 
+  /// Split constructor.
+  ///
+  /// This mess just says that we can create a TaggedTree from a sequence of
+  /// objects, as long as there are as many objects as there are tags, and each
+  /// passed is actually a Node. It's used when we're decomposing trees.
+  template <typename... Nodes>
+  requires((sizeof...(Nodes) == sizeof...(Ts)) &&
+           (std::same_as<Node, std::remove_cvref_t<Nodes>> && ...))
+  constexpr TaggedTree(Nodes&&... nodes)
+    : nodes { std::forward<Nodes>(nodes)... }
+  {
+  }
+
+  /// Join constructor.
+  ///
+  /// This constructor joins two trees with a binary node with tag C.
   template <Tag... As, Tag... Bs, Tag C>
   requires(C < INDEX)
   constexpr TaggedTree(TaggedTree<As...> a, TaggedTree<Bs...> b, tag_t<C>) {
@@ -180,6 +199,37 @@ struct TaggedTree {
     }
     assert(stack.size() == 1);
     return stack.pop_back();
+  }
+
+  constexpr auto split() const {
+    // postfix traversal to find the split point
+    constexpr int nl = [] {
+      int l = 0;
+      ce::cvector<int, M> stack;
+      for (int i = 0; i < M; ++i) {
+        if (is_binary(tag(i))) {
+          int r = stack.pop_back();
+          assert(r == i - 1);
+          l = stack.pop_back();
+        }
+        stack.push_back(i);
+      }
+      return l + 1;
+    }(), nr = M - nl - 1;
+
+    // create the left and right child trees (the tags are stored backwards, and
+    // we need to preserve that order in the children types, so we need a little
+    // bit of fanciness to make sure we're picking up the right ones)
+    auto left = [&]<auto... i>(utils::seq<i...>) {
+      return TaggedTree<tags[M - nl + i]...>(nodes[i]...);
+    }(utils::make_seq_v<nl>);
+
+    auto right = [&]<auto... i>(utils::seq<i...>) {
+      return TaggedTree<tags[M - nl - nr + i]...>(nodes[nl + i]...);
+    }(utils::make_seq_v<nr>);
+
+    // return the pair
+    return std::tuple(tag(M - 1), left, right);
   }
 };
 
