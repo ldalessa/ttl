@@ -91,13 +91,17 @@ constexpr Index exclusive(Index a) {
   return out;
 }
 
+constexpr Index& operator+=(Index& a, Index b) {
+  for (char c : b) a.push_back(c);
+  return a;
+}
+
 constexpr Index operator+(Index a, Index b) {
   Index out;
   for (char c : a) out.push_back(c);
   for (char c : b) out.push_back(c);
   return out;
 }
-
 
 constexpr Index operator&(Index a, Index b) {
   Index out;

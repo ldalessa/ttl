@@ -41,12 +41,10 @@ union Node {
 
 template <typename T> requires(std::same_as<std::remove_cv_t<T>, Node>)
 struct TaggedNode {
+  int i;
   Tag tag;
   T& node;
-  constexpr TaggedNode(Tag tag, T& node) : tag(tag), node(node) {}
-
-  template <Tag tag>
-  constexpr TaggedNode(tag_t<tag>, T& node) : tag(tag), node(node) {}
+  constexpr TaggedNode(int i, Tag tag, T& node) : i(i), tag(tag), node(node) {}
 
   constexpr bool is(Tag t) const {
     return t == tag;
@@ -54,6 +52,14 @@ struct TaggedNode {
 
   constexpr bool is_binary() const {
     return ttl::is_binary(tag);
+  }
+
+  constexpr bool is_leaf() const {
+    return !is_binary();
+  }
+
+  constexpr decltype(auto) offset() const {
+    return i;
   }
 
   constexpr decltype(auto) index() const {
@@ -109,6 +115,23 @@ struct TaggedTree {
   template <Tag... As, Tag... Bs, Tag C>
   requires(C < INDEX)
   constexpr TaggedTree(TaggedTree<As...> a, TaggedTree<Bs...> b, tag_t<C>) {
+    // check a couple of tree structure invariants
+    if (C == BIND || C == PARTIAL) {
+      assert(b.size() == 1);
+      assert(b.tag(0) == INDEX);
+    }
+    else if (C == PRODUCT && a.root().is(INDEX)) {
+      assert(a.root().index()->size() == 2);
+      assert(!b.root().is(INDEX));
+    }
+    else if (C == PRODUCT && b.root().is(INDEX)) {
+      assert(!a.root().is(INDEX));
+      assert(b.root().index()->size() == 2);
+    }
+    else {
+      assert(!a.root().is(INDEX) && !b.root().is(INDEX));
+    }
+
     int i = 0;
     for (auto&& a : a.nodes) nodes[i++] = a;
     for (auto&& b : b.nodes) nodes[i++] = b;
@@ -133,6 +156,10 @@ struct TaggedTree {
     };
   }
 
+  constexpr static int size() {
+    return M;
+  }
+
   constexpr static Tag tag(int i) {
     return tags[M - i - 1];
   }
@@ -146,15 +173,15 @@ struct TaggedTree {
   }
 
   constexpr TaggedNode<const Node> at(int i) const {
-    return { tag(i), node(i) };
+    return { i, tag(i), node(i) };
   }
 
   constexpr TaggedNode<Node> at(int i) {
-    return { tag(i), node(i) };
+    return { i, tag(i), node(i) };
   }
 
   constexpr TaggedNode<const Node> root() const {
-    return { tag(M - 1), node(M - 1) };
+    return { M - 1, tag(M - 1), node(M - 1) };
   }
 
   constexpr Index outer() const {
@@ -182,19 +209,48 @@ struct TaggedTree {
     return copy;
   }
 
-  constexpr friend auto postfix(const TaggedTree& tree, auto&&... ops) {
-    utils::overloaded op = { ops... };
-    using T = decltype(op(tree.at(0)));
+  // Generate the tree geometry.
+  //
+  // This includes the depth of the tree, the number of leaves, and the left and
+  // right child ids.
+  constexpr static auto geometry() {
+    struct {
+      int depth = 0;
+      int leaves = 0;
+      std::array<int, M> left = {};
+      std::array<int, M> right = {};
+    } out;
+
+    ce::cvector<int, M> stack;
+    for (int i = 0; i < M; ++i) {
+      if (is_binary(tag(i))) {
+        out.right[i] = stack.pop_back();
+        out.left[i] = stack.pop_back();
+      }
+      else {
+        ++out.leaves;
+      }
+      stack.push_back(i);
+      out.depth = std::max(out.depth, stack.size());
+    }
+    return out;
+  }
+
+  // Generic postorder (bottom-up) traversal.
+  template <typename... Ops>
+  constexpr auto postorder(Ops&&... ops) const {
+    utils::overloaded op = { std::forward<Ops>(ops)... };
+    using T = decltype(op(at(0)));
     ce::cvector<T, TaggedTree::M> stack;
     for (int i = 0; i < M; ++i) {
-      auto&& node = tree.at(i);
+      auto node = at(i);
       if (node.is_binary()) {
         auto&& r = stack.pop_back();
         auto&& l = stack.pop_back();
-        stack.push_back(op(std::move(node), std::move(l), std::move(r)));
+        stack.push_back(op(node, std::move(l), std::move(r)));
       }
       else {
-        stack.push_back(op(std::move(node)));
+        stack.push_back(op(node));
       }
     }
     assert(stack.size() == 1);
@@ -202,7 +258,7 @@ struct TaggedTree {
   }
 
   constexpr auto split() const {
-    // postfix traversal to find the split point
+    // postorder traversal to find the split point
     constexpr int nl = [] {
       int l = 0;
       ce::cvector<int, M> stack;
@@ -411,31 +467,30 @@ struct fmt::formatter<ttl::TaggedTree<Ts...>>
       format_to(ctx.out(), FMT_STRING("\tnode{}[label=\"{}\"]\n"), i, a.at(i));
     }
 
-    int i = 0;
-    postfix(a,
-            [&](auto&&) { return i++; },
-            [&](auto&&, int l, int r) {
-              format_to(ctx.out(), FMT_STRING("\tnode{} -- node{}\n"), i, l);
-              format_to(ctx.out(), FMT_STRING("\tnode{} -- node{}\n"), i, r);
-              return i++;
-            });
+    a.postorder(
+        [&](auto node) { return node.offset(); },
+        [&](auto node, int l, int r) {
+          int i = node.offset();
+          format_to(ctx.out(), FMT_STRING("\tnode{} -- node{}\n"), i, l);
+          format_to(ctx.out(), FMT_STRING("\tnode{} -- node{}\n"), i, r);
+          return i;
+        });
     return ctx.out();
   }
 
   auto eqn(const Tree& a, auto& ctx) const {
-    auto str = postfix(
-        a,
-        [](auto&& leaf) {
-          return fmt::format(FMT_STRING("{}"), std::move(leaf));
+    auto str = a.postorder(
+        [](auto leaf) {
+          return fmt::format(FMT_STRING("{}"), leaf);
         },
-        [](auto&& node, auto&& l, auto&& r) {
+        [](auto node, auto&& l, auto&& r) {
           if (node.is(ttl::PARTIAL)) {
             return fmt::format(FMT_STRING("D({},{})"), std::move(l), std::move(r));
           }
           if (node.is(ttl::BIND)) {
             return fmt::format(FMT_STRING("{}({})"), std::move(l), std::move(r));
           }
-          return fmt::format(FMT_STRING("({} {} {})"), std::move(l), std::move(node), std::move(r));
+          return fmt::format(FMT_STRING("({} {} {})"), std::move(l), node, std::move(r));
         });
     return format_to(ctx.out(), FMT_STRING("{}"), str);
   }

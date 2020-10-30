@@ -22,6 +22,8 @@ int main() {
   fmt::print("u_rhs = {:eqn}\n", u_rhs);
   fmt::print("graph u {{\n{:dot}}}\n", u_rhs);
 
+  auto h = burgers.hessians();
+
   constexpr auto s = u_rhs.split();
   fmt::print(" root = {}\n", std::get<0>(s));
   fmt::print(" left = {:eqn}\n", std::get<1>(s));

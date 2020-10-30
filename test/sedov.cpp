@@ -1,5 +1,23 @@
+static constexpr const char USAGE[] =
+ R"(sedov: run sedov
+  Usage:
+      sedov (-h | --help)
+      sedov --version
+      sedov [--hessians] [--tensors] [--constants] [--eqn <rhs>]... [--dot <rhs>]...
+
+  Options:
+      -h, --help         Show this screen.
+      --version          Show version information.
+      --hessians         Print hessians
+      --constants        Print constants
+      --tensors          Print tensors
+      --eqn <rhs>        Print an eqn for <rhs>
+      --dot <rhs>        Print a dotfile for <rhs>
+)";
+
 #include <ttl/ttl.hpp>
 #include <fmt/core.h>
+#include <docopt.h>
 
 namespace {
 template <typename Density, typename Energy, typename T>
@@ -66,29 +84,45 @@ constexpr ttl::System sedov = {
 };
 }
 
-int main()
+int main(int argc, char* const argv[])
 {
+  std::map args = docopt::docopt(USAGE, {argv + 1, argv + argc});
+
   // std::cout << tsystem.size() << "\n";
   // std::cout << tsystem.capacity() << "\n";
-  fmt::print("tensors:\n");
-  for (auto&& c : sedov.tensors()) {
-    fmt::print("{}\n", c);
+  if (args["--tensors"].asBool()) {
+    fmt::print("tensors:\n");
+    for (auto&& c : sedov.tensors()) {
+      fmt::print("{}\n", c);
+    }
+    fmt::print("\n");
   }
-  fmt::print("\n");
 
-  fmt::print("constants:\n");
-  for (auto&& c : sedov.constants()) {
-    fmt::print("{}\n", c);
+  if (args["--constants"].asBool()) {
+    fmt::print("constants:\n");
+    for (auto&& c : sedov.constants()) {
+      fmt::print("{}\n", c);
+    }
+    fmt::print("\n");
   }
-  fmt::print("\n");
 
-  fmt::print("rho_rhs = {}\n", rho_rhs);
-  fmt::print("  v_rhs = {}\n", v_rhs);
-  fmt::print("  e_rhs = {}\n", e_rhs);
+  if (args["--hessians"].asBool()) {
+    fmt::print("hessians:\n");
+    for (auto&& c : sedov.hessians()) {
+      fmt::print("{}({},{})\n", c.a, c.i, c.dx);
+    }
+    fmt::print("\n");
+  }
 
-  fmt::print("graph rho {{\n{:dot}}}\n", rho_rhs);
-  fmt::print("graph v {{\n{:dot}}}\n", v_rhs);
-  fmt::print("graph e {{\n{:dot}}}\n", e_rhs);
+  auto eqns = args["--eqn"].asStringList();
+  if (ttl::utils::index_of(eqns, "rho")) fmt::print("rho_rhs = {}\n", rho_rhs);
+  if (ttl::utils::index_of(eqns, "v")) fmt::print("  v_rhs = {}\n", v_rhs);
+  if (ttl::utils::index_of(eqns, "e")) fmt::print("  e_rhs = {}\n", e_rhs);
+
+  auto dots = args["--dot"].asStringList();
+  if (ttl::utils::index_of(dots, "rho")) fmt::print("graph rho {{\n{:dot}}}\n", rho_rhs);
+  if (ttl::utils::index_of(dots, "v")) fmt::print("graph v {{\n{:dot}}}\n", v_rhs);
+  if (ttl::utils::index_of(dots, "e")) fmt::print("graph e {{\n{:dot}}}\n", e_rhs);
 
   return 0;
 }
