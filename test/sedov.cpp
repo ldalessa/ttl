@@ -3,7 +3,7 @@ static constexpr const char USAGE[] =
   Usage:
       sedov (-h | --help)
       sedov --version
-      sedov [--hessians] [--tensors] [--constants] [--eqn <rhs>]... [--dot <rhs>]...
+      sedov [--hessians] [--tensors] [--constants]  [--scalars] [--eqn <rhs>]... [--dot <rhs>]...
 
   Options:
       -h, --help         Show this screen.
@@ -11,6 +11,7 @@ static constexpr const char USAGE[] =
       --hessians         Print hessians
       --constants        Print constants
       --tensors          Print tensors
+      --scalars          Print scalars
       --eqn <rhs>        Print an eqn for <rhs>
       --dot <rhs>        Print a dotfile for <rhs>
 )";
@@ -82,14 +83,14 @@ constexpr ttl::System sedov = {
   v = v_rhs,
   e = e_rhs
 };
+
+constexpr auto sedov3d = ttl::scalar_system<sedov, 3>;
 }
 
 int main(int argc, char* const argv[])
 {
   std::map args = docopt::docopt(USAGE, {argv + 1, argv + argc});
 
-  // std::cout << tsystem.size() << "\n";
-  // std::cout << tsystem.capacity() << "\n";
   if (args["--tensors"].asBool()) {
     fmt::print("tensors:\n");
     for (auto&& c : sedov.tensors()) {
@@ -107,9 +108,19 @@ int main(int argc, char* const argv[])
   }
 
   if (args["--hessians"].asBool()) {
-    fmt::print("hessians:\n");
-    for (auto&& c : sedov.hessians()) {
+    auto h = sedov.hessians();
+    fmt::print("hessians (capacity {}):\n", h.capacity());
+    for (auto&& c : h) {
       fmt::print("{}({},{})\n", c.a, c.i, c.dx);
+    }
+    fmt::print("\n");
+  }
+
+  if (args["--scalars"].asBool()) {
+    constexpr auto scalars = sedov3d.scalars();
+    fmt::print("scalars:\n");
+    for (int i = 0; auto&& s : scalars) {
+      fmt::print("{}: {} {} d{}\n", i++, s.tensor, s.component, s.partial_string());
     }
     fmt::print("\n");
   }

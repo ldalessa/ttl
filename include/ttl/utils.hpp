@@ -1,5 +1,6 @@
 #pragma once
 
+#include <concepts>
 #include <optional>
 #include <utility>
 
@@ -19,10 +20,9 @@ constexpr std::optional<int> index_of(Range&& range, T&& value) {
   return std::nullopt;
 }
 
-// wrap the std integer sequence in something a little less verbose
 template <auto... Ns>
-struct seq : std::integer_sequence<std::common_type_t<decltype(Ns)...>, Ns...> {
-  using std::integer_sequence<std::common_type_t<decltype(Ns)...>, Ns...>::integer_sequence;
+struct seq {
+  constexpr seq() = default;
   constexpr seq(std::integer_sequence<std::common_type_t<decltype(Ns)...>, Ns...>) {}
 };
 
@@ -40,5 +40,15 @@ struct print_types_t;
 
 template <typename... Ts>
 void print_types(Ts...) { print_types_t<Ts...> _; }
+
+template <std::integral T>
+constexpr T pow(T x, T y) {
+  assert(y >= 0);
+  T out = 1;
+  for (T i = 0; i < y; ++i) {             // boring, buy hey, it's constexpr :-)
+    out *= x;
+  }
+  return out;
+}
 
 }

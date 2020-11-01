@@ -41,7 +41,7 @@ struct System
   }
 
   constexpr auto constants() const {
-    constexpr int M = (Rhs::M + ... + 0);
+    constexpr int M = (Rhs::n_tensors() + ... + 0);
     ce::cvector<std::string_view, M> out;
 
     auto search = [&](auto& tree) {
@@ -64,7 +64,7 @@ struct System
   }
 
   constexpr auto hessians() const {
-    constexpr int M = (Rhs::M + ... + 0);
+    constexpr int M = (Rhs::n_tensors() + ... + 0);
     ce::cvector<Hessian, M> out;
     auto search = [&](auto& tree) {
       constexpr auto geometry = std::decay_t<decltype(tree)>::geometry();
