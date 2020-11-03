@@ -210,13 +210,13 @@ struct TaggedTree {
     // create the left and right child trees (the tags are stored backwards, and
     // we need to preserve that order in the children types, so we need a little
     // bit of fanciness to make sure we're picking up the right ones)
-    auto left = [&]<auto... i>(utils::seq<i...>) {
+    auto left = [&]<std::size_t... i>(std::index_sequence<i...>) {
       return TaggedTree<tags[M - nl + i]...>(nodes[i]...);
-    }(utils::make_seq_v<nl>);
+    }(std::make_index_sequence<nl>());
 
-    auto right = [&]<auto... i>(utils::seq<i...>) {
+    auto right = [&]<std::size_t... i>(std::index_sequence<i...>) {
       return TaggedTree<tags[M - nl - nr + i]...>(nodes[nl + i]...);
-    }(utils::make_seq_v<nr>);
+    }(std::make_index_sequence<nr>());
 
     // return the pair
     return std::tuple(tag(M - 1), left, right);
