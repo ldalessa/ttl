@@ -149,13 +149,13 @@ struct TaggedTree {
   // right child ids.
   constexpr static auto geometry() {
     struct {
-      int depth = 0;
-      int leaves = 0;
-      std::array<int, M> left = {};
-      std::array<int, M> right = {};
+      int  depth    = 0;
+      int leaves    = 0;
+      int   left[M] = {};
+      int  right[M] = {};
     } out;
 
-    utils::stack<int, M> stack;
+    utils::stack<int> stack;
     for (int i = 0; i < M; ++i) {
       if (is_binary(tag(i))) {
         out.right[i] = stack.pop();
@@ -175,7 +175,7 @@ struct TaggedTree {
   constexpr auto postorder(Ops&&... ops) const {
     utils::overloaded op = { std::forward<Ops>(ops)... };
     using T = decltype(op(at(0)));
-    utils::stack<T, TaggedTree::M> stack;
+    utils::stack<T> stack;
     for (int i = 0; i < M; ++i) {
       auto node = at(i);
       if (node.is_binary()) {
@@ -195,7 +195,7 @@ struct TaggedTree {
     // postorder traversal to find the split point
     constexpr int nl = [] {
       int l = 0;
-      utils::stack<int, M> stack;
+      utils::stack<int> stack;
       for (int i = 0; i < M; ++i) {
         if (is_binary(tag(i))) {
           int r = stack.pop();

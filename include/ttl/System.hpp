@@ -13,6 +13,7 @@ template <typename... Rhs> requires(is_tree<Rhs> && ...)
 struct System
 {
   static constexpr int M = sizeof...(Rhs);
+  static constexpr int N = (Rhs::n_tensors() + ... + 0);
   std::array<Tensor, M> lhs;
   std::tuple<Rhs...> rhs;
 
@@ -36,8 +37,7 @@ struct System
     return lhs;
   }
 
-  template <int M>
-  constexpr void constants(utils::set<Tensor, M>& out, auto& tree) const {
+  constexpr void constants(utils::set<Tensor, N>& out, auto& tree) const {
     for (int i = 0, e = size(tree); i < e; ++i) {
       if (auto* t = tree.at(i).tensor()) {
         if (not utils::index_of(lhs, *t)) {
@@ -48,20 +48,19 @@ struct System
   }
 
   constexpr auto constants() const {
-    constexpr int M = (Rhs::n_tensors() + ... + 0);
-    utils::set<Tensor, M> out;
+    utils::set<Tensor, N> out;
     std::apply([&](auto&... tree) {
       (constants(out, tree), ...);
     }, rhs);
-    return out.sort();
+    return out;
   }
 
-  template <int M>
-  constexpr void hessians(utils::set<Hessian, M>& out, auto& tree) const {
+  constexpr void hessians(utils::set<Hessian, N>& out, auto& tree) const {
     constexpr auto geometry = std::decay_t<decltype(tree)>::geometry();
-    utils::stack<Index, geometry.depth + 1> index = { std::in_place, Index() };
-    utils::stack<Index, geometry.depth + 1> dx = { std::in_place, Index() };
-    utils::stack<int, geometry.depth> stack = { std::in_place, tree.size() - 1 };
+    utils::stack<Index> index = { std::in_place, Index() };
+    utils::stack<Index>    dx = { std::in_place, Index() };
+    utils::stack<int>   stack = { std::in_place, size(tree) - 1 };
+
     while (stack.size()) {
       int     i = stack.pop();
       Index idx = index.pop();
@@ -116,12 +115,11 @@ struct System
   }
 
   constexpr auto hessians() const {
-    constexpr int M = (Rhs::n_tensors() + ... + 0);
-    utils::set<Hessian, M> out;
+    utils::set<Hessian, N> out;
     std::apply([&](auto&... tree) {
       (hessians(out, tree), ...);
     }, rhs);
-    return out.sort();
+    return out;
   }
 };
 

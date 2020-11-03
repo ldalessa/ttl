@@ -92,17 +92,19 @@ int main(int argc, char* const argv[])
   std::map args = docopt::docopt(USAGE, {argv + 1, argv + argc});
 
   if (args["--tensors"].asBool()) {
-    fmt::print("tensors:\n");
-    for (auto&& c : sedov.tensors()) {
-      fmt::print("{}\n", c);
+    auto t = sedov.tensors();
+    fmt::print("tensors ({}):\n", t.size());
+    for (int i = 0; auto&& c : t) {
+      fmt::print("{}: {}\n", i++, c);
     }
     fmt::print("\n");
   }
 
   if (args["--constants"].asBool()) {
-    fmt::print("constants:\n");
-    for (auto&& c : sedov.constants()) {
-      fmt::print("{}\n", c);
+    auto c = sedov.constants();
+    fmt::print("constants ({}):\n", c.size());
+    for (int i = 0; auto&& c : c.sort()) {
+      fmt::print("{}: {}\n", i++, c);
     }
     fmt::print("\n");
   }
@@ -110,15 +112,15 @@ int main(int argc, char* const argv[])
   if (args["--hessians"].asBool()) {
     auto h = sedov.hessians();
     fmt::print("hessians (capacity {}):\n", h.capacity());
-    for (auto&& c : h) {
-      fmt::print("{}({},{})\n", c.a, c.i, c.dx);
+    for (int i = 0; auto&& c : h.sort()) {
+      fmt::print("{}: {}({},{})\n", i++, c.a, c.i, c.dx);
     }
     fmt::print("\n");
   }
 
   if (args["--partials"].asBool()) {
-    constexpr auto partials = sedov3d.partials();
-    fmt::print("partials:\n");
+    auto partials = sedov3d.partials();
+    fmt::print("partials ({}):\n", partials.size());
     for (int i = 0; auto&& p : partials) {
       fmt::print("{}: {}\n", i++, p);
     }

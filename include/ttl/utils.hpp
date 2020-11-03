@@ -1,6 +1,7 @@
 #pragma once
 
 #include <ce/cvector.hpp>
+#include <ce/dvector.hpp>
 #include <concepts>
 #include <optional>
 #include <utility>
@@ -99,9 +100,18 @@ struct set : ce::cvector<T, N> {
   }
 };
 
-template <typename T, int N>
-struct stack : ce::cvector<T, N> {
-  using ce::cvector<T, N>::cvector;
+// template <typename T, int N>
+// struct stack : ce::cvector<T, N> {
+//   using ce::cvector<T, N>::cvector;
+
+//   constexpr void push(const T& t) { this->push_back(t); }
+//   constexpr void push(T&& t) { this->push_back(std::move(t)); }
+//   constexpr    T pop() { return this->pop_back(); }
+// };
+
+template <typename T>
+struct stack : ce::dvector<T> {
+  using ce::dvector<T>::dvector;
 
   constexpr void push(const T& t) { this->push_back(t); }
   constexpr void push(T&& t) { this->push_back(std::move(t)); }
