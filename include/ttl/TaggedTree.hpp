@@ -82,6 +82,10 @@ struct TaggedTree {
     };
   }
 
+  constexpr friend int size(const TaggedTree&) {
+    return M;
+  }
+
   constexpr static int size() {
     return M;
   }
@@ -151,16 +155,16 @@ struct TaggedTree {
       std::array<int, M> right = {};
     } out;
 
-    ce::cvector<int, M> stack;
+    utils::stack<int, M> stack;
     for (int i = 0; i < M; ++i) {
       if (is_binary(tag(i))) {
-        out.right[i] = stack.pop_back();
-        out.left[i] = stack.pop_back();
+        out.right[i] = stack.pop();
+        out.left[i] = stack.pop();
       }
       else {
         ++out.leaves;
       }
-      stack.push_back(i);
+      stack.push(i);
       out.depth = std::max(out.depth, stack.size());
     }
     return out;
@@ -171,34 +175,34 @@ struct TaggedTree {
   constexpr auto postorder(Ops&&... ops) const {
     utils::overloaded op = { std::forward<Ops>(ops)... };
     using T = decltype(op(at(0)));
-    ce::cvector<T, TaggedTree::M> stack;
+    utils::stack<T, TaggedTree::M> stack;
     for (int i = 0; i < M; ++i) {
       auto node = at(i);
       if (node.is_binary()) {
-        auto&& r = stack.pop_back();
-        auto&& l = stack.pop_back();
-        stack.push_back(op(node, std::move(l), std::move(r)));
+        auto&& r = stack.pop();
+        auto&& l = stack.pop();
+        stack.push(op(node, std::move(l), std::move(r)));
       }
       else {
-        stack.push_back(op(node));
+        stack.push(op(node));
       }
     }
     assert(stack.size() == 1);
-    return stack.pop_back();
+    return stack.pop();
   }
 
   constexpr auto split() const {
     // postorder traversal to find the split point
     constexpr int nl = [] {
       int l = 0;
-      ce::cvector<int, M> stack;
+      utils::stack<int, M> stack;
       for (int i = 0; i < M; ++i) {
         if (is_binary(tag(i))) {
-          int r = stack.pop_back();
+          int r = stack.pop();
           assert(r == i - 1);
-          l = stack.pop_back();
+          l = stack.pop();
         }
-        stack.push_back(i);
+        stack.push(i);
       }
       return l + 1;
     }(), nr = M - nl - 1;

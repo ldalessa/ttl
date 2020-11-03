@@ -3,7 +3,7 @@ static constexpr const char USAGE[] =
   Usage:
       sedov (-h | --help)
       sedov --version
-      sedov [--hessians] [--tensors] [--constants]  [--scalars] [--eqn <rhs>]... [--dot <rhs>]...
+      sedov [--hessians] [--tensors] [--constants]  [--partials] [--eqn <rhs>]... [--dot <rhs>]...
 
   Options:
       -h, --help         Show this screen.
@@ -11,7 +11,7 @@ static constexpr const char USAGE[] =
       --hessians         Print hessians
       --constants        Print constants
       --tensors          Print tensors
-      --scalars          Print scalars
+      --partials         Print partials
       --eqn <rhs>        Print an eqn for <rhs>
       --dot <rhs>        Print a dotfile for <rhs>
 )";
@@ -116,11 +116,11 @@ int main(int argc, char* const argv[])
     fmt::print("\n");
   }
 
-  if (args["--scalars"].asBool()) {
-    constexpr auto scalars = sedov3d.scalars();
-    fmt::print("scalars:\n");
-    for (int i = 0; auto&& s : scalars) {
-      fmt::print("{}: {} {} d{}\n", i++, s.tensor, s.component, s.partial_string());
+  if (args["--partials"].asBool()) {
+    constexpr auto partials = sedov3d.partials();
+    fmt::print("partials:\n");
+    for (int i = 0; auto&& p : partials) {
+      fmt::print("{}: {}\n", i++, p);
     }
     fmt::print("\n");
   }

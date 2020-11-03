@@ -4,18 +4,18 @@
 #include "Tensor.hpp"
 #include "Index.hpp"
 #include "utils.hpp"
+#include <span>
 
 namespace ttl {
 template <int N>
-struct Scalar {
+struct Partial {
   Tensor         tensor;
   int         component = 0;
   std::array<int, N> dx = {};
 
-  constexpr Scalar(Hessian h, std::same_as<int> auto... is)
+  constexpr Partial(const Hessian& h, auto&& index)
       : tensor(h.tensor())
   {
-    std::array<int, sizeof...(is)> index = { is... };
     Index outer = h.outer();
 
     for (int i = 0; auto&& c : h.index()) {
@@ -27,7 +27,7 @@ struct Scalar {
     }
   }
 
-  constexpr bool operator==(const Scalar& rhs) {
+  constexpr bool operator==(const Partial& rhs) {
     if (tensor != rhs.tensor) return false;
     if (component != rhs.component) return false;
     for (int n = 0; n < N; ++n) {
@@ -36,7 +36,7 @@ struct Scalar {
     return true;
   }
 
-  constexpr bool operator<(const Scalar& rhs) const {
+  constexpr bool operator<(const Partial& rhs) const {
     if (partial_mask() < rhs.partial_mask()) return true;
     if (rhs.partial_mask() < partial_mask()) return false;
     if (id() < rhs.id()) return true;
@@ -76,3 +76,16 @@ struct Scalar {
   }
 };
 }
+
+template <int N>
+struct fmt::formatter<ttl::Partial<N>> {
+  constexpr auto parse(format_parse_context& ctx) {
+    return ctx.begin();
+  }
+
+  template <typename FormatContext>
+  auto format(const ttl::Partial<N>& p, FormatContext& ctx) {
+    return format_to(ctx.out(), "{} {} d{}", p.tensor, p.component,
+                     p.partial_string());
+  }
+};

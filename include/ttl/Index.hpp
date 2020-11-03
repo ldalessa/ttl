@@ -14,6 +14,28 @@ struct Index : ce::cvector<char, 8>
   constexpr Index(char c) : ce::cvector<char, 8>(std::in_place, c) {
   }
 
+  constexpr friend bool operator==(Index a, Index b) {
+    if (a.size() != b.size()) {
+      return false;
+    }
+    for (int i = 0; i < a.size(); ++i) {
+      if (a[i] != b[i]) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  constexpr friend bool operator<(Index a, Index b) {
+    if (a.size() < b.size()) return true;
+    if (b.size() < a.size()) return false;
+    for (int i = 0; i < a.size(); ++i) {
+      if (a[i] < b[i]) return true;
+      if (b[i] < a[i]) return false;
+    }
+    return false;
+  }
+
   // Count the number of `c` in the index.
   constexpr int count(char c) const {
     return std::count(begin(), end(), c);
@@ -40,18 +62,6 @@ struct Index : ce::cvector<char, 8>
     return { begin(), end() };
   }
 };
-
-constexpr static inline bool operator==(const Index& a, const Index& b) {
-  if (a.size() != b.size()) {
-    return false;
-  }
-  for (int i = 0; i < a.size(); ++i) {
-    if (a[i] != b[i]) {
-      return false;
-    }
-  }
-  return true;
-}
 
 constexpr Index reverse(Index a) {
   Index out;

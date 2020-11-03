@@ -14,6 +14,16 @@ struct Hessian {
     return a == rhs.a && i == rhs.i && dx == rhs.dx;
   }
 
+  constexpr bool operator<(const Hessian& rhs) {
+    if (a < rhs.a) return true;
+    if (rhs.a < a) return false;
+    if (i < rhs.i) return true;
+    if (rhs.i < i) return false;
+    if (dx < rhs.dx) return true;
+    if (rhs.dx < dx) return false;
+    return false;
+  }
+
   constexpr Tensor tensor() const {
     return a;
   }
@@ -36,6 +46,10 @@ struct Hessian {
 
   constexpr int order() const {
     return outer().size();
+  }
+
+  constexpr friend int order(const Hessian& h) {
+    return h.order();
   }
 };
 }

@@ -32,106 +32,96 @@ struct System
     return utils::index_of(lhs, t);
   }
 
-  constexpr std::array<std::string_view, M> tensors() const {
-    std::array<std::string_view, M> out;
-    for (int i = 0; auto&& t : lhs) {
-      out[i++] = t.id();
+  constexpr decltype(auto) tensors() const {
+    return lhs;
+  }
+
+  template <int M>
+  constexpr void constants(utils::set<Tensor, M>& out, auto& tree) const {
+    for (int i = 0, e = size(tree); i < e; ++i) {
+      if (auto* t = tree.at(i).tensor()) {
+        if (not utils::index_of(lhs, *t)) {
+          out.emplace(*t);
+        }
+      }
     }
-    return out;
   }
 
   constexpr auto constants() const {
     constexpr int M = (Rhs::n_tensors() + ... + 0);
-    ce::cvector<std::string_view, M> out;
+    utils::set<Tensor, M> out;
+    std::apply([&](auto&... tree) {
+      (constants(out, tree), ...);
+    }, rhs);
+    return out.sort();
+  }
 
-    auto search = [&](auto& tree) {
-      for (int i = 0; i < tree.M; ++i) {
-        if (auto* t = tree.at(i).tensor()) {
-          if (not utils::index_of(lhs, *t)) {
-            if (not utils::index_of(out, t->id())) {
-              out.push_back(t->id());
-            }
+  template <int M>
+  constexpr void hessians(utils::set<Hessian, M>& out, auto& tree) const {
+    constexpr auto geometry = std::decay_t<decltype(tree)>::geometry();
+    utils::stack<Index, geometry.depth + 1> index = { std::in_place, Index() };
+    utils::stack<Index, geometry.depth + 1> dx = { std::in_place, Index() };
+    utils::stack<int, geometry.depth> stack = { std::in_place, tree.size() - 1 };
+    while (stack.size()) {
+      int     i = stack.pop();
+      Index idx = index.pop();
+      Index ddx = dx.pop();
+      int  left = geometry.left[i];
+      int right = geometry.right[i];
+      auto node = tree.at(i);
+
+      if (const Tensor* t = node.tensor()) {
+        if (tensor(*t)) {
+          Index all = unique(idx + ddx);
+          Index anon;
+          for (int i = 0; i < all.size(); ++i) {
+            anon.push_back(char('0' + i));
           }
+          idx.search_and_replace(all, anon);
+          ddx.search_and_replace(all, anon);
+          out.emplace(*t, idx, ddx);
         }
       }
-    };
+      else if (node.is(PARTIAL)) {
+        ddx = *tree.at(right).index() + ddx;
+      }
+      else if (node.is(BIND)) {
+        idx = *tree.at(right).index() + idx;
+      }
+      else if (node.is(PRODUCT) && tree.at(left).is(INDEX)) {
+        // delta rewrites incoming ddx
+        Index j = *tree.at(left).index();
+        Index a = { j[0] };
+        Index b = { j[1] };
+        ddx.search_and_replace(b, a);
+      }
+      else if (node.is(PRODUCT) && tree.at(right).is(INDEX)) {
+        // delta rewrites incoming ddx
+        Index j = *tree.at(right).index();
+        Index a = { j[0] };
+        Index b = { j[1] };
+        ddx.search_and_replace(b, a);
+      }
 
-    std::apply([&](auto&... rhs) {
-      (search(rhs), ...);
-    }, rhs);
+      if (node.is_binary()) {
+        index.push(idx);
+        dx.push(ddx);
+        stack.push(left);
 
-    return out;
+        index.push(idx);
+        dx.push(ddx);
+        stack.push(right);
+      }
+    }
   }
 
   constexpr auto hessians() const {
     constexpr int M = (Rhs::n_tensors() + ... + 0);
-    ce::cvector<Hessian, M> out;
-    auto search = [&](auto& tree) {
-      constexpr auto geometry = std::decay_t<decltype(tree)>::geometry();
-      ce::cvector<Index, geometry.depth + 1> index = { std::in_place, Index() };
-      ce::cvector<Index, geometry.depth + 1> dx = { std::in_place, Index() };
-      ce::cvector<int, geometry.depth> stack = { std::in_place, tree.size() - 1 };
-      while (stack.size()) {
-        int     i = stack.pop_back();
-        Index idx = index.pop_back();
-        Index ddx = dx.pop_back();
-        int  left = geometry.left[i];
-        int right = geometry.right[i];
-        auto node = tree.at(i);
-
-        if (const Tensor* t = node.tensor()) {
-          if (tensor(*t)) {
-            Index all = unique(idx + ddx);
-            Index anon;
-            for (int i = 0; i < all.size(); ++i) {
-              anon.push_back(char('0' + i));
-            }
-            idx.search_and_replace(all, anon);
-            ddx.search_and_replace(all, anon);
-            Hessian h(*t, idx, ddx);
-            if (!utils::index_of(out, h)) {
-              out.emplace_back(*t, idx, ddx);
-            }
-          }
-        }
-        else if (node.is(PARTIAL)) {
-          ddx = *tree.at(right).index() + ddx;
-        }
-        else if (node.is(BIND)) {
-          idx = *tree.at(right).index() + idx;
-        }
-        else if (node.is(PRODUCT) && tree.at(left).is(INDEX)) {
-          // delta rewrites incoming ddx
-          Index j = *tree.at(left).index();
-          Index a = { j[0] };
-          Index b = { j[1] };
-          ddx.search_and_replace(b, a);
-        }
-        else if (node.is(PRODUCT) && tree.at(right).is(INDEX)) {
-          // delta rewrites incoming ddx
-          Index j = *tree.at(right).index();
-          Index a = { j[0] };
-          Index b = { j[1] };
-          ddx.search_and_replace(b, a);
-        }
-
-        if (node.is_binary()) {
-          index.push_back(idx);
-          dx.push_back(ddx);
-          stack.push_back(left);
-
-          index.push_back(idx);
-          dx.push_back(ddx);
-          stack.push_back(right);
-        }
-      }
-    };
-
-    std::apply([&](auto&... rhs) {
-      (search(rhs), ...);
+    utils::set<Hessian, M> out;
+    std::apply([&](auto&... tree) {
+      (hessians(out, tree), ...);
     }, rhs);
-
-    return out;
+    return out.sort();
   }
 };
 
