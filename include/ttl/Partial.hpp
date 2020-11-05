@@ -4,16 +4,16 @@
 #include "Tensor.hpp"
 #include "Index.hpp"
 #include "utils.hpp"
-#include <span>
+#include <ranges>
 
 namespace ttl {
-template <int N>
+template <int N> requires(N > 0)
 struct Partial {
-  Tensor         tensor;
-  int         component = 0;
-  std::array<int, N> dx = {};
+  Tensor tensor;
+  int component = 0;
+  int     dx[N] = {};
 
-  constexpr Partial(const Hessian& h, auto&& index)
+  constexpr Partial(const Hessian& h, int index[])
       : tensor(h.tensor())
   {
     Index outer = h.outer();
@@ -75,6 +75,68 @@ struct Partial {
     return str;
   }
 };
+
+template <int N, int M>
+struct PartialManifest {
+  Partial<N> data[M];
+
+  template <typename... Ts>
+  requires(std::same_as<std::remove_cvref_t<Ts>, Partial<N>> && ...)
+  constexpr PartialManifest(Ts&&... ps)
+      : data { std::forward<Ts>(ps)... }
+  {
+  }
+
+  constexpr static int      size()       { return M; }
+  constexpr decltype(auto) begin() const { return data + 0; }
+  constexpr decltype(auto)   end() const { return data + size(); }
+
+  constexpr decltype(auto) operator[](int i) const { assert(0 <= i && i < M);
+    return data[i];
+  }
+
+  constexpr decltype(auto) operator[](int i) { assert(0 <= i && i < M);
+    return data[i];
+  }
+
+  constexpr auto dx(int mask) const {
+    auto a = std::ranges::lower_bound(data, mask, std::less{}, [](const Partial<N>& dx) {
+      return dx.partial_mask();
+    });
+    auto b = std::ranges::lower_bound(data, mask + 1, std::less{}, [](const Partial<N>& dx) {
+      return dx.partial_mask();
+    });
+
+    struct IndexRange {
+      int i;
+      int j;
+
+      constexpr IndexRange(int i, int j) : i(i), j(j) {}
+
+      struct iterator {
+        int i;
+        constexpr decltype(auto) operator*()  const { return i; }
+        constexpr decltype(auto) operator++() { return (++i, *this); }
+        constexpr bool operator==(const iterator& b) const { return i == b.i; }
+        constexpr auto operator<=>(const iterator& b) const { return i <=> b.i; }
+      };
+
+      constexpr int       size() const { return j - i; };
+      constexpr iterator begin() const { return { i }; }
+      constexpr iterator   end() const { return { j }; }
+    };
+
+    return IndexRange(a - data, b - data);
+  }
+
+  constexpr auto fields() const {
+    return dx(0);
+  }
+};
+
+template <int N>
+PartialManifest(Partial<N>, std::same_as<Partial<N>> auto... rest) ->
+  PartialManifest<N, 1 + sizeof...(rest)>;
 }
 
 template <int N>

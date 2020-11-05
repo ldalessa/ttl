@@ -16,39 +16,12 @@ static constexpr const char USAGE[] =
       --dot <rhs>        Print a dotfile for <rhs>
 )";
 
+#include "cm.hpp"
 #include <ttl/ttl.hpp>
 #include <fmt/core.h>
 #include <docopt.h>
 
 namespace {
-template <typename Density, typename Energy, typename T>
-constexpr auto ideal_gas(Density&& rho, Energy&& e, T&& gamma) {
-  return (gamma - 1) * rho * e;
-}
-
-template <typename Pressure, typename Velocity, typename T, typename U>
-constexpr auto newtonian_fluid(Pressure&& p, Velocity&& v, T&& mu, U&& muVolume) {
-  ttl::Index i = 'a';
-  ttl::Index j = 'b';
-  ttl::Index k = 'c';
-
-  auto   d = symmetrize(D(v(i),j));
-  auto iso = p + muVolume * D(v(k),k);
-  auto dev = 2 * mu * d - 2.0 / 3.0 * mu * D(v(k),k) * delta(i,j);
-  return iso * delta(i,j) + dev;
-}
-
-template <typename Energy, typename T>
-constexpr auto calorically_perfect(Energy&& e, T&& specific_heat) {
-  return e / specific_heat;
-}
-
-template <typename Temperature, typename T>
-constexpr auto fouriers_law(Temperature&& theta, T&& conductivity) {
-  ttl::Index i = 'd';
-  return - D(theta,i) * conductivity;
-}
-
 /// Model parameters
 constexpr ttl::Tensor    gamma = ttl::scalar("gamma");
 constexpr ttl::Tensor       mu = ttl::scalar("mu");
@@ -68,10 +41,10 @@ constexpr ttl::Index j = 'j';
 
 /// Constitutive model terms
 constexpr auto     d = symmetrize(D(v(i),j));
-constexpr auto     p = ideal_gas(rho, e, gamma);
-constexpr auto sigma = newtonian_fluid(p, v, mu, muVolume);
-constexpr auto theta = calorically_perfect(e, cv);
-constexpr auto     q = fouriers_law(theta, kappa);
+constexpr auto     p = cm::ideal_gas(rho, e, gamma);
+constexpr auto sigma = cm::newtonian_fluid(p, v, mu, muVolume);
+constexpr auto theta = cm::calorically_perfect(e, cv);
+constexpr auto     q = cm::fouriers_law(theta, kappa);
 
 /// System of equations.
 constexpr auto rho_rhs = - D(rho,i) * v(i) - rho * D(v(i),i);
@@ -136,6 +109,34 @@ int main(int argc, char* const argv[])
   if (ttl::utils::index_of(dots, "rho")) fmt::print("graph rho {{\n{:dot}}}\n", rho_rhs);
   if (ttl::utils::index_of(dots, "v")) fmt::print("graph v {{\n{:dot}}}\n", v_rhs);
   if (ttl::utils::index_of(dots, "e")) fmt::print("graph e {{\n{:dot}}}\n", e_rhs);
+
+  // gamma    = 1.4;       // [-]ratio of specific heats
+  // cv       = 717.5;     // [J/kg.K] specific heat at constant volume
+  // kappa    = 0.02545;   // [W/m.K] thermal conductivity
+  // mu       = 1.9e-5;    // [Pa.s] dynamic viscosity
+  // muVolume = 1e-5;      // [Pa.s] volume viscosity
+  // g        = {0, 0, 0}; //
+
+  // constexpr auto partials = sedov3d.partials();
+  // {
+  //   [&]<std::size_t... is>(std::index_sequence<is...>) {
+  //     ([&] {
+  //       fmt::print("dx in {}\n", is);
+  //       constexpr auto dx = partials.dx(is);
+  //       constexpr auto N = dx.size();
+  //       for (auto&& i : dx) {
+  //         fmt::print("{}: {}\n", i, partials[i]);
+  //       }
+  //       fmt::print("\n");
+  //     }(), ...);
+  //   }(std::make_index_sequence<8>());
+  // }
+
+  // for (int i = 0; auto b : sedov.simplify(v_rhs)) {
+  //   fmt::print("i:{} {}\n", i++, b);
+  // }
+
+  sedov3d.simplify(v_rhs);
 
   return 0;
 }

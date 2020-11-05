@@ -5,22 +5,23 @@
 #include "utils.hpp"
 
 namespace ttl {
-template <Tag... Ts>
+template <Tag... Ts> requires(sizeof...(Ts) != 0)
 struct TaggedTree {
   constexpr static std::true_type is_tree_tag = {};
   constexpr static int M = sizeof...(Ts);
-  constexpr static std::array<Tag, M> tags = { Ts... };
+  constexpr static Tag tags[M] = { Ts... };
 
-  std::array<Node, M> nodes;
+  Node nodes_[M];
+  int  depth_ = 1;
 
   /// Leaf tree construction.
   ///
   /// There are CTAD guides that infer the right tag type for each of these
   /// four leaf operations.
-  constexpr TaggedTree(Tensor tensor) noexcept : nodes { tensor } {}
-  constexpr TaggedTree(Index index)   noexcept : nodes { index }  {}
-  constexpr TaggedTree(Rational q)    noexcept : nodes { q }      {}
-  constexpr TaggedTree(double d)      noexcept : nodes { d }      {}
+  constexpr TaggedTree(Tensor tensor) noexcept : nodes_ { tensor } {}
+  constexpr TaggedTree(Index index)   noexcept : nodes_ { index }  {}
+  constexpr TaggedTree(Rational q)    noexcept : nodes_ { q }      {}
+  constexpr TaggedTree(double d)      noexcept : nodes_ { d }      {}
 
   /// Split constructor.
   ///
@@ -30,8 +31,9 @@ struct TaggedTree {
   template <typename... Nodes>
   requires((sizeof...(Nodes) == sizeof...(Ts)) &&
            (std::same_as<Node, std::remove_cvref_t<Nodes>> && ...))
-  constexpr TaggedTree(Nodes&&... nodes)
-    : nodes { std::forward<Nodes>(nodes)... }
+  constexpr TaggedTree(int depth, Nodes&&... nodes)
+    : nodes_ { std::forward<Nodes>(nodes)... }
+    , depth_ { depth }
   {
   }
 
@@ -40,7 +42,9 @@ struct TaggedTree {
   /// This constructor joins two trees with a binary node with tag C.
   template <Tag... As, Tag... Bs, Tag C>
   requires(C < INDEX)
-  constexpr TaggedTree(TaggedTree<As...> a, TaggedTree<Bs...> b, tag_t<C>) {
+  constexpr TaggedTree(TaggedTree<As...> a, TaggedTree<Bs...> b, tag_t<C>)
+    : depth_ { std::max(a.depth(), b.depth()) + 1 }
+  {
     // check a couple of tree structure invariants
     if (C == BIND || C == PARTIAL) {
       assert(b.size() == 1);
@@ -59,23 +63,23 @@ struct TaggedTree {
     }
 
     int i = 0;
-    for (auto&& a : a.nodes) nodes[i++] = a;
-    for (auto&& b : b.nodes) nodes[i++] = b;
+    for (auto&& a : a.nodes_) nodes_[i++] = a;
+    for (auto&& b : b.nodes_) nodes_[i++] = b;
 
     Index ai = a.outer(), bi = b.outer();
     switch (C) {
      case SUM:
      case DIFFERENCE:
       assert(permutation(ai, bi));
-      nodes[i++].index = ai;
+      nodes_[i++].index = ai;
       break;
      case PRODUCT:
      case INVERSE:
-      nodes[i++].index = ai ^ bi;
+      nodes_[i++].index = ai ^ bi;
       break;
      case BIND:
      case PARTIAL:
-      nodes[i++].index = exclusive(ai + bi);
+      nodes_[i++].index = exclusive(ai + bi);
       break;
      default:
       __builtin_unreachable();
@@ -84,6 +88,10 @@ struct TaggedTree {
 
   constexpr friend int size(const TaggedTree&) {
     return M;
+  }
+
+  constexpr int depth() const {
+    return depth_;
   }
 
   constexpr static int size() {
@@ -99,11 +107,11 @@ struct TaggedTree {
   }
 
   constexpr const Node& node(int i) const {
-    return nodes[i];
+    return nodes_[i];
   }
 
   constexpr Node& node(int i) {
-    return nodes[i];
+    return nodes_[i];
   }
 
   constexpr TaggedNode<const Node> at(int i) const {
@@ -130,7 +138,7 @@ struct TaggedTree {
     // Rewrite the outer index of a tree.
     Index search = outer();
     assert(replace.size() == search.size());
-    for (int i = 0; i < nodes.size(); ++i) {
+    for (int i = 0; i < M; ++i) {
       if (Index *idx = at(i).index()) {
         idx->search_and_replace(search, replace);
       }
@@ -143,39 +151,13 @@ struct TaggedTree {
     return copy;
   }
 
-  // Generate the tree geometry.
-  //
-  // This includes the depth of the tree, the number of leaves, and the left and
-  // right child ids.
-  constexpr static auto geometry() {
-    struct {
-      int  depth    = 0;
-      int leaves    = 0;
-      int   left[M] = {};
-      int  right[M] = {};
-    } out;
-
-    utils::stack<int> stack;
-    for (int i = 0; i < M; ++i) {
-      if (is_binary(tag(i))) {
-        out.right[i] = stack.pop();
-        out.left[i] = stack.pop();
-      }
-      else {
-        ++out.leaves;
-      }
-      stack.push(i);
-      out.depth = std::max(out.depth, stack.size());
-    }
-    return out;
-  }
-
   // Generic postorder (bottom-up) traversal.
   template <typename... Ops>
   constexpr auto postorder(Ops&&... ops) const {
     utils::overloaded op = { std::forward<Ops>(ops)... };
     using T = decltype(op(at(0)));
     utils::stack<T> stack;
+    stack.reserve(depth_);
     for (int i = 0; i < M; ++i) {
       auto node = at(i);
       if (node.is_binary()) {
@@ -205,22 +187,33 @@ struct TaggedTree {
         stack.push(i);
       }
       return l + 1;
-    }(), nr = M - nl - 1;
+    }();
+
+    constexpr int nr = M - nl - 1;
 
     // create the left and right child trees (the tags are stored backwards, and
     // we need to preserve that order in the children types, so we need a little
     // bit of fanciness to make sure we're picking up the right ones)
     auto left = [&]<std::size_t... i>(std::index_sequence<i...>) {
-      return TaggedTree<tags[M - nl + i]...>(nodes[i]...);
+      return TaggedTree<tags[M - nl + i]...>(depth() - 1, nodes_[i]...);
     }(std::make_index_sequence<nl>());
 
     auto right = [&]<std::size_t... i>(std::index_sequence<i...>) {
-      return TaggedTree<tags[M - nl - nr + i]...>(nodes[nl + i]...);
+      return TaggedTree<tags[M - nl - nr + i]...>(depth() - 1, nodes_[nl + i]...);
     }(std::make_index_sequence<nr>());
 
     // return the pair
     return std::tuple(tag(M - 1), left, right);
   }
+
+  struct SubtreeView {
+    TaggedTree* tree;
+    int root;
+
+    constexpr friend int size(const SubtreeView& view) {
+      return view.root;
+    }
+  };
 };
 
 TaggedTree(Tensor)   -> TaggedTree<TENSOR>;

@@ -58,11 +58,6 @@ constexpr static void expand(int N, int Order, Op&& op) {
   delete [] index;
 }
 
-template <typename T, typename... Ts>
-constexpr static std::array<T, sizeof...(Ts)> make_array(Ts&&... ts) {
-  return { std::forward<Ts>(ts)... };
-}
-
 template <typename T, int N>
 struct set : ce::cvector<T, N> {
   using ce::cvector<T, N>::cvector;
@@ -75,20 +70,15 @@ struct set : ce::cvector<T, N> {
     }
   }
 
+  constexpr bool contains(const T& t) const {
+    return index_of(*this, t).has_value();
+  }
+
   constexpr set& sort() {
     std::sort(this->begin(), this->end());
     return *this;
   }
 };
-
-// template <typename T, int N>
-// struct stack : ce::cvector<T, N> {
-//   using ce::cvector<T, N>::cvector;
-
-//   constexpr void push(const T& t) { this->push_back(t); }
-//   constexpr void push(T&& t) { this->push_back(std::move(t)); }
-//   constexpr    T pop() { return this->pop_back(); }
-// };
 
 template <typename T>
 struct stack : ce::dvector<T> {
