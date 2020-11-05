@@ -18,7 +18,7 @@ constexpr auto newtonian_fluid(Pressure&& p, Velocity&& v, T&& mu, U&& muVolume)
   auto   d = symmetrize(D(v(i),j));
   auto iso = p + muVolume * D(v(k),k);
   auto dev = 2 * mu * d - 2.0 / 3.0 * mu * D(v(k),k) * delta(i,j);
-  return iso * delta(i,j) + dev;
+  return delta(i,j) * iso + dev;
 }
 
 template <typename Energy, typename T>

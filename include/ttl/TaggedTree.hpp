@@ -46,17 +46,10 @@ struct TaggedTree {
     : depth_ { std::max(a.depth(), b.depth()) + 1 }
   {
     // check a couple of tree structure invariants
-    if (C == BIND || C == PARTIAL) {
-      assert(b.size() == 1);
-      assert(b.tag(0) == INDEX);
-    }
-    else if (C == PRODUCT) {
-      assert(!(a.root().is(DELTA) && b.root().is(DELTA)));
-    }
-    else {
-      assert(!a.root().is(INDEX) && !b.root().is(INDEX));
-      assert(!a.root().is(DELTA) && !b.root().is(DELTA));
-    }
+    assert(!a.root().is(INDEX));
+    assert(!a.root().is(DELTA));
+    assert(!b.root().is(DELTA) || (C == PRODUCT));
+    assert(!b.root().is(INDEX) || (C == BIND || C == PARTIAL));
 
     int i = 0;
     for (auto&& a : a.nodes_) nodes_[i++] = a;
@@ -251,8 +244,18 @@ constexpr auto operator+(is_expression auto a, is_expression auto b) {
   return TaggedTree(bind(a), bind(b), tag_v<SUM>);
 }
 
-constexpr auto operator*(is_expression auto a, is_expression auto b) {
-  return TaggedTree(bind(a), bind(b), tag_v<PRODUCT>);
+template <typename A> requires(is_expression<A>)
+constexpr auto operator*(A a, is_expression auto b) {
+  // tree invariant is that delta nodes must appear as right children
+  if constexpr (!is_tree<A>) {
+    return TaggedTree(bind(a), bind(b), tag_v<PRODUCT>);
+  }
+  else if constexpr (A::tag(A::size() - 1) != DELTA) {
+    return TaggedTree(bind(a), bind(b), tag_v<PRODUCT>);
+  }
+  else {
+    return TaggedTree(bind(b), bind(a), tag_v<PRODUCT>); // commute
+  }
 }
 
 constexpr auto operator-(is_expression auto a, is_expression auto b) {
