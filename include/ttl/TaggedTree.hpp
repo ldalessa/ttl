@@ -197,15 +197,6 @@ struct TaggedTree {
     // return the pair
     return std::tuple(tag(M - 1), left, right);
   }
-
-  struct SubtreeView {
-    TaggedTree* tree;
-    int root;
-
-    constexpr friend int size(const SubtreeView& view) {
-      return view.root;
-    }
-  };
 };
 
 TaggedTree(Tensor)   -> TaggedTree<TENSOR>;
@@ -395,7 +386,12 @@ struct fmt::formatter<ttl::TaggedTree<Ts...>>
  private:
   auto dot(const Tree& a, auto& ctx) const {
     for (int i = 0; i < Tree::M; ++i) {
-      format_to(ctx.out(), FMT_STRING("\tnode{}[label=\"{}\"]\n"), i, a.at(i));
+      if (const ttl::Index* j = a.at(i).index()) {
+        format_to(ctx.out(), FMT_STRING("\tnode{}[label=\"{}({})\"]\n"), i, a.at(i), *j);
+      }
+      else {
+        format_to(ctx.out(), FMT_STRING("\tnode{}[label=\"{}\"]\n"), i, a.at(i));
+      }
     }
 
     a.postorder(

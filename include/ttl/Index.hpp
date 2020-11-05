@@ -81,16 +81,6 @@ constexpr Index unique(Index a) {
   return out;
 }
 
-//
-constexpr Index anonymize(Index a, char c = '0') {
-  Index search = unique(a);
-  Index replace;
-  for (int i = 0; i < search.size(); ++i) {
-    replace.push_back(char(c + i));
-  }
-  return a.search_and_replace(search, replace);
-}
-
 constexpr Index repeated(Index a) {
   Index out;
   for (char c : a) {

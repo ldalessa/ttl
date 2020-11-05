@@ -68,116 +68,56 @@ struct System
   constexpr void hessians(utils::set<Hessian, N>& out, const Tree& tree) const
   {
     constexpr int N = Tree::size();
-    // bottom up to build the geometry
-    int   left[N] = {};
-    int  right[N] = {};
-    int parent[N] = {};
+
+    // left to right traversal to collect parent ids
+    int parent[N];
     utils::stack<int> stack;
-    stack.reserve(tree.depth());
     for (int i = 0, e = tree.size(); i < e; ++i) {
       if (tree.at(i).is_binary()) {
-        right[i] = stack.pop();
-        left[i] = stack.pop();
-        parent[right[i]] = i;
-        parent[left[i]] = i;
+        parent[stack.pop()] = i;
+        parent[stack.pop()] = i;
       }
       stack.push(i);
     }
     parent[stack.pop()] = N;
-    assert(stack.size() == 0);
 
-    // top-down-ish traversal to build the leaf indices
-    // Index index[N + 1];
-    // Index dx[N + 1];
-    // index[N] = {};
-    // dx[N] = {};
-    // for (int i = N - 1; i >= 0; --i) {
-    //   Index& idx = index[i] = index[parent[i]];
-    //   Index& ddx =    dx[i] = dx[parent[i]];
-    //   TaggedNode node = tree.at(i);
+    // right to left traversal to propagate dx down the tree
+    Index dx[N + 1] = {};
+    for (int i = N - 1; i >= 0; --i)
+    {
+      TaggedNode node = tree.at(i);
+      int pid = parent[i];
+      dx[i] = dx[pid];
 
-    //   // non-constant tensors
-    //   if (const Tensor* t = node.tensor()) {
-    //     if (tensor(*t)) {
-    //       Index all = unique(idx + ddx);
-    //       Index anon = anonymous(all);
-    //       idx.search_and_replace(all, anon);
-    //       ddx.search_and_replace(all, anon);
-    //       out.emplace(*t, idx, idx);
-    //     }
-    //     continue;
-    //   }
-
-    //   if (node.is(INDEX)) {
-    //     assert(right[parent[i]] == 1);
-    //     continue;
-    //   }
-
-    //   else if (node.is(PARTIAL)) {
-    //     ddx = *tree.at(right[i]).index() + ddx;
-    //   }
-    //   else if (node.is(BIND)) {
-    //     idx = *tree.at(right[i]).index() + idx;
-    //   }
-    //   else if (node.is(PRODUCT) && tree.at(left[i]).is(INDEX)) {
-    //     // delta rewrites incoming ddx
-    //     Index j = *tree.at(left[i]).index();
-    //     Index a = { j[0] };
-    //     Index b = { j[1] };
-    //     ddx.search_and_replace(b, a);
-    //   }
-    //   else if (node.is(PRODUCT) && tree.at(right[i]).is(INDEX)) {
-    //     // delta rewrites incoming ddx
-    //     Index j = *tree.at(right[i]).index();
-    //     Index a = { j[0] };
-    //     Index b = { j[1] };
-    //     ddx.search_and_replace(b, a);
-    //   }
-    // }
-
-    utils::stack<Index> index = { std::in_place, Index() };
-    utils::stack<Index>    dx = { std::in_place, Index() };
-    stack.push(tree.size() - 1);
-    while (stack.size()) {
-      int     i = stack.pop();
-      Index idx = index.pop();
-      Index ddx = dx.pop();
-      auto node = tree.at(i);
-
-      if (const Tensor* t = node.tensor()) {
-        if (tensor(*t)) {
-          Index all = unique(idx + ddx);
-          Index anon;
-          for (int i = 0; i < all.size(); ++i) {
-            anon.push_back(char('0' + i));
-          }
-          idx.search_and_replace(all, anon);
-          ddx.search_and_replace(all, anon);
-          out.emplace(*t, idx, ddx);
-        }
+      if (node.is(INDEX) && tree.at(pid).is(PARTIAL)) {
+        // prepend the index to the parent's dx
+        dx[pid] = *node.index() + dx[i];
+        continue;
       }
-      else if (node.is(PARTIAL)) {
-        ddx = *tree.at(right[i]).index() + ddx;
-      }
-      else if (node.is(BIND)) {
-        idx = *tree.at(right[i]).index() + idx;
-      }
-      else if (node.is(PRODUCT) && tree.at(right[i]).is(DELTA)) {
-        // delta rewrites incoming ddx
-        Index j = *tree.at(right[i]).index();
+
+      // delta could be the root, so check before accessing the parent
+      if (node.is(DELTA) && pid < N && tree.at(pid).is(PRODUCT)) {
+        // modify the dx stored in the parent
+        Index j = *node.index();
+        assert(j.size() == 2);
         Index a = { j[0] };
         Index b = { j[1] };
-        ddx.search_and_replace(b, a);
+        dx[pid].search_and_replace(b, a);
+        continue;
       }
 
-      if (node.is_binary()) {
-        index.push(idx);
-        dx.push(ddx);
-        stack.push(left[i]);
-
-        index.push(idx);
-        dx.push(ddx);
-        stack.push(right[i]);
+      if (const Tensor* t = node.tensor()) {
+        // non-constant tensors use dx, and if they have a parent that's a bind,
+        // then their index is stored there
+        if (tensor(*t)) {
+          if (pid < N && tree.at(pid).is(BIND)) {
+            out.emplace(*t, dx[i], *tree.at(pid).index());
+          }
+          else {
+            assert(t->order() == 0);
+            out.emplace(*t, dx[i]);
+          }
+        }
       }
     }
   }

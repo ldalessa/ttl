@@ -86,7 +86,7 @@ int main(int argc, char* const argv[])
     auto h = sedov.hessians();
     fmt::print("hessians (capacity {}):\n", h.capacity());
     for (int i = 0; auto&& c : h.sort()) {
-      fmt::print("{}: {}({},{})\n", i++, c.a, c.i, c.dx);
+      fmt::print("{}: {}({},{})\n", i++, c.tensor(), c.index(), c.partial());
     }
     fmt::print("\n");
   }
@@ -94,8 +94,12 @@ int main(int argc, char* const argv[])
   if (args["--partials"].asBool()) {
     auto partials = sedov3d.partials();
     fmt::print("partials ({}):\n", partials.size());
-    for (int i = 0; auto&& p : partials) {
-      fmt::print("{}: {}\n", i++, p);
+    for (int n = 0; n < 8; ++n) {
+      fmt::print("dx in {}\n", n);
+      for (int i = 0; int dx : partials.dx(n)) {
+        fmt::print("({},{}): {}\n", i++, dx, partials[dx]);
+      }
+      fmt::print("\n");
     }
     fmt::print("\n");
   }
@@ -116,25 +120,6 @@ int main(int argc, char* const argv[])
   // mu       = 1.9e-5;    // [Pa.s] dynamic viscosity
   // muVolume = 1e-5;      // [Pa.s] volume viscosity
   // g        = {0, 0, 0}; //
-
-  // constexpr auto partials = sedov3d.partials();
-  // {
-  //   [&]<std::size_t... is>(std::index_sequence<is...>) {
-  //     ([&] {
-  //       fmt::print("dx in {}\n", is);
-  //       constexpr auto dx = partials.dx(is);
-  //       constexpr auto N = dx.size();
-  //       for (auto&& i : dx) {
-  //         fmt::print("{}: {}\n", i, partials[i]);
-  //       }
-  //       fmt::print("\n");
-  //     }(), ...);
-  //   }(std::make_index_sequence<8>());
-  // }
-
-  // for (int i = 0; auto b : sedov.simplify(v_rhs)) {
-  //   fmt::print("i:{} {}\n", i++, b);
-  // }
 
   sedov3d.simplify(v_rhs);
 

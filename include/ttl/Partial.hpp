@@ -39,14 +39,14 @@ struct Partial {
   constexpr bool operator<(const Partial& rhs) const {
     if (partial_mask() < rhs.partial_mask()) return true;
     if (rhs.partial_mask() < partial_mask()) return false;
-    if (id() < rhs.id()) return true;
-    if (rhs.id() < id()) return false;
-    if (component < rhs.component) return true;
-    if (rhs.component < component) return false;
     for (int n = 0; n < N; ++n) {
       if (dx[n] < rhs.dx[n]) return true;
       if (rhs.dx[n] < dx[n]) return false;
     }
+    if (id() < rhs.id()) return true;
+    if (rhs.id() < id()) return false;
+    if (component < rhs.component) return true;
+    if (rhs.component < component) return false;
     return false;
   }
 
