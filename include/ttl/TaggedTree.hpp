@@ -50,16 +50,12 @@ struct TaggedTree {
       assert(b.size() == 1);
       assert(b.tag(0) == INDEX);
     }
-    else if (C == PRODUCT && a.root().is(INDEX)) {
-      assert(a.root().index()->size() == 2);
-      assert(!b.root().is(INDEX));
-    }
-    else if (C == PRODUCT && b.root().is(INDEX)) {
-      assert(!a.root().is(INDEX));
-      assert(b.root().index()->size() == 2);
+    else if (C == PRODUCT) {
+      assert(!(a.root().is(DELTA) && b.root().is(DELTA)));
     }
     else {
       assert(!a.root().is(INDEX) && !b.root().is(INDEX));
+      assert(!a.root().is(DELTA) && !b.root().is(DELTA));
     }
 
     int i = 0;
@@ -279,7 +275,7 @@ constexpr auto delta(Index a, Index b) {
   assert(a.size() == 1);
   assert(b.size() == 1);
   assert(a != b);
-  return bind((a + b));
+  return TaggedTree<DELTA>(a + b);
 }
 
 constexpr auto symmetrize(is_expression auto a) {
@@ -312,6 +308,7 @@ struct fmt::formatter<ttl::Tag> {
      case ttl::BIND:       return format_to(ctx.out(), "{}", "()");
      case ttl::PARTIAL:    return format_to(ctx.out(), "{}", "dx");
      case ttl::INDEX:      return format_to(ctx.out(), "{}", "index");
+     case ttl::DELTA:      return format_to(ctx.out(), "{}", "delta");
      case ttl::TENSOR:     return format_to(ctx.out(), "{}", "tensor");
      case ttl::RATIONAL:   return format_to(ctx.out(), "{}", "q");
      case ttl::DOUBLE:     return format_to(ctx.out(), "{}", "d");
@@ -337,6 +334,7 @@ struct fmt::formatter<ttl::TaggedNode<T>> {
      case ttl::BIND:
      case ttl::PARTIAL:    return format_to(ctx.out(), "{}", node.tag);
      case ttl::INDEX:      return format_to(ctx.out(), "{}", node.node.index);
+     case ttl::DELTA:      return format_to(ctx.out(), "{}", node.node.index);
      case ttl::TENSOR:     return format_to(ctx.out(), "{}", node.node.tensor);
      case ttl::RATIONAL:   return format_to(ctx.out(), "{}", node.node.q);
      case ttl::DOUBLE:     return format_to(ctx.out(), "{}", node.node.d);

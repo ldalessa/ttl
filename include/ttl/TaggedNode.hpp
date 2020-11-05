@@ -13,6 +13,7 @@ enum Tag {
   BIND,
   PARTIAL,
   INDEX,
+  DELTA,
   TENSOR,
   RATIONAL,
   DOUBLE
