@@ -45,10 +45,13 @@ struct TaggedTree {
   constexpr TaggedTree(TaggedTree<As...> a, TaggedTree<Bs...> b, tag_t<C>)
     : depth_ { std::max(a.depth(), b.depth()) + 1 }
   {
-    // check a couple of tree structure invariants
+    // if the left child is a delta expression, then it's parent should not be a
+    // product (this is a tree structure invariant we enforce, not a constraint
+    // on the syntax)
+    assert(!a.root().is(DELTA) || (C != PRODUCT));
+
+    // an index must be the right child of a BIND or PARTIAL node
     assert(!a.root().is(INDEX));
-    assert(!a.root().is(DELTA));
-    assert(!b.root().is(DELTA) || (C == PRODUCT));
     assert(!b.root().is(INDEX) || (C == BIND || C == PARTIAL));
 
     int i = 0;

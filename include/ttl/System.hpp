@@ -135,9 +135,6 @@ struct System
     //   }
     // }
 
-    // top down traversal to build the leaf indices
-    // Index a[N] = {};
-    // Index b[N] = {};
     utils::stack<Index> index = { std::in_place, Index() };
     utils::stack<Index>    dx = { std::in_place, Index() };
     stack.push(tree.size() - 1);
@@ -165,14 +162,7 @@ struct System
       else if (node.is(BIND)) {
         idx = *tree.at(right[i]).index() + idx;
       }
-      else if (node.is(PRODUCT) && tree.at(left[i]).is(INDEX)) {
-        // delta rewrites incoming ddx
-        Index j = *tree.at(left[i]).index();
-        Index a = { j[0] };
-        Index b = { j[1] };
-        ddx.search_and_replace(b, a);
-      }
-      else if (node.is(PRODUCT) && tree.at(right[i]).is(INDEX)) {
+      else if (node.is(PRODUCT) && tree.at(right[i]).is(DELTA)) {
         // delta rewrites incoming ddx
         Index j = *tree.at(right[i]).index();
         Index a = { j[0] };
