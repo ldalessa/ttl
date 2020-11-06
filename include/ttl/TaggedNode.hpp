@@ -79,3 +79,55 @@ struct TaggedNode {
   }
 };
 }
+
+template <>
+struct fmt::formatter<ttl::Tag> {
+  constexpr auto parse(format_parse_context& ctx) {
+    return ctx.begin();
+  }
+
+  template <typename FormatContext>
+  constexpr auto format(ttl::Tag tag, FormatContext& ctx) {
+    const char* strings[] = {
+      "+",                                      // SUM
+      "-",                                      // DIFFERENCE
+      "*",                                      // PRODUCT
+      "/",                                      // INVERSE
+      "()",                                     // BIND
+      "dx",                                     // PARTIAL
+      "",                                       // INDEX
+      "",                                       // DELTA
+      "",                                       // TENSOR
+      "",                                       // RATIONAL
+      ""                                        // DOUBLE
+    };
+
+    return format_to(ctx.out(), "{}", strings[tag]);
+  }
+};
+
+template <typename T>
+struct fmt::formatter<ttl::TaggedNode<T>> {
+  constexpr auto parse(format_parse_context& ctx) {
+    return ctx.begin();
+  }
+
+  template <typename FormatContext>
+  constexpr auto format(const ttl::TaggedNode<T>& node, FormatContext& ctx) {
+    switch (node.tag) {
+     case ttl::SUM:
+     case ttl::DIFFERENCE:
+     case ttl::PRODUCT:
+     case ttl::INVERSE:
+     case ttl::BIND:
+     case ttl::PARTIAL:    return format_to(ctx.out(), "{}", node.tag);
+     case ttl::INDEX:
+     case ttl::DELTA:      return format_to(ctx.out(), "{}", node.node.index);
+     case ttl::TENSOR:     return format_to(ctx.out(), "{}", node.node.tensor);
+     case ttl::RATIONAL:   return format_to(ctx.out(), "{}", node.node.q);
+     case ttl::DOUBLE:     return format_to(ctx.out(), "{}", node.node.d);
+     default:
+      __builtin_unreachable();
+    }
+  }
+};

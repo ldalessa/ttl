@@ -143,28 +143,6 @@ struct TaggedTree {
     return copy;
   }
 
-  // Generic postorder (bottom-up) traversal.
-  template <typename... Ops>
-  constexpr auto postorder(Ops&&... ops) const {
-    utils::overloaded op = { std::forward<Ops>(ops)... };
-    using T = decltype(op(at(0)));
-    utils::stack<T> stack;
-    stack.reserve(depth_);
-    for (int i = 0; i < M; ++i) {
-      auto node = at(i);
-      if (node.is_binary()) {
-        auto&& r = stack.pop();
-        auto&& l = stack.pop();
-        stack.push(op(node, std::move(l), std::move(r)));
-      }
-      else {
-        stack.push(op(node));
-      }
-    }
-    assert(stack.size() == 1);
-    return stack.pop();
-  }
-
   constexpr auto split() const {
     // postorder traversal to find the split point
     constexpr int nl = [] {
@@ -289,58 +267,6 @@ Tensor::operator()(std::same_as<Index> auto... is) const {
 }
 }
 
-template <>
-struct fmt::formatter<ttl::Tag> {
-  constexpr auto parse(format_parse_context& ctx) {
-    return ctx.begin();
-  }
-
-  template <typename FormatContext>
-  constexpr auto format(const ttl::Tag& tag, FormatContext& ctx) {
-    switch (tag) {
-     case ttl::SUM:        return format_to(ctx.out(), "{}", "+");
-     case ttl::DIFFERENCE: return format_to(ctx.out(), "{}", "-");
-     case ttl::PRODUCT:    return format_to(ctx.out(), "{}", "*");
-     case ttl::INVERSE:    return format_to(ctx.out(), "{}", "/");
-     case ttl::BIND:       return format_to(ctx.out(), "{}", "()");
-     case ttl::PARTIAL:    return format_to(ctx.out(), "{}", "dx");
-     case ttl::INDEX:      return format_to(ctx.out(), "{}", "index");
-     case ttl::DELTA:      return format_to(ctx.out(), "{}", "delta");
-     case ttl::TENSOR:     return format_to(ctx.out(), "{}", "tensor");
-     case ttl::RATIONAL:   return format_to(ctx.out(), "{}", "q");
-     case ttl::DOUBLE:     return format_to(ctx.out(), "{}", "d");
-     default:
-      __builtin_unreachable();
-    }
-  }
-};
-
-template <typename T>
-struct fmt::formatter<ttl::TaggedNode<T>> {
-  constexpr auto parse(format_parse_context& ctx) {
-    return ctx.begin();
-  }
-
-  template <typename FormatContext>
-  constexpr auto format(const ttl::TaggedNode<T>& node, FormatContext& ctx) {
-    switch (node.tag) {
-     case ttl::SUM:
-     case ttl::DIFFERENCE:
-     case ttl::PRODUCT:
-     case ttl::INVERSE:
-     case ttl::BIND:
-     case ttl::PARTIAL:    return format_to(ctx.out(), "{}", node.tag);
-     case ttl::INDEX:      return format_to(ctx.out(), "{}", node.node.index);
-     case ttl::DELTA:      return format_to(ctx.out(), "{}", node.node.index);
-     case ttl::TENSOR:     return format_to(ctx.out(), "{}", node.node.tensor);
-     case ttl::RATIONAL:   return format_to(ctx.out(), "{}", node.node.q);
-     case ttl::DOUBLE:     return format_to(ctx.out(), "{}", node.node.d);
-     default:
-      __builtin_unreachable();
-    }
-  }
-};
-
 template <ttl::Tag... Ts>
 struct fmt::formatter<ttl::TaggedTree<Ts...>>
 {
@@ -385,40 +311,42 @@ struct fmt::formatter<ttl::TaggedTree<Ts...>>
 
  private:
   auto dot(const Tree& a, auto& ctx) const {
-    for (int i = 0; i < Tree::M; ++i) {
-      if (const ttl::Index* j = a.at(i).index()) {
-        format_to(ctx.out(), FMT_STRING("\tnode{}[label=\"{}({})\"]\n"), i, a.at(i), *j);
+    ttl::utils::stack<int> stack;
+    for (int i = 0; i < a.size(); ++i) {
+      ttl::TaggedNode node = a.at(i);
+      if (node.is_binary()) {
+        format_to(ctx.out(), "\tnode{}[label=\"{} <{}>\"]\n", i, node, *node.index());
+        format_to(ctx.out(), "\tnode{} -- node{}\n", i, stack.pop());
+        format_to(ctx.out(), "\tnode{} -- node{}\n", i, stack.pop());
       }
       else {
-        format_to(ctx.out(), FMT_STRING("\tnode{}[label=\"{}\"]\n"), i, a.at(i));
+        format_to(ctx.out(), "\tnode{}[label=\"{}\"]\n", i, a.at(i));
       }
+      stack.push(i);
     }
-
-    a.postorder(
-        [&](auto node) { return node.offset(); },
-        [&](auto node, int l, int r) {
-          int i = node.offset();
-          format_to(ctx.out(), FMT_STRING("\tnode{} -- node{}\n"), i, l);
-          format_to(ctx.out(), FMT_STRING("\tnode{} -- node{}\n"), i, r);
-          return i;
-        });
     return ctx.out();
   }
 
   auto eqn(const Tree& a, auto& ctx) const {
-    auto str = a.postorder(
-        [](auto leaf) {
-          return fmt::format(FMT_STRING("{}"), leaf);
-        },
-        [](auto node, auto&& l, auto&& r) {
-          if (node.is(ttl::PARTIAL)) {
-            return fmt::format(FMT_STRING("D({},{})"), std::move(l), std::move(r));
-          }
-          if (node.is(ttl::BIND)) {
-            return fmt::format(FMT_STRING("{}({})"), std::move(l), std::move(r));
-          }
-          return fmt::format(FMT_STRING("({} {} {})"), std::move(l), node, std::move(r));
-        });
-    return format_to(ctx.out(), FMT_STRING("{}"), str);
+    ttl::utils::stack<std::string> stack;
+    for (int i = 0; i < a.size(); ++i) {
+      ttl::TaggedNode node = a.at(i);
+      if (node.is(ttl::PARTIAL)) {
+        stack.push(fmt::format("D({1},{0})", stack.pop(), stack.pop()));
+      }
+      else if (node.is(ttl::BIND)) {
+        stack.push(fmt::format("{1}({0})", stack.pop(), stack.pop()));
+      }
+      else if (node.is_binary()) {
+        stack.push(fmt::format("({1} {2} {0})", stack.pop(), stack.pop(), node));
+      }
+      else if (node.is(ttl::DELTA)) {
+        stack.push(fmt::format("delta({})", node));
+      }
+      else {
+        stack.push(fmt::to_string(node));
+      }
+    }
+    return format_to(ctx.out(), "{}", stack.pop());
   }
 };
