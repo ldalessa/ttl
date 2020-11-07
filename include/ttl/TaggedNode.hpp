@@ -19,11 +19,31 @@ enum Tag {
   DOUBLE
 };
 
-template <Tag> struct tag_t {};
+template <Tag T> struct tag_t {
+  constexpr operator Tag() const { return T; }
+};
 template <Tag tag> constexpr inline tag_t<tag> tag_v = {};
 
 constexpr bool is_binary(Tag tag) {
   return tag < INDEX;
+}
+
+constexpr Index outer(Tag tag, Index a, Index b) {
+  assert(is_binary(tag));
+  switch (tag) {
+   case SUM:
+   case DIFFERENCE:
+    assert(permutation(a, b));
+    return a;
+   case PRODUCT:
+   case INVERSE:
+    return a ^ b;
+   case BIND:
+   case PARTIAL:
+    return exclusive(a + b);
+   default:
+    __builtin_unreachable();
+  }
 }
 
 union Node {
@@ -41,10 +61,9 @@ union Node {
 
 template <typename T> requires(std::same_as<std::remove_cv_t<T>, Node>)
 struct TaggedNode {
-  int i;
   Tag tag;
   T& node;
-  constexpr TaggedNode(int i, Tag tag, T& node) : i(i), tag(tag), node(node) {}
+  constexpr TaggedNode(Tag tag, T& node) : tag(tag), node(node) {}
 
   constexpr bool is(Tag t) const {
     return t == tag;
@@ -56,10 +75,6 @@ struct TaggedNode {
 
   constexpr bool is_leaf() const {
     return !is_binary();
-  }
-
-  constexpr decltype(auto) offset() const {
-    return i;
   }
 
   constexpr decltype(auto) index() const {
@@ -103,6 +118,14 @@ struct fmt::formatter<ttl::Tag> {
     };
 
     return format_to(ctx.out(), "{}", strings[tag]);
+  }
+};
+
+template <ttl::Tag tag>
+struct fmt::formatter<ttl::tag_t<tag>> : fmt::formatter<ttl::Tag> {
+  template <typename FormatContext>
+  constexpr auto format(ttl::tag_t<tag>, FormatContext& ctx) {
+    return fmt::formatter<ttl::Tag>::format(tag, ctx);
   }
 };
 

@@ -58,6 +58,10 @@ struct Rational
     return a * b.inverse();
   }
 
+  constexpr friend bool operator==(const Rational& a, const Rational& b) {
+    return a.p == b.p && a.q == b.q;
+  }
+
   std::string to_string() const {
     if (q != 1) {
       return std::to_string(p).append("/").append(std::to_string(q));

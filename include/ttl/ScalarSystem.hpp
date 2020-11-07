@@ -38,33 +38,6 @@ struct ScalarSystem
       return PartialManifest(partials[i]...);
     }(std::make_index_sequence<size(partials)>());
   }
-
-  template <typename Tree>
-  constexpr static Tree simplify(const Tree& tree) {
-    utils::stack<int> constant;
-    for (int i = 0; i < Tree::size(); ++i) {
-      if (tree.at(i).is_binary()) {
-        constant.push(constant.pop() & constant.pop());
-      }
-      else if (const Tensor* t = tree.at(i).tensor()) {
-        constant.push(constants.contains(*t));
-      }
-      else {
-        constant.push(true);
-      }
-    }
-    return tree;
-  }
-
-  constexpr static auto simplify() {
-    []<std::size_t... is>(std::index_sequence<is...>) {
-      ([] {
-        constexpr auto& tree = rhs<is>(system);
-        constexpr int M = size(tree);
-        constexpr auto copy = simplify(tree);
-      }, ...);
-    }(std::make_index_sequence<size(system)>());
-  }
 };
 
 template <const auto& system, int N>

@@ -121,7 +121,11 @@ int main(int argc, char* const argv[])
   // muVolume = 1e-5;      // [Pa.s] volume viscosity
   // g        = {0, 0, 0}; //
 
-  sedov3d.simplify(v_rhs);
+  // auto simple = sedov.simplify(v_rhs);
+  // fmt::print("graph v {{\n{}}}\n", simple);
+
+  constexpr auto n = sedov.simplify();
+  fmt::print("simple tree size {}\n", n);
 
   return 0;
 }

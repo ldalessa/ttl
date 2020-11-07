@@ -1,5 +1,6 @@
 #pragma once
 
+#include "DynamicTree.hpp"
 #include "Equation.hpp"
 #include "Hessian.hpp"
 #include "TaggedTree.hpp"
@@ -90,25 +91,9 @@ struct System
       dx[i] = dx[pid];
 
       if (node.is(INDEX) && tree.at(pid).is(PARTIAL)) {
-        // prepend the index to the parent's dx
         dx[pid] = *node.index() + dx[i];
-        continue;
       }
-
-      // delta could be the root, so check before accessing the parent
-      if (node.is(DELTA) && pid < N && tree.at(pid).is(PRODUCT)) {
-        // modify the dx stored in the parent
-        Index j = *node.index();
-        assert(j.size() == 2);
-        Index a = { j[0] };
-        Index b = { j[1] };
-        dx[pid].search_and_replace(b, a);
-        continue;
-      }
-
-      if (const Tensor* t = node.tensor()) {
-        // non-constant tensors use dx, and if they have a parent that's a bind,
-        // then their index is stored there
+      else if (const Tensor* t = node.tensor()) {
         if (tensor(*t)) {
           if (pid < N && tree.at(pid).is(BIND)) {
             out.emplace(*t, dx[i], *tree.at(pid).index());
@@ -130,35 +115,16 @@ struct System
     return out;
   }
 
-  template <typename Tree>
-  //constexpr
-  auto simplify(const Tree& tree) const {
-    constexpr auto tags = Tree::tags;
-    auto ctensors = constants();
-    bool constant[Tree::size()];
-    utils::stack<int> stack;
-    for (int i = 0; i < std::ssize(tags); ++i) {
-      if (is_binary(tags[i])) {
-        int l = stack.pop();
-        int r = stack.pop();
-        constant[i] = constant[l] & constant[r];
-      }
-      else if (const Tensor *t = tree.at(i).tensor()) {
-        constant[i] = utils::index_of(ctensors, *t).has_value();
-      }
-      else {
-        constant[i] = true;
-      }
-      stack.push(i);
-    }
-    assert(stack.size() == 0);
+  constexpr auto simplify(is_tree auto const& tree) const {
+    DynamicTree simple(tree, constants());
+    return size(simple);
   }
 
-  // constexpr void simplify() const {
-  //   std::apply([&](auto&... tree) {
-  //     (simplify(tree), ...);
-  //   }, rhs_);
-  // }
+  constexpr int simplify() const {
+    return std::apply([&](is_tree auto const&... tree) {
+      return (simplify(tree) + ... + 0);
+    }, rhs_);
+  }
 };
 
 template <typename... Tuples>
