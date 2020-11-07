@@ -12,7 +12,6 @@ struct RPNTree {
   constexpr static Tag tags[M] = { Ts... };
 
   Node nodes_[M];
-  int  depth_ = 1;
 
   /// Leaf tree construction.
   ///
@@ -31,9 +30,8 @@ struct RPNTree {
   template <typename... Nodes>
   requires((sizeof...(Nodes) == sizeof...(Ts)) &&
            (std::same_as<Node, std::remove_cvref_t<Nodes>> && ...))
-  constexpr RPNTree(int depth, Nodes&&... nodes)
+  constexpr RPNTree(Nodes&&... nodes)
     : nodes_ { std::forward<Nodes>(nodes)... }
-    , depth_ { depth }
   {
   }
 
@@ -43,7 +41,6 @@ struct RPNTree {
   template <Tag... As, Tag... Bs, Tag C>
   requires(C < INDEX)
   constexpr RPNTree(RPNTree<As...> a, RPNTree<Bs...> b, tag_t<C>)
-    : depth_ { std::max(a.depth(), b.depth()) + 1 }
   {
     // if the left child is a delta expression, then it's parent should not be a
     // product (this is a tree structure invariant we enforce, not a constraint
@@ -63,10 +60,6 @@ struct RPNTree {
 
   constexpr friend int size(const RPNTree&) {
     return M;
-  }
-
-  constexpr int depth() const {
-    return depth_;
   }
 
   constexpr static int size() {
@@ -124,44 +117,6 @@ struct RPNTree {
     RPNTree copy(*this);
     copy.rewrite((Index{} + ... + is));
     return copy;
-  }
-
-  constexpr auto split() const
-  {
-    static_assert(is_binary(tags[0]));
-
-    constexpr int nl = [] {
-      if constexpr (tags[0] == PARTIAL || tags[0] == BIND) {
-        return M - 2;
-      }
-      else {
-        int l = 0;
-        utils::stack<int> stack;
-        for (int i = 0; i < M; ++i) {
-          if (is_binary(tag(i))) {
-            stack.pop(); l = stack.pop();
-          }
-          stack.push(i);
-        }
-        return l + 1;
-    }
-    }();
-
-    constexpr int nr = M - nl - 1;
-
-    // create the left and right child trees (the tags are stored backwards, and
-    // we need to preserve that order in the children types, so we need a little
-    // bit of fanciness to make sure we're picking up the right ones)
-    auto left = [&]<std::size_t... i>(std::index_sequence<i...>) {
-      return RPNTree<tags[M - nl + i]...>(depth() - 1, nodes_[i]...);
-    }(std::make_index_sequence<nl>());
-
-    auto right = [&]<std::size_t... i>(std::index_sequence<i...>) {
-      return RPNTree<tags[M - nl - nr + i]...>(depth() - 1, nodes_[nl + i]...);
-    }(std::make_index_sequence<nr>());
-
-    // return the pair
-    return std::tuple(tag_v<tag(M - 1)>, left, right);
   }
 };
 

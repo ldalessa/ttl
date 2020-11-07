@@ -110,9 +110,20 @@ int main(int argc, char* const argv[])
   if (ttl::utils::index_of(eqns, "e")) fmt::print("  e_rhs = {}\n", e_rhs);
 
   auto dots = args["--dot"].asStringList();
-  if (ttl::utils::index_of(dots, "rho")) fmt::print("graph rho {{\n{:dot}}}\n", rho_rhs);
-  if (ttl::utils::index_of(dots, "v")) fmt::print("graph v {{\n{:dot}}}\n", v_rhs);
-  if (ttl::utils::index_of(dots, "e")) fmt::print("graph e {{\n{:dot}}}\n", e_rhs);
+  if (ttl::utils::index_of(dots, "rho")) {
+    fmt::print("graph rho {{\n{:dot}}}\n", rhs<0>(sedov));
+    fmt::print("graph rho2 {{\n{:dot}}}\n", rhs<0>(sedov3d));
+  }
+
+  if (ttl::utils::index_of(dots, "v")) {
+    fmt::print("graph v {{\n{:dot}}}\n", rhs<1>(sedov));
+    fmt::print("graph v2 {{\n{:dot}}}\n", rhs<1>(sedov3d));
+  }
+
+  if (ttl::utils::index_of(dots, "e")) {
+    fmt::print("graph e {{\n{:dot}}}\n", rhs<2>(sedov));
+    fmt::print("graph e2 {{\n{:dot}}}\n", rhs<2>(sedov3d));
+  }
 
   // gamma    = 1.4;       // [-]ratio of specific heats
   // cv       = 717.5;     // [J/kg.K] specific heat at constant volume
@@ -120,14 +131,6 @@ int main(int argc, char* const argv[])
   // mu       = 1.9e-5;    // [Pa.s] dynamic viscosity
   // muVolume = 1e-5;      // [Pa.s] volume viscosity
   // g        = {0, 0, 0}; //
-
-  // auto simple = sedov.simplify(v_rhs);
-  // fmt::print("graph v {{\n{}}}\n", simple);
-
-  auto simple = sedov.simplify();
-  fmt::print("graph rho {{\n{}}}\n", std::get<0>(simple));
-  fmt::print("graph v {{\n{}}}\n", std::get<1>(simple));
-  fmt::print("graph e {{\n{}}}\n", std::get<2>(simple));
 
   return 0;
 }

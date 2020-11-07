@@ -84,17 +84,21 @@ struct TreeNode
     return tag_;
   }
 
-  constexpr Index index() const {
+  constexpr const Node& data() const {
+    return data_;
+  }
+
+  constexpr const Index& index() const {
     assert(tag_ == INDEX || tag_ == DELTA);
     return data_.index;
   }
 
-  constexpr Tensor tensor() const {
+  constexpr const Tensor& tensor() const {
     assert(tag_ == TENSOR);
     return data_.tensor;
   }
 
-  constexpr Rational q() const {
+  constexpr const Rational& q() const {
     assert(tag_ == RATIONAL);
     return data_.q;
   }
