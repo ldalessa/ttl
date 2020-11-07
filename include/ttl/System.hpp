@@ -116,13 +116,12 @@ struct System
   }
 
   constexpr auto simplify(is_tree auto const& tree) const {
-    DynamicTree simple(tree, constants());
-    return size(simple);
+    return DynamicTree(tree, constants());
   }
 
-  constexpr int simplify() const {
+  constexpr auto simplify() const {
     return std::apply([&](is_tree auto const&... tree) {
-      return (simplify(tree) + ... + 0);
+      return std::tuple(simplify(tree)...);
     }, rhs_);
   }
 };

@@ -147,6 +147,13 @@ struct DynamicTree
     delete root;
   }
 
+  constexpr DynamicTree(const DynamicTree&) = delete;
+
+  constexpr DynamicTree(DynamicTree&& rhs)
+      : root(std::exchange(rhs.root, nullptr))
+  {
+  }
+
   constexpr DynamicTree(is_tree auto const& tree, auto const& constants)
   {
     utils::stack<TreeNode*> stack;
@@ -178,6 +185,12 @@ struct DynamicTree
     }
     root = stack.pop();
     assert(stack.size() == 0);
+  }
+
+  constexpr DynamicTree& operator=(const DynamicTree&) = delete;
+  constexpr DynamicTree& operator=(DynamicTree&& rhs) {
+    root = std::exchange(rhs.root, (delete root, nullptr));
+    return *this;
   }
 
   constexpr friend int size(const DynamicTree& tree) {

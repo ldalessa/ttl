@@ -124,8 +124,10 @@ int main(int argc, char* const argv[])
   // auto simple = sedov.simplify(v_rhs);
   // fmt::print("graph v {{\n{}}}\n", simple);
 
-  constexpr auto n = sedov.simplify();
-  fmt::print("simple tree size {}\n", n);
+  auto simple = sedov.simplify();
+  fmt::print("graph rho {{\n{}}}\n", std::get<0>(simple));
+  fmt::print("graph v {{\n{}}}\n", std::get<1>(simple));
+  fmt::print("graph e {{\n{}}}\n", std::get<2>(simple));
 
   return 0;
 }
