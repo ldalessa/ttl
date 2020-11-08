@@ -73,7 +73,7 @@ struct Index
   // corresponding char in `replace`.
   constexpr Index& search_and_replace(const Index& search, const Index& replace) {
     assert(search.n == replace.n);
-    for (char c : std::span(data)) {
+    for (char& c : std::span(data)) {
       if (auto&& i = search.index_of(c)) {
         c = replace[*i];
       }
@@ -88,7 +88,7 @@ struct Index
 
 constexpr Index reverse(const Index& a) {
   Index out;
-  for (int i = a.n - 1; i >= 0; ++i) {
+  for (int i = a.n - 1; i >= 0; --i) {
     out.push_back(a[i]);
   }
   return out;

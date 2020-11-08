@@ -47,17 +47,24 @@ constexpr Index outer(Tag tag, Index a, Index b) {
 }
 
 struct RPNNode {
-  Tag tag = {};
+  Tag tag;
   union {
-    struct {} monostate = {};
     const Tensor* tensor;
     Index index;
     Rational q;
     double d;
   };
-  int left = {};
+  int left{};
 
   constexpr RPNNode() {}
+  constexpr RPNNode(const Tensor* tensor) : tag(TENSOR), tensor(tensor) {}
+  constexpr RPNNode(Rational q) : tag(RATIONAL), q(q) {}
+  constexpr RPNNode(double d) : tag(DOUBLE), d(d) {}
+  constexpr RPNNode(Index i, Tag tag, int left = 0)
+      : tag(tag)
+      , index(i)
+      , left(left)
+  {}
 };
 
 template <int N = 1>
@@ -68,26 +75,22 @@ struct RPNTree final
 
   constexpr RPNTree(Index index, Tag tag = INDEX) noexcept {
     assert(N == 1);
-    nodes[0].tag = tag;
-    nodes[0].index = index;
+    nodes[0] = RPNNode(index, tag);
   }
 
   constexpr RPNTree(const Tensor* t) noexcept {
     assert(N == 1);
-    nodes[0].tag = TENSOR;
-    nodes[0].tensor = t;
+    nodes[0] = RPNNode(t);
   }
 
   constexpr RPNTree(Rational q) noexcept {
     assert(N == 1);
-    nodes[0].tag = RATIONAL;
-    nodes[0].q = q;
+    nodes[0] = RPNNode(q);
   }
 
   constexpr RPNTree(double d) noexcept {
     assert(N == 1);
-    nodes[0].tag = DOUBLE;
-    nodes[0].d = d;
+    nodes[0] = RPNNode(d);
   }
 
   template <int A, int B>
@@ -95,12 +98,9 @@ struct RPNTree final
   {
     assert(A + B + 1 == N);
     assert(binary(tag));
-    int i = 0;
-    for (int j = 0; j < A; ++j, ++i) nodes[i] = a[j];
-    for (int j = 0; j < B; ++j, ++i) nodes[i] = b[j];
-    nodes[i].tag = tag;
-    nodes[i].index = outer(tag, outer(a), outer(b));
-    nodes[i].left = B + 1;
+    std::copy_n(a.nodes, A, nodes);
+    std::copy_n(b.nodes, B, nodes + A);
+    nodes[N - 1] = RPNNode(outer(tag, outer(a), outer(b)), tag, B + 1);
   }
 
   constexpr const RPNNode& operator[](int i) const { return nodes[i]; }
@@ -109,6 +109,25 @@ struct RPNTree final
   constexpr Tag     tag(int i) const { return nodes[i].tag; }
   constexpr Index index(int i) const {
     return (ttl::index(nodes[i].tag)) ? nodes[i].index : Index();
+  }
+
+  constexpr RPNTree operator()(std::same_as<Index> auto const&... is) const {
+    RPNTree  copy = *this;
+    Index  search = outer(copy);
+    Index replace = (is + ... + Index());
+    assert(search.size() == replace.size());
+
+    for (RPNNode& node : copy.nodes) {
+      if (ttl::index(node.tag)) {
+        node.index.search_and_replace(search, replace);
+      }
+    }
+
+    return copy;
+  }
+
+  constexpr friend int size(const RPNTree&) {
+    return N;
   }
 
   constexpr friend Index outer(const RPNTree& tree) {
@@ -179,10 +198,9 @@ constexpr RPNTree<1> delta(const Index& a, const Index& b) {
   return RPNTree(a + b, DELTA);
 }
 
-constexpr auto symmetrize(is_expression auto a) {
+constexpr auto symmetrize(is_expression auto const& a) {
   RPNTree t = bind(a);
-  Index i = t.outer();
-  return Rational(1,2) * (t + t(reverse(i)));
+  return Rational(1,2) * (t + t(reverse(outer(t))));
 }
 
 constexpr auto
