@@ -3,7 +3,7 @@
 #include "Index.hpp"
 #include "concepts.hpp"
 
-#include <fmt/format.h>
+// #include <fmt/format.h>
 #include <string_view>
 
 namespace ttl {
@@ -26,7 +26,7 @@ struct Tensor
   }
 
   // Implemented in Tree.hpp to avoid circular include.
-  constexpr auto operator()(std::same_as<Index> auto... is) const;
+  constexpr auto operator()(std::same_as<Index> auto const&... is) const;
 
   constexpr bool operator==(const Tensor& b) const {
     return id_ == b.id_;
@@ -49,14 +49,14 @@ constexpr ttl::Tensor vector(std::string_view id) {
 }
 }
 
-template <>
-struct fmt::formatter<ttl::Tensor> {
-  constexpr auto parse(format_parse_context& ctx) {
-    return ctx.begin();
-  }
+// template <>
+// struct fmt::formatter<ttl::Tensor> {
+//   constexpr auto parse(format_parse_context& ctx) {
+//     return ctx.begin();
+//   }
 
-  template <typename FormatContext>
-  auto format(const ttl::Tensor& tensor, FormatContext& ctx) {
-    return format_to(ctx.out(), "{}", tensor.id());
-  }
-};
+//   template <typename FormatContext>
+//   auto format(const ttl::Tensor& tensor, FormatContext& ctx) {
+//     return format_to(ctx.out(), "{}", tensor.id());
+//   }
+// };

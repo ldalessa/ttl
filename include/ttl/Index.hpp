@@ -1,24 +1,44 @@
 #pragma once
 
-#include "utils.hpp"
-#include <ce/cvector.hpp>
-#include <fmt/format.h>
+// #include "utils.hpp"
+// #include <ce/cvector.hpp>
+// #include <fmt/format.h>
 #include <algorithm>
+#include <cassert>
 #include <concepts>
 #include <optional>
+#include <span>
 
 namespace ttl {
-struct Index : ce::cvector<char, 8>
+struct Index
 {
+  char data[8] = {};
+  int n = 0;
+
   constexpr Index() = default;
-  constexpr Index(char c) : ce::cvector<char, 8>(std::in_place, c) {
+  constexpr Index(char c) {
+    data[n++] = c;
   }
 
-  constexpr friend bool operator==(Index a, Index b) {
-    if (a.size() != b.size()) {
+  constexpr int size() const { return n; }
+
+  constexpr const char* begin() const { return data; }
+  constexpr const char*   end() const { return data + n; }
+  constexpr       char* begin()       { return data; }
+  constexpr       char*   end()       { return data + n; }
+
+  constexpr const char& operator[](int i) const { return data[i]; }
+  constexpr       char& operator[](int i)       { return data[i]; }
+
+  constexpr void push_back(char c) {
+    data[n++] = c;
+  }
+
+  constexpr friend bool operator==(const Index& a, const Index& b) {
+    if (a.n != b.n) {
       return false;
     }
-    for (int i = 0; i < a.size(); ++i) {
+    for (int i = 0; i < a.n; ++i) {
       if (a[i] != b[i]) {
         return false;
       }
@@ -26,10 +46,10 @@ struct Index : ce::cvector<char, 8>
     return true;
   }
 
-  constexpr friend bool operator<(Index a, Index b) {
-    if (a.size() < b.size()) return true;
-    if (b.size() < a.size()) return false;
-    for (int i = 0; i < a.size(); ++i) {
+  constexpr friend bool operator<(const Index& a, const Index& b) {
+    if (a.n < b.n) return true;
+    if (b.n < a.n) return false;
+    for (int i = 0; i < a.n; ++i) {
       if (a[i] < b[i]) return true;
       if (b[i] < a[i]) return false;
     }
@@ -38,19 +58,22 @@ struct Index : ce::cvector<char, 8>
 
   // Count the number of `c` in the index.
   constexpr int count(char c) const {
-    return std::count(begin(), end(), c);
+    return std::count(data, data + n, c);
   }
 
   // Return the index of the first instance of `c` in the index, or nullopt.
   constexpr std::optional<int> index_of(char c) const {
-    return utils::index_of(*this, c);
+    if (auto i = std::find(data, data + n, c); i != data + n) {
+      return i - data;
+    }
+    return std::nullopt;
   }
 
   // Hopefully obviously, search for chars in `search` and replace with the
   // corresponding char in `replace`.
-  constexpr Index& search_and_replace(Index search, Index replace) {
-    assert(search.size() == replace.size());
-    for (char& c : *this) {
+  constexpr Index& search_and_replace(const Index& search, const Index& replace) {
+    assert(search.n == replace.n);
+    for (char c : std::span(data)) {
       if (auto&& i = search.index_of(c)) {
         c = replace[*i];
       }
@@ -59,19 +82,19 @@ struct Index : ce::cvector<char, 8>
   }
 
   constexpr std::string_view to_string() const {
-    return { begin(), end() };
+    return { data, data + n };
   }
 };
 
-constexpr Index reverse(Index a) {
+constexpr Index reverse(const Index& a) {
   Index out;
-  for (auto i = a.rbegin(), e = a.rend(); i != e; ++i) {
-    out.push_back(*i);
+  for (int i = a.n - 1; i >= 0; ++i) {
+    out.push_back(a[i]);
   }
   return out;
 }
 
-constexpr Index unique(Index a) {
+constexpr Index unique(const Index& a) {
   Index out;
   for (char c : a) {
     if (out.count(c) == 0) {
@@ -81,7 +104,7 @@ constexpr Index unique(Index a) {
   return out;
 }
 
-constexpr Index repeated(Index a) {
+constexpr Index repeated(const Index& a) {
   Index out;
   for (char c : a) {
     if (a.count(c) > 1 && !out.index_of(c)) {
@@ -91,7 +114,7 @@ constexpr Index repeated(Index a) {
   return out;
 }
 
-constexpr Index exclusive(Index a) {
+constexpr Index exclusive(const Index& a) {
   Index out;
   for (char c : a) {
     if (a.count(c) == 1) {
@@ -101,19 +124,19 @@ constexpr Index exclusive(Index a) {
   return out;
 }
 
-constexpr Index& operator+=(Index& a, Index b) {
+constexpr Index& operator+=(Index& a, const Index& b) {
   for (char c : b) a.push_back(c);
   return a;
 }
 
-constexpr Index operator+(Index a, Index b) {
+constexpr Index operator+(const Index& a, const Index& b) {
   Index out;
   for (char c : a) out.push_back(c);
   for (char c : b) out.push_back(c);
   return out;
 }
 
-constexpr Index operator&(Index a, Index b) {
+constexpr Index operator&(const Index& a, const Index& b) {
   Index out;
   for (char c : a) {
     if (b.index_of(c)) {
@@ -123,7 +146,7 @@ constexpr Index operator&(Index a, Index b) {
   return out;
 }
 
-constexpr Index operator-(Index a, Index b) {
+constexpr Index operator-(const Index& a, const Index& b) {
   Index out;
   for (char c : a) {
     if (!b.index_of(c)) {
@@ -133,23 +156,23 @@ constexpr Index operator-(Index a, Index b) {
   return out;
 }
 
-constexpr Index operator^(Index a, Index b) {
+constexpr Index operator^(const Index& a, const Index& b) {
   return (a - b) + (b - a);
 }
 
-constexpr bool permutation(Index a, Index b) {
-  return (a - b).size() == 0 && (b - a).size() == 0;
+constexpr bool permutation(const Index& a, const Index& b) {
+  return (a - b).n == 0 && (b - a).n == 0;
 }
 }
 
-template <>
-struct fmt::formatter<ttl::Index> {
-  constexpr auto parse(format_parse_context& ctx) {
-    return ctx.begin();
-  }
+// template <>
+// struct fmt::formatter<ttl::Index> {
+//   constexpr auto parse(format_parse_context& ctx) {
+//     return ctx.begin();
+//   }
 
-  template <typename FormatContext>
-  auto format(const ttl::Index& i, FormatContext& ctx) {
-    return format_to(ctx.out(), "{}", i.to_string());
-  }
-};
+//   template <typename FormatContext>
+//   auto format(const ttl::Index& i, FormatContext& ctx) {
+//     return format_to(ctx.out(), "{}", i.to_string());
+//   }
+// };

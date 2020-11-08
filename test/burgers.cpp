@@ -15,11 +15,11 @@ constexpr ttl::Index j = 'j';;
 
 /// System of equations.
 constexpr auto   u_rhs = nu * D(u(i),i,j) - (u(i) + c(i)) * D(u(i),j);
-constexpr auto burgers = ttl::system(u = u_rhs);
+// constexpr auto burgers = ttl::system(u = u_rhs);
 }
 
 int main() {
-  fmt::print("u_rhs = {:eqn}\n", u_rhs);
-  fmt::print("graph u {{\n{:dot}}}\n", u_rhs);
+  // fmt::print("u_rhs = {:eqn}\n", u_rhs);
+  // fmt::print("graph u {{\n{:dot}}}\n", u_rhs);
   return 0;
 }

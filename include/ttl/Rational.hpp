@@ -1,6 +1,6 @@
 #pragma once
 
-#include <fmt/format.h>
+// #include <fmt/format.h>
 #include <cassert>
 #include <numeric>
 #include <string>
@@ -73,14 +73,14 @@ struct Rational
 };
 }
 
-template <>
-struct fmt::formatter<ttl::Rational> {
-  constexpr auto parse(format_parse_context& ctx) {
-    return ctx.begin();
-  }
+// template <>
+// struct fmt::formatter<ttl::Rational> {
+//   constexpr auto parse(format_parse_context& ctx) {
+//     return ctx.begin();
+//   }
 
-  template <typename FormatContext>
-  auto format(const ttl::Rational& q, FormatContext& ctx) {
-    return format_to(ctx.out(), "{}", q.to_string());
-  }
-};
+//   template <typename FormatContext>
+//   auto format(const ttl::Rational& q, FormatContext& ctx) {
+//     return format_to(ctx.out(), "{}", q.to_string());
+//   }
+// };
