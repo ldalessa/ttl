@@ -1,9 +1,12 @@
 #pragma once
 
-#include "RPNTree.hpp"
+#include "Index.hpp"
+#include "ParseTree.hpp"
+#include "ScalarSystem.hpp"
+#include "System.hpp"
+#include "Tensor.hpp"
+#include "dot.hpp"
 
 // #include "Rational.hpp"
 // #include "ScalarSystem.hpp"
-// #include "System.hpp"
-// #include "Tensor.hpp"
 // #include "TaggedTree.hpp"

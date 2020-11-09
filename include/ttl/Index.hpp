@@ -1,13 +1,12 @@
 #pragma once
 
-// #include "utils.hpp"
-// #include <ce/cvector.hpp>
-// #include <fmt/format.h>
 #include <algorithm>
 #include <cassert>
 #include <concepts>
 #include <optional>
 #include <span>
+#include <string_view>
+#include <fmt/format.h>
 
 namespace ttl {
 struct Index
@@ -18,6 +17,10 @@ struct Index
   constexpr Index() = default;
   constexpr Index(char c) {
     data[n++] = c;
+  }
+
+  constexpr Index(std::same_as<Index> auto const&... is) {
+    ([&] { for (auto c : is) data[n++] = c; }(), ...);
   }
 
   constexpr int size() const { return n; }
@@ -80,10 +83,6 @@ struct Index
     }
     return *this;
   }
-
-  constexpr std::string_view to_string() const {
-    return { data, data + n };
-  }
 };
 
 constexpr Index reverse(const Index& a) {
@@ -130,10 +129,7 @@ constexpr Index& operator+=(Index& a, const Index& b) {
 }
 
 constexpr Index operator+(const Index& a, const Index& b) {
-  Index out;
-  for (char c : a) out.push_back(c);
-  for (char c : b) out.push_back(c);
-  return out;
+  return { a, b };
 }
 
 constexpr Index operator&(const Index& a, const Index& b) {
@@ -163,16 +159,20 @@ constexpr Index operator^(const Index& a, const Index& b) {
 constexpr bool permutation(const Index& a, const Index& b) {
   return (a - b).n == 0 && (b - a).n == 0;
 }
+
+constexpr std::string_view to_string(const Index& index) {
+  return { index.begin(), index.end() };
+}
 }
 
-// template <>
-// struct fmt::formatter<ttl::Index> {
-//   constexpr auto parse(format_parse_context& ctx) {
-//     return ctx.begin();
-//   }
+template <>
+struct fmt::formatter<ttl::Index> {
+  constexpr auto parse(format_parse_context& ctx) {
+    return ctx.begin();
+  }
 
-//   template <typename FormatContext>
-//   auto format(const ttl::Index& i, FormatContext& ctx) {
-//     return format_to(ctx.out(), "{}", i.to_string());
-//   }
-// };
+  template <typename FormatContext>
+  constexpr auto format(const ttl::Index& index, FormatContext& ctx) {
+    return format_to(ctx.out(), "{}", to_string(index));
+  }
+};

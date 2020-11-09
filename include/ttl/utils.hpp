@@ -1,16 +1,11 @@
 #pragma once
 
-#include <ce/cvector.hpp>
 #include <ce/dvector.hpp>
 #include <concepts>
 #include <optional>
 #include <utility>
 
 namespace ttl::utils {
-template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
-template<class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
-
-/// Simple wrapper for finding the index of a value in a range.
 template <typename Range, typename T>
 constexpr std::optional<int> index_of(Range&& range, T&& value) {
   auto begin = std::begin(range);
@@ -22,12 +17,10 @@ constexpr std::optional<int> index_of(Range&& range, T&& value) {
   return std::nullopt;
 }
 
-// basic debugging utility to print the types of expressions.
-template <typename... Ts>
-struct print_types_t;
-
-template <typename... Ts>
-void print_types(Ts...) { print_types_t<Ts...> _; }
+template <typename Range, typename T>
+constexpr bool contains(Range&& range, T&& value) {
+  return index_of(std::forward<Range>(range), std::forward<T>(value)).has_value();
+}
 
 template <std::integral T>
 constexpr T pow(T x, T y) {
@@ -57,28 +50,6 @@ constexpr static void expand(int N, int Order, Op&& op) {
   } while (utils::carry_sum_inc(N, Order, index));
   delete [] index;
 }
-
-template <typename T, int N>
-struct set : ce::cvector<T, N> {
-  using ce::cvector<T, N>::cvector;
-
-  template <typename... Ts>
-  constexpr void emplace(Ts&&... ts) {
-    auto& back = this->emplace_back(std::forward<Ts>(ts)...);
-    if (index_of(*this, back) != size(*this) - 1) {
-      this->pop_back();
-    }
-  }
-
-  constexpr bool contains(const T& t) const {
-    return index_of(*this, t).has_value();
-  }
-
-  constexpr set& sort() {
-    std::sort(this->begin(), this->end());
-    return *this;
-  }
-};
 
 template <typename T>
 struct stack : ce::dvector<T> {
