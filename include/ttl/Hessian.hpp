@@ -2,17 +2,19 @@
 
 #include "Tensor.hpp"
 #include "Index.hpp"
+// #include "fmt.hpp"
+#include <fmt/core.h>
 
 namespace ttl {
 struct Hessian {
-  Tensor a_;
+  const Tensor* a_;
   Index dx_;
   Index  i_;
 
-  constexpr Hessian(Tensor a, Index dx = {}, Index i = {})
+  constexpr Hessian(const Tensor* a, Index dx, Index idx)
       : a_(a)
       , dx_(dx)
-      , i_(i)
+      , i_(idx)
   {
     // The hessians have anonymized indices, i.e., they only care about local
     // relative matching and not about external index identity. For example,
@@ -40,7 +42,7 @@ struct Hessian {
     return false;
   }
 
-  constexpr Tensor tensor() const {
+  constexpr const Tensor* tensor() const {
     return a_;
   }
 
@@ -69,3 +71,16 @@ struct Hessian {
   }
 };
 }
+
+template <>
+struct fmt::formatter<ttl::Hessian> {
+  constexpr auto parse(format_parse_context& ctx) {
+    return ctx.begin();
+  }
+
+  template <typename FormatContext>
+  constexpr auto format(const ttl::Hessian& h, FormatContext& ctx) {
+    return format_to(ctx.out(), "{}({},{})", *h.tensor(), h.index(), h.partial());
+  }
+};
+

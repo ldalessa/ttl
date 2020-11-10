@@ -55,8 +55,22 @@ template <typename T>
 struct stack : ce::dvector<T> {
   using ce::dvector<T>::dvector;
 
-  constexpr void push(const T& t) { this->push_back(t); }
-  constexpr void push(T&& t) { this->push_back(std::move(t)); }
-  constexpr    T pop() { return this->pop_back(); }
+  constexpr void  push(const T& t) { this->push_back(t); }
+  constexpr void  push(T&& t) { this->push_back(std::move(t)); }
+  constexpr    T  pop() { return this->pop_back(); }
+  constexpr    T& top() { return this->back(); }
+};
+
+template <typename T>
+struct set : ce::dvector<T> {
+  using ce::dvector<T>::dvector;
+
+  template <typename... Ts>
+  constexpr void emplace(Ts&&... ts) {
+    T& back = this->emplace_back(std::forward<Ts>(ts)...);
+    if (index_of(*this, back) != size(*this) - 1) {
+      this->pop_back();
+    }
+  }
 };
 }

@@ -1,12 +1,12 @@
 #pragma once
 
-#include "ParseTree.hpp"
+#include "Node.hpp"
 #include "concepts.hpp"
 #include "utils.hpp"
 
 namespace ttl {
 
-struct TensorTree
+struct SimpleTree
 {
   struct Node
   {
@@ -138,18 +138,18 @@ struct TensorTree
 
   Node* root = nullptr;
 
-  constexpr ~TensorTree() {
+  constexpr ~SimpleTree() {
     delete root;
   }
 
-  constexpr TensorTree(const TensorTree&) = delete;
+  constexpr SimpleTree(const SimpleTree&) = delete;
 
-  constexpr TensorTree(TensorTree&& rhs)
+  constexpr SimpleTree(SimpleTree&& rhs)
       : root(std::exchange(rhs.root, nullptr))
   {
   }
 
-  constexpr TensorTree(is_tree auto const& tree, auto const& constants)
+  constexpr SimpleTree(is_tree auto const& tree, auto const& constants)
   {
     utils::stack<Node*> stack;
     for (auto&& node : tree) {
@@ -179,28 +179,31 @@ struct TensorTree
     assert(stack.size() == 0);
   }
 
-  constexpr TensorTree& operator=(const TensorTree&) = delete;
-  constexpr TensorTree& operator=(TensorTree&& rhs) {
+  constexpr SimpleTree& operator=(const SimpleTree&) = delete;
+  constexpr SimpleTree& operator=(SimpleTree&& rhs) {
     root = std::exchange(rhs.root, (delete root, nullptr));
     return *this;
   }
 
-  constexpr friend int size(const TensorTree& tree) {
+  constexpr friend int size(const SimpleTree& tree) {
     return tree.root->size();
   }
 
   template <typename Tree> requires(is_tree<Tree>)
-  constexpr friend Tree to_tree(const TensorTree& tree) {
+  constexpr friend Tree to_tree(const SimpleTree& tree) {
     Tree out;
     int i = size(out) - 1;
-    auto op = [&](const Node* node, auto&& self) -> void {
-      out[i].tag = node->tag;
-      out[i].data = node->data;
-      --i;
+    auto op = [&](const Node* node, auto&& self) -> int {
+      int j = i--;
+      out[j].tag = node->tag;
+      out[j].data = node->data;
+      int left = j;
       if (node->is_binary()) {
         self(node->b(), self);
-        self(node->a(), self);
+        left = self(node->a(), self);
       }
+      out[j].left = j - left;
+      return j;
     };
     op(tree.root, op);
     return out;
@@ -276,56 +279,3 @@ struct TensorTree
   }
 };
 }
-
-// template <>
-// struct fmt::formatter<ttl::Node> {
-//   constexpr auto parse(format_parse_context& ctx) {
-//     return ctx.begin();
-//   }
-
-//   template <typename FormatContext>
-//   constexpr auto format(const ttl::Node& node, FormatContext& ctx) {
-//     switch (node.tag) {
-//      case ttl::SUM:
-//      case ttl::DIFFERENCE:
-//      case ttl::PRODUCT:
-//      case ttl::RATIO:
-//      case ttl::BIND:
-//      case ttl::PARTIAL:    return format_to(ctx.out(), "{}", node.tag);
-//      case ttl::INDEX:
-//      case ttl::DELTA:      return format_to(ctx.out(), "{}", node.index());
-//      case ttl::TENSOR:     return format_to(ctx.out(), "{}", node.tensor());
-//      case ttl::RATIONAL:   return format_to(ctx.out(), "{}", node.q());
-//      case ttl::DOUBLE:     return format_to(ctx.out(), "{}", node.d());
-//      default:
-//       __builtin_unreachable();
-//     }
-//   }
-// };
-
-// template <>
-// struct fmt::formatter<ttl::TensorTree>
-// {
-//   constexpr auto parse(format_parse_context& ctx) {
-//     return ctx.begin();
-//   }
-
-//   auto format(const ttl::TensorTree& a, auto& ctx) {
-//     int i = 0;
-//     auto op = [&](const ttl::Node* node, auto&& self) -> int {
-//       if (node->is_binary()) {
-//         int a = self(node->a(), self);
-//         int b = self(node->b(), self);
-//         format_to(ctx.out(), "\tnode{}[label=\"{} <{}>\"]\n", i, *node, node->outer());
-//         format_to(ctx.out(), "\tnode{} -- node{}\n", i, a);
-//         format_to(ctx.out(), "\tnode{} -- node{}\n", i, b);
-//       }
-//       else {
-//         format_to(ctx.out(), "\tnode{}[label=\"{}\"]\n", i, *node);
-//       }
-//       return i++;
-//     };
-//     op(a.root, op);
-//     return ctx.out();
-//   }
-// };

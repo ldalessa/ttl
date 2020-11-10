@@ -1,7 +1,10 @@
 #pragma once
 
-#include "DynamicTree.hpp"
 #include "Equation.hpp"
+#include "Hessian.hpp"
+#include "SimpleTree.hpp"
+#include "concepts.hpp"
+#include "utils.hpp"
 #include <ce/dvector.hpp>
 #include <span>
 #include <tuple>
@@ -40,78 +43,60 @@ struct System
     return std::span(lhs_);
   }
 
-  constexpr void constants(ce::dvector<const Tensor*>& out, auto const& tree) const {
-    for (auto&& node : tree) {
+  constexpr bool is_constant(const Tensor* t) const {
+    return not utils::contains(lhs_, t);
+  }
+
+  constexpr void constants(utils::set<const Tensor*>& out, is_tree auto const& tree) const {
+    for (auto const& node : tree) {
       if (const Tensor* t = node.tensor()) {
-        if (auto i = std::find(lhs_, lhs_ + M, t); i == lhs_ + M) {
-          if (auto j = std::find(out.begin(), out.end(), t); j == out.end()) {
-            out.push_back(t);
-          }
+        if (is_constant(t)) {
+          out.emplace(t);
         }
       }
     }
   }
 
   constexpr auto constants() const {
-    ce::dvector<const Tensor*> out;
+    utils::set<const Tensor*> out;
     std::apply([&](auto&... tree) {
       (constants(out, tree), ...);
     }, rhs_);
     return out;
   }
 
-  // template <typename Tree>
-  // constexpr void hessians(utils::set<Hessian, N>& out, const Tree& tree) const
-  // {
-  //   constexpr int N = Tree::size();
+  constexpr void hessians(utils::set<Hessian>& out, is_tree auto const& tree) const
+  {
+    auto op = [&](auto const& node, Index i, Index dx, auto&& self) -> void {
+      if (node.tag == PARTIAL) {
+        dx = *tree.b(node).index() + dx;
+      }
+      if (node.tag == BIND) {
+        i = *node.index();
+      }
+      if (const Tensor* t = node.tensor()) {
+        if (!is_constant(t)) {
+          out.emplace(t, dx, i);
+        }
+      }
+      if (node.binary()) {
+        self(tree.b(node), i, dx, self);
+        self(tree.a(node), i, dx, self);
+      }
+    };
+    op(tree.root(), {}, {}, op);
+  }
 
-  //   // left to right traversal to collect parent ids
-  //   int parent[N];
-  //   utils::stack<int> stack;
-  //   for (int i = 0, e = tree.size(); i < e; ++i) {
-  //     if (tree.at(i).is_binary()) {
-  //       parent[stack.pop()] = i;
-  //       parent[stack.pop()] = i;
-  //     }
-  //     stack.push(i);
-  //   }
-  //   parent[stack.pop()] = N;
-
-  //   // right to left traversal to propagate dx down the tree
-  //   Index dx[N + 1] = {};
-  //   for (int i = N - 1; i >= 0; --i)
-  //   {
-  //     TaggedNode node = tree.at(i);
-  //     int pid = parent[i];
-  //     dx[i] = dx[pid];
-
-  //     if (node.is(INDEX) && tree.at(pid).is(PARTIAL)) {
-  //       dx[pid] = *node.index() + dx[i];
-  //     }
-  //     else if (const Tensor* t = node.tensor()) {
-  //       if (tensor(*t)) {
-  //         if (pid < N && tree.at(pid).is(BIND)) {
-  //           out.emplace(*t, dx[i], *tree.at(pid).index());
-  //         }
-  //         else {
-  //           assert(t->order() == 0);
-  //           out.emplace(*t, dx[i]);
-  //         }
-  //       }
-  //     }
-  //   }
-  // }
-
-  // constexpr auto hessians() const {
-  //   utils::set<Hessian, N> out;
-  //   std::apply([&](auto&... tree) {
-  //     (hessians(out, tree), ...);
-  //   }, rhs_);
-  //   return out;
-  // }
+  constexpr auto hessians() const {
+    utils::set<Hessian> out;
+    std::apply([&](auto const&... tree) {
+      (hessians(out, tree), ...);
+    }, rhs_);
+    return out;
+  }
 
   constexpr auto simplify(is_tree auto const& tree) const {
-    return TensorTree(tree, constants());
+    return SimpleTree(tree, constants());
   }
 
   constexpr auto simplify() const {

@@ -6,7 +6,7 @@
 #include <optional>
 #include <span>
 #include <string_view>
-#include <fmt/format.h>
+#include <fmt/core.h>
 
 namespace ttl {
 struct Index

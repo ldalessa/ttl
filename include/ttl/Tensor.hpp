@@ -3,7 +3,7 @@
 #include "Index.hpp"
 #include "concepts.hpp"
 #include <string_view>
-#include <fmt/format.h>
+#include <fmt/core.h>
 
 namespace ttl {
 struct Tensor

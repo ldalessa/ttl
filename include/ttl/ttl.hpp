@@ -1,10 +1,10 @@
 #pragma once
 
 #include "Index.hpp"
-#include "ParseTree.hpp"
 #include "ScalarSystem.hpp"
 #include "System.hpp"
 #include "Tensor.hpp"
+#include "TensorTree.hpp"
 #include "dot.hpp"
 
 // #include "Rational.hpp"

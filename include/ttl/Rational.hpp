@@ -4,7 +4,7 @@
 #include <numeric>
 #include <string>
 #include <utility>
-#include <fmt/format.h>
+#include <fmt/core.h>
 
 namespace ttl {
 struct Rational

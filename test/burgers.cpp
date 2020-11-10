@@ -15,7 +15,7 @@ constexpr ttl::Index j = 'j';;
 
 /// System of equations.
 constexpr auto   u_rhs = nu * D(u(i),i,j) - (u(i) + c(i)) * D(u(i),j);
-// constexpr auto burgers = ttl::system(u = u_rhs);
+constexpr auto burgers = ttl::system(u = u_rhs);
 }
 
 int main() {

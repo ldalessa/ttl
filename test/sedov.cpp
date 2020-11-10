@@ -51,45 +51,42 @@ constexpr auto rho_rhs = - D(rho,i) * v(i) - rho * D(v(i),i);
 constexpr auto   v_rhs = - D(v(i),j) * v(j) + D(sigma(i,j),j) / rho + g(i);
 constexpr auto   e_rhs = - v(i) * D(e,i) + sigma(i,j) * d(i,j) / rho - D(q(i),i) / rho;
 
-// constexpr ttl::System sedov = {
-//   rho = rho_rhs,
-//   v = v_rhs,
-//   e = e_rhs
-// };
+constexpr ttl::System sedov = {
+  rho = rho_rhs,
+  v = v_rhs,
+  e = e_rhs
+};
 
-// constexpr auto sedov3d = ttl::scalar_system<sedov, 3>;
+constexpr auto sedov3d = ttl::scalar_system<sedov, 3>;
 }
 
 int main(int argc, char* const argv[])
 {
   std::map args = docopt::docopt(USAGE, {argv + 1, argv + argc});
 
-  // if (args["--tensors"].asBool()) {
-  //   auto t = sedov.tensors();
-  //   fmt::print("tensors ({}):\n", t.size());
-  //   for (int i = 0; auto&& c : t) {
-  //     fmt::print("{}: {}\n", i++, c);
-  //   }
-  //   fmt::print("\n");
-  // }
+  if (args["--tensors"].asBool()) {
+    puts("tensors:");
+    for (int i = 0; auto&& c : sedov.tensors()) {
+      printf("%d: %s\n", i++, to_string(*c).data());
+    }
+    puts("");
+  }
 
-  // if (args["--constants"].asBool()) {
-  //   auto c = sedov.constants();
-  //   fmt::print("constants ({}):\n", c.size());
-  //   for (int i = 0; auto&& c : c.sort()) {
-  //     fmt::print("{}: {}\n", i++, c);
-  //   }
-  //   fmt::print("\n");
-  // }
+  if (args["--constants"].asBool()) {
+    puts("constants:");
+    for (int i = 0; auto&& c : sedov3d.constants) {
+      printf("%d: %s\n", i++, to_string(*c).data());
+    }
+    puts("");
+  }
 
-  // if (args["--hessians"].asBool()) {
-  //   auto h = sedov.hessians();
-  //   fmt::print("hessians (capacity {}):\n", h.capacity());
-  //   for (int i = 0; auto&& c : h.sort()) {
-  //     fmt::print("{}: {}({},{})\n", i++, c.tensor(), c.index(), c.partial());
-  //   }
-  //   fmt::print("\n");
-  // }
+  if (args["--hessians"].asBool()) {
+    puts("hessians:");
+    for (int i = 0; auto&& c : sedov3d.hessians) {
+      fmt::print("{}: {}\n", i++, c);
+    }
+    puts("");
+  }
 
   // if (args["--partials"].asBool()) {
   //   auto partials = sedov3d.partials();
@@ -104,26 +101,34 @@ int main(int argc, char* const argv[])
   //   fmt::print("\n");
   // }
 
-  // auto eqns = args["--eqn"].asStringList();
-  // if (ttl::utils::index_of(eqns, "rho")) fmt::print("rho_rhs = {}\n", rho_rhs);
-  // if (ttl::utils::index_of(eqns, "v")) fmt::print("  v_rhs = {}\n", v_rhs);
-  // if (ttl::utils::index_of(eqns, "e")) fmt::print("  e_rhs = {}\n", e_rhs);
+  auto eqns = args["--eqn"].asStringList();
+  if (ttl::utils::index_of(eqns, "rho")) {
+    fmt::print("rho_rhs = {}\n", rho_rhs);
+  }
 
-  // auto dots = args["--dot"].asStringList();
-  // if (ttl::utils::index_of(dots, "rho")) {
-  //   fmt::print("graph rho {{\n{:dot}}}\n", rhs<0>(sedov));
-  //   fmt::print("graph rho2 {{\n{:dot}}}\n", rhs<0>(sedov3d));
-  // }
+  if (ttl::utils::index_of(eqns, "v")) {
+    fmt::print("  v_rhs = {}\n", v_rhs);
+  }
 
-  // if (ttl::utils::index_of(dots, "v")) {
-  //   fmt::print("graph v {{\n{:dot}}}\n", rhs<1>(sedov));
-  //   fmt::print("graph v2 {{\n{:dot}}}\n", rhs<1>(sedov3d));
-  // }
+  if (ttl::utils::index_of(eqns, "e")) {
+    fmt::print("  e_rhs = {}\n", e_rhs);
+  }
 
-  // if (ttl::utils::index_of(dots, "e")) {
-  //   fmt::print("graph e {{\n{:dot}}}\n", rhs<2>(sedov));
-  //   fmt::print("graph e2 {{\n{:dot}}}\n", rhs<2>(sedov3d));
-  // }
+  auto dots = args["--dot"].asStringList();
+  if (ttl::utils::contains(dots, "rho")) {
+    fmt::print("graph rho {{\n{}}}\n", ttl::dot(rhs<0>(sedov)));
+    fmt::print("graph rho {{\n{}}}\n", ttl::dot(std::get<0>(sedov3d.simple)));
+  }
+
+  if (ttl::utils::contains(dots, "v")) {
+    fmt::print("graph v {{\n{}}}\n", ttl::dot(rhs<1>(sedov)));
+    fmt::print("graph v {{\n{}}}\n", ttl::dot(std::get<1>(sedov3d.simple)));
+  }
+
+  if (ttl::utils::contains(dots, "e")) {
+    fmt::print("graph e {{\n{}}}\n", ttl::dot(rhs<2>(sedov)));
+    fmt::print("graph e {{\n{}}}\n", ttl::dot(std::get<2>(sedov3d.simple)));
+  }
 
   // gamma    = 1.4;       // [-]ratio of specific heats
   // cv       = 717.5;     // [J/kg.K] specific heat at constant volume

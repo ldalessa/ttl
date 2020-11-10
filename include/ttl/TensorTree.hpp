@@ -1,47 +1,60 @@
 #pragma once
 
 #include "Index.hpp"
+#include "Node.hpp"
 #include "Rational.hpp"
-#include "Tags.hpp"
 #include "Tensor.hpp"
 #include "utils.hpp"
+#include <concepts>
+#include <string>
+#include <fmt/core.h>
 
 namespace ttl {
+struct TensorTreeNode : ttl::Node {
+  int left = 0;
+  static constexpr int right = 1;
+  using ttl::Node::Node;
+};
+
 template <int N = 1>
-struct Tree final
+struct TensorTree final
 {
+  using Node = TensorTreeNode;
+
   constexpr static std::true_type is_tree_tag = {};
   Node nodes[N];
 
-  constexpr Tree() = default;
+  constexpr TensorTree() = default;
 
-  constexpr Tree(Index index, Tag tag = INDEX) {
+  constexpr TensorTree(Index index, Tag tag = INDEX) {
     nodes[0] = Node(index, tag);
   }
 
-  constexpr Tree(const Tensor* t) {
+  constexpr TensorTree(const Tensor* t) {
     nodes[0] = Node(t);
   }
 
-  constexpr Tree(Rational q) {
+  constexpr TensorTree(Rational q) {
     nodes[0] = Node(q);
   }
 
-  constexpr Tree(std::signed_integral auto i) {
+  constexpr TensorTree(std::signed_integral auto i) {
     nodes[0] = Node(Rational(i));
   }
 
-  constexpr Tree(std::floating_point auto d) {
+  constexpr TensorTree(std::floating_point auto d) {
     nodes[0] = Node(d);
   }
 
   template <int A, int B>
-  constexpr Tree(Tag tag, const Tree<A>& a, const Tree<B>& b) {
+  constexpr TensorTree(Tag tag, const TensorTree<A>& a, const TensorTree<B>& b) {
     assert(A + B + 1 == N);
     assert(binary(tag));
-    std::copy_n(a.nodes, A, nodes);
-    std::copy_n(b.nodes, B, nodes + A);
-    nodes[N - 1] = Node(outer(tag, outer(a), outer(b)), tag);
+    int i = 0;
+    for (auto&& a : a) nodes[i++] = a;
+    for (auto&& b : b) nodes[i++] = b;
+    nodes[i] = Node(outer(tag, outer(a), outer(b)), tag);
+    nodes[i].left = B + 1;
   }
 
   constexpr const Node& operator[](int i) const { return nodes[i]; }
@@ -52,10 +65,10 @@ struct Tree final
   constexpr       Node* begin()       { return nodes; }
   constexpr       Node*   end()       { return nodes + N; }
 
-  constexpr Tree operator()(std::same_as<Index> auto... is) const {
-    Tree copy = *this;
-    Index   search = outer(copy);
-    Index  replace = {is...};
+  constexpr TensorTree operator()(std::same_as<Index> auto... is) const {
+    TensorTree copy = *this;
+    Index    search = outer(copy);
+    Index   replace = {is...};
     assert(search.size() == replace.size());
     for (Node& node : copy) {
       if (Index* index = node.index()) {
@@ -66,11 +79,11 @@ struct Tree final
     return copy;
   }
 
-  constexpr friend int size(const Tree&) {
+  constexpr friend int size(const TensorTree&) {
     return N;
   }
 
-  constexpr friend Index outer(const Tree& tree) {
+  constexpr friend Index outer(const TensorTree& tree) {
     if (const Index* index = tree.nodes[N-1].index()) {
       return *index;
     }
@@ -80,10 +93,26 @@ struct Tree final
   constexpr Tag tag(int i) const {
     return nodes[i].tag;
   }
+
+  constexpr const Node& root() const {
+    return nodes[N - 1];
+  }
+
+  constexpr const Node& a(const Node& node) const {
+    assert(node.binary());
+    assert(node.left > 0);
+    return nodes[&node - nodes - node.left];
+  }
+
+  constexpr const Node& b(const Node& node) const {
+    assert(node.binary());
+    assert(node.right == 1);
+    return nodes[&node - nodes - node.right];
+  }
 };
 
 template <int A, int B>
-Tree(Tag, Tree<A>, Tree<B>) -> Tree<A + B + 1>;
+TensorTree(Tag, TensorTree<A>, TensorTree<B>) -> TensorTree<A + B + 1>;
 
 template <typename T>
 concept is_expression =
@@ -94,21 +123,21 @@ concept is_expression =
  std::floating_point<T>;
 
 constexpr auto bind(const Tensor& t) {
-  return Tree(std::addressof(t));
+  return TensorTree(std::addressof(t));
 }
 
 template <int N>
-constexpr Tree<N>&& bind(Tree<N>&& a) {
+constexpr TensorTree<N>&& bind(TensorTree<N>&& a) {
   return a;
 }
 
 template <int N>
-constexpr auto bind(const Tree<N>& a) {
+constexpr auto bind(const TensorTree<N>& a) {
   return a;
 }
 
 constexpr auto bind(is_expression auto const& a) {
-  return Tree(a);
+  return TensorTree(a);
 }
 
 constexpr auto operator+(is_expression auto const& a) {
@@ -116,15 +145,15 @@ constexpr auto operator+(is_expression auto const& a) {
 }
 
 constexpr auto operator+(is_expression auto const& a, is_expression auto const& b) {
-  return Tree(SUM, bind(a), bind(b));
+  return TensorTree(SUM, bind(a), bind(b));
 }
 
 constexpr auto operator*(is_expression auto const& a, is_expression auto const& b) {
-  return Tree(PRODUCT, bind(a), bind(b));
+  return TensorTree(PRODUCT, bind(a), bind(b));
 }
 
 constexpr auto operator-(is_expression auto const& a, is_expression auto const& b) {
-  return Tree(DIFFERENCE, bind(a), bind(b));
+  return TensorTree(DIFFERENCE, bind(a), bind(b));
 }
 
 constexpr auto operator-(is_expression auto const& a) {
@@ -132,39 +161,38 @@ constexpr auto operator-(is_expression auto const& a) {
 }
 
 constexpr auto operator/(is_expression auto const& a, is_expression auto const& b) {
-  return Tree(RATIO, bind(a), bind(b));
+  return TensorTree(RATIO, bind(a), bind(b));
 }
 
 constexpr auto D(is_expression auto const& a, std::same_as<Index> auto... is) {
-  return Tree(PARTIAL, bind(a), Tree((is + ...)));
+  return TensorTree(PARTIAL, bind(a), TensorTree((is + ...)));
 }
 
-constexpr Tree<1> delta(const Index& a, const Index& b) {
+constexpr TensorTree<1> delta(const Index& a, const Index& b) {
   assert(a.size() == 1);
   assert(b.size() == 1);
   assert(a != b);
-  return Tree(a + b, DELTA);
+  return TensorTree(a + b, DELTA);
 }
 
 constexpr auto symmetrize(is_expression auto const& a) {
-  Tree t = bind(a);
+  TensorTree t = bind(a);
   return Rational(1,2) * (t + t(reverse(outer(t))));
 }
 
 constexpr auto Tensor::operator()(std::same_as<Index> auto... is) const {
-  return Tree(BIND, Tree(this), Tree((is + ...)));
+  return TensorTree(BIND, TensorTree(this), TensorTree((is + ...)));
 }
 }
-
 
 template <int N>
-struct fmt::formatter<ttl::Tree<N>> {
+struct fmt::formatter<ttl::TensorTree<N>> {
   constexpr auto parse(format_parse_context& ctx) {
     return ctx.begin();
   }
 
   template <typename FormatContext>
-  constexpr auto format(const ttl::Tree<N>& tree, FormatContext& ctx)
+  constexpr auto format(const ttl::TensorTree<N>& tree, FormatContext& ctx)
   {
     ttl::utils::stack<std::string> stack;
     for (auto&& node : tree) {
@@ -189,7 +217,7 @@ struct fmt::formatter<ttl::Tree<N>> {
        case ttl::TENSOR:
        case ttl::RATIONAL:
        case ttl::DOUBLE:
-        stack.push(fmt::to_string(node));
+        stack.push(fmt::format("{}", node));
         break;
        default:
         __builtin_unreachable();

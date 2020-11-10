@@ -1,8 +1,9 @@
 #pragma once
 
 #include "Index.hpp"
+#include "Rational.hpp"
 #include "Tensor.hpp"
-#include <fmt/format.h>
+#include <fmt/core.h>
 
 namespace ttl {
 enum Tag {
@@ -97,8 +98,9 @@ union Data {
 };
 
 struct Node {
-  Tag   tag;
-  Data data = {};
+  Tag     tag;
+  Data   data = {};
+  // Index   idx = {};
 
   constexpr Node() {}
   constexpr Node(const Tensor* tensor)
@@ -155,14 +157,14 @@ struct fmt::formatter<ttl::Tag> {
   }
 };
 
-template <>
-struct fmt::formatter<ttl::Node> {
+template <typename T>
+struct fmt::formatter<T, std::enable_if_t<std::is_base_of_v<ttl::Node, T>, char>> {
   constexpr auto parse(format_parse_context& ctx) {
     return ctx.begin();
   }
 
   template <typename FormatContext>
-  constexpr auto format(const ttl::Node& node, FormatContext& ctx) {
+  constexpr auto format(const T& node, FormatContext& ctx) {
     switch (node.tag) {
      case ttl::SUM:
      case ttl::DIFFERENCE:
