@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Partial.hpp"
 #include "System.hpp"
 #include "TensorTree.hpp"
 #include <utility>
@@ -41,39 +42,20 @@ struct ScalarSystem
     }(std::make_index_sequence<sizes.size()>());
   }();
 
-  // constexpr static auto partials = [] {
-  //   constexpr int M = [] {
+  constexpr static auto partials = [] {
+    auto build = [] {
+      utils::set<Partial<N>> out;
+      for (auto&& h : hessians) {
+        utils::expand(N, h.order(), [&](int index[]) {
+          out.emplace(h, index);
+        });
+      }
+      return out;
+    };
 
-  //   }();
-  // }();
-
-  // constexpr static auto partials()
-  // {
-  //   // first pass computes the max number of scalars we might produce
-  //   constexpr auto M = [] {
-  //     int M = 0;
-  //     for (auto&& h : hessians) {
-  //       M += utils::pow(N, h.order());
-  //     }
-  //     return M;
-  //   }();
-
-  //   // second pass expands all of the hessians into their scalar partials
-  //   constexpr auto partials = [&] {
-  //     utils::set<Partial<N>, M> out;
-  //     [&]<std::size_t... i>(std::index_sequence<i...>) {
-  //       (utils::expand(N, order(hessians[i]), [&](int index[]) {
-  //           out.emplace(hessians[i], index);
-  //         }), ...);
-  //     }(std::make_index_sequence<size(hessians)>());
-  //     return out.sort();
-  //   }();
-
-  //   // finally truncate the result into a partial manifest
-  //   return [&]<std::size_t... i>(std::index_sequence<i...>) {
-  //     return PartialManifest(partials[i]...);
-  //   }(std::make_index_sequence<size(partials)>());
-  // }
+    constexpr int M = [&] { return build().size(); }();
+    return PartialManifest<N, M>(build());
+  }();
 };
 
 template <const auto& system, int N>

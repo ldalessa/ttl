@@ -88,18 +88,17 @@ int main(int argc, char* const argv[])
     puts("");
   }
 
-  // if (args["--partials"].asBool()) {
-  //   auto partials = sedov3d.partials();
-  //   fmt::print("partials ({}):\n", partials.size());
-  //   for (int n = 0; n < 8; ++n) {
-  //     fmt::print("dx in {}\n", n);
-  //     for (int i = 0; int dx : partials.dx(n)) {
-  //       fmt::print("({},{}): {}\n", i++, dx, partials[dx]);
-  //     }
-  //     fmt::print("\n");
-  //   }
-  //   fmt::print("\n");
-  // }
+  if (args["--partials"].asBool()) {
+    puts("partials:");
+    for (int n = 0; n < 8; ++n) {
+      printf("dx in %d\n", n);
+      for (int i = 0; int dx : sedov3d.partials.dx(n)) {
+        fmt::print("({},{}): {}\n", i++, dx, sedov3d.partials[dx]);
+      }
+      puts("");
+    }
+    puts("");
+  }
 
   auto eqns = args["--eqn"].asStringList();
   if (ttl::utils::index_of(eqns, "rho")) {

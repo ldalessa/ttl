@@ -9,9 +9,11 @@
 namespace ttl {
 template <int N> requires(N > 0)
 struct Partial {
-  Tensor tensor;
+  const Tensor* tensor = nullptr;
   int component = 0;
   int     dx[N] = {};
+
+  constexpr Partial() = default;
 
   constexpr Partial(const Hessian& h, int index[])
       : tensor(h.tensor())
@@ -51,7 +53,7 @@ struct Partial {
   }
 
   constexpr std::string_view id() const {
-    return tensor.id();
+    return tensor->id();
   }
 
   constexpr int partial_mask() const {
@@ -80,11 +82,11 @@ template <int N, int M>
 struct PartialManifest {
   Partial<N> data[M];
 
-  template <typename... Ts>
-  requires(std::same_as<std::remove_cvref_t<Ts>, Partial<N>> && ...)
-  constexpr PartialManifest(Ts&&... ps)
-      : data { std::forward<Ts>(ps)... }
-  {
+  constexpr PartialManifest(utils::set<Partial<N>>&& partials) {
+    for (int i = 0; auto&& p : partials) {
+      data[i++] = p;
+    }
+    std::sort(data, data + M);
   }
 
   constexpr static int      size()       { return M; }
@@ -133,10 +135,6 @@ struct PartialManifest {
     return dx(0);
   }
 };
-
-template <int N>
-PartialManifest(Partial<N>, std::same_as<Partial<N>> auto... rest) ->
-  PartialManifest<N, 1 + sizeof...(rest)>;
 }
 
 template <int N>
@@ -147,7 +145,7 @@ struct fmt::formatter<ttl::Partial<N>> {
 
   template <typename FormatContext>
   auto format(const ttl::Partial<N>& p, FormatContext& ctx) {
-    return format_to(ctx.out(), "{} {} d{}", p.tensor, p.component,
+    return format_to(ctx.out(), "{} {} d{}", *p.tensor, p.component,
                      p.partial_string());
   }
 };

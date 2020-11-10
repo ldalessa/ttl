@@ -5,7 +5,6 @@
 #include "SimpleTree.hpp"
 #include "concepts.hpp"
 #include "utils.hpp"
-#include <ce/dvector.hpp>
 #include <span>
 #include <tuple>
 
@@ -105,9 +104,6 @@ struct System
     }, rhs_);
   }
 };
-
-template <typename... Tuples>
-System(Tuples...) -> System<std::decay_t<std::tuple_element_t<1, Tuples>>...>;
 
 template <typename... Tree> requires(is_tree<Tree> && ...)
 System(Equation<Tree>...) -> System<Tree...>;
