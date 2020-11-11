@@ -79,7 +79,7 @@ struct TensorTree final
     return copy;
   }
 
-  constexpr friend int size(const TensorTree&) {
+  constexpr static int size() {
     return N;
   }
 

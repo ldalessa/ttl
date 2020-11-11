@@ -29,7 +29,7 @@ struct System
       , rhs_ {std::get<1>(tuples)...}
   {}
 
-  constexpr friend int size(const System&) {
+  constexpr static int size() {
     return M;
   }
 
@@ -40,6 +40,10 @@ struct System
 
   constexpr decltype(auto) tensors() const {
     return std::span(lhs_);
+  }
+
+  constexpr decltype(auto) trees() const {
+    return rhs_;
   }
 
   constexpr bool is_constant(const Tensor* t) const {
@@ -94,8 +98,12 @@ struct System
     return out;
   }
 
+  constexpr static auto simplify(is_tree auto const& tree, auto const& constants) {
+    return SimpleTree(tree, constants);
+  }
+
   constexpr auto simplify(is_tree auto const& tree) const {
-    return SimpleTree(tree, constants());
+    return simplify(tree, constants());
   }
 
   constexpr auto simplify() const {

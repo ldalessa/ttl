@@ -19,7 +19,7 @@ constexpr std::optional<int> index_of(Range&& range, T&& value) {
 
 template <typename Range, typename T>
 constexpr bool contains(Range&& range, T&& value) {
-  return index_of(std::forward<Range>(range), std::forward<T>(value)).has_value();
+  return std::find(std::begin(range), std::end(range), value) != std::end(range);
 }
 
 template <std::integral T>
@@ -67,10 +67,22 @@ struct set : ce::dvector<T> {
 
   template <typename... Ts>
   constexpr void emplace(Ts&&... ts) {
-    T& back = this->emplace_back(std::forward<Ts>(ts)...);
-    if (index_of(*this, back) != size(*this) - 1) {
-      this->pop_back();
+    T temp(std::forward<Ts>(ts)...);
+    if (!contains(*this, temp)) {
+      this->push_back(std::move(temp));
     }
+
+    // gcc produces different results in constexpr context for this code, I'm
+    // not sure why. I spent some time trying to reduce a testcase and couldn't
+    // get anything to fail.
+    //
+    // T& back = this->emplace_back(std::forward<Ts>(ts)...);
+    // for (int i = 0; i < this->size() - 1; ++i) {
+    //   if (back == (*this)[i]) {
+    //     this->pop_back();
+    //     return;
+    //   }
+    // }
   }
 };
 }

@@ -185,14 +185,14 @@ struct SimpleTree
     return *this;
   }
 
-  constexpr friend int size(const SimpleTree& tree) {
-    return tree.root->size();
+  constexpr int size() const {
+    return root->size();
   }
 
   template <typename Tree> requires(is_tree<Tree>)
   constexpr friend Tree to_tree(const SimpleTree& tree) {
     Tree out;
-    int i = size(out) - 1;
+    int i = out.size() - 1;
     auto op = [&](const Node* node, auto&& self) -> int {
       int j = i--;
       out[j].tag = node->tag;

@@ -10,7 +10,11 @@ template <const auto& system, int N>
 struct ScalarSystem
 {
   constexpr static auto hessians = [] {
-    constexpr int M = [] { return system.hessians().size(); }();
+    constexpr int M = [] {
+      auto hessians = system.hessians();
+      return hessians.size();
+    }();
+
     return []<std::size_t... m>(std::index_sequence<m...>) {
       auto h = system.hessians();
       return std::array{ h[m]... };
@@ -18,7 +22,11 @@ struct ScalarSystem
   }();
 
   constexpr static auto constants = [] {
-    constexpr int M = [] { return system.constants().size(); }();
+    constexpr int M = [] {
+      auto constants = system.constants();
+      return constants.size();
+    }();
+
     std::array<const Tensor*, M> constants;
     for (int i = 0; auto c : system.constants()) {
       constants[i++] = c;
@@ -27,24 +35,35 @@ struct ScalarSystem
   }();
 
   constexpr static auto simple = [] {
-    constexpr auto sizes = [] {
-      return std::apply([](auto&&... tree) {
-        return std::array<int, sizeof...(tree)>{size(tree)...};
-      }, system.simplify());
+    // All of this is horrible but is in here to workaround
+    // https://gcc.gnu.org/bugzilla/show_bug.cgi?id=97790.
+    constexpr auto simplify_all = [] {
+      constexpr auto inner = []<std::size_t i>(std::integral_constant<std::size_t, i>) {
+        return system.simplify(std::get<i>(system.trees()), constants);
+      };
+
+      return [&]<std::size_t... i>(std::index_sequence<i...>) {
+        return std::tuple(inner(std::integral_constant<std::size_t, i>())...);
+      }(std::make_index_sequence<system.size()>());
+    };
+
+    constexpr auto sizes = [&] {
+      auto all = simplify_all();
+      return std::apply([](auto const&... tree) {
+        return std::array { tree.size()... };
+      }, all);
     }();
 
-    auto trees = system.simplify();
-
+    auto all = simplify_all();
     return [&]<std::size_t... i>(std::index_sequence<i...>) {
-      return std::tuple([&]<typename T>(T&& tree) {
-        return to_tree<TensorTree<sizes[i]>>(std::forward<T>(tree));
-      }(system.simplify(rhs<i>(system)))...);
-    }(std::make_index_sequence<sizes.size()>());
+      return std::tuple(to_tree<TensorTree<sizes[i]>>(std::get<i>(all))...);
+    }(std::make_index_sequence<system.size()>());
   }();
 
   constexpr static auto partials = [] {
-    auto build = [] {
+    constexpr auto make_set = [] {
       utils::set<Partial<N>> out;
+      out.reserve(64);
       for (auto&& h : hessians) {
         utils::expand(N, h.order(), [&](int index[]) {
           out.emplace(h, index);
@@ -53,8 +72,13 @@ struct ScalarSystem
       return out;
     };
 
-    constexpr int M = [&] { return build().size(); }();
-    return PartialManifest<N, M>(build());
+    constexpr int M = [&] {
+      auto partials = make_set();
+      return partials.size();
+    }();
+
+    auto set = make_set();
+    return PartialManifest<N, M>(std::move(set));
   }();
 };
 
