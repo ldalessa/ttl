@@ -4,6 +4,7 @@
 #include "Tensor.hpp"
 #include "Index.hpp"
 #include "utils.hpp"
+#include <ce/dvector.hpp>
 #include <ranges>
 
 namespace ttl {
@@ -14,6 +15,20 @@ struct Partial {
   int     dx[N] = {};
 
   constexpr Partial() = default;
+
+  constexpr Partial(const Tensor* t, const ce::dvector<int>& index)
+      : tensor(t)
+  {
+    assert(t->order() <= index.size());
+
+    int i = 0;
+    for (int e = t->order(); i < e; ++i) {
+      component += utils::pow(N, i) * index[i];
+    }
+    for (int e = index.size(); i < e; ++i) {
+      ++dx[index[i]];
+    }
+  }
 
   constexpr Partial(const Hessian& h, int index[])
       : tensor(h.tensor())
@@ -136,8 +151,15 @@ struct PartialManifest {
     return dx(0);
   }
 
-  constexpr int find(const Tensor* t, auto&& index) const {
-    return 0;
+  constexpr int find(const Tensor* t, const ce::dvector<int>& index) const {
+    Partial<N> p(t, index);
+    auto i = std::lower_bound(data, data + M, p);
+    if (i != data + M) {
+      if (*i != p) {
+        return M;
+      }
+    }
+    return i - data;
   }
 };
 }

@@ -74,6 +74,7 @@ struct ScalarTree
         , N(scalars.dim())
     {}
 
+    // outer dimension tree generation
     constexpr ce::dvector<const Node*> operator()() const
     {
       int order = tree.order();
@@ -85,6 +86,7 @@ struct ScalarTree
       return out;
     }
 
+    // generic node dispatch
     constexpr const Node*
     handle(const TensorTreeNode& node, const TreeIndex& index) const
     {
@@ -93,19 +95,21 @@ struct ScalarTree
        case DIFFERENCE: return sum(node, index);
        case PRODUCT:
        case RATIO:      return product(node, index);
-       case BIND:
-       case PARTIAL:    return bind(node, index);
-        // case INDEX:
+       case BIND:       return bind(node, index);
+       case PARTIAL:    return partial(node, index);
        case DELTA:      return delta(index);
-       case TENSOR:     return tensor(node.tensor(), index);
+       case TENSOR:     return tensor(node, index);
        case DOUBLE:     return new Node(node.d());
        case RATIONAL:   return new Node(to_double(node.q()));
+        // case INDEX: right child of bind and partial isn't traversed
        default:         assert(false);
       }
     }
 
+    // simplification algorithms.
     constexpr static const Node*
-    combine(Tag tag, const Node* a, const Node* b) {
+    combine(Tag tag, const Node* a, const Node* b)
+    {
       if (tag == SUM && a->is_zero()) {
         delete a;
         return b;
@@ -173,7 +177,7 @@ struct ScalarTree
         return new Node(PRODUCT, a, inverse);
       }
 
-      return new Node(tag, a, a);
+      return new Node(tag, a, b);
     }
 
     constexpr const Node*
@@ -209,10 +213,11 @@ struct ScalarTree
     }
 
     constexpr const Node*
-    bind(const TensorTreeNode& node, const TreeIndex& index) const
+    partial(const TensorTreeNode& node, const TreeIndex& index) const
     {
       const TensorTreeNode& a = tree.a(node);
       const TensorTreeNode& b = tree.b(node);
+      assert(a.tag == TENSOR || a.tag == BIND);
       assert(b.tag == INDEX);
 
       Index outer = node.outer(); assert(outer == (a.outer() ^ b.outer()));
@@ -220,8 +225,18 @@ struct ScalarTree
       Index   all = outer + inner;
 
       return contract(all, index, [&] (const TreeIndex& inner) -> const Node* {
-        return handle(a, select(inner, all, a.outer()));
+        return handle(a, select(inner, all, a.outer() + b.outer()));
       });
+    }
+
+    constexpr const Node*
+    bind(const TensorTreeNode& node, const TreeIndex& index) const
+    {
+      const TensorTreeNode& a = tree.a(node);
+      const TensorTreeNode& b = tree.b(node);
+      assert(a.tag == TENSOR);
+      assert(b.tag == INDEX);
+      return tensor(a, index);
     }
 
     constexpr const Node*
@@ -239,8 +254,10 @@ struct ScalarTree
     }
 
     constexpr const Node*
-    tensor(const Tensor* t, const TreeIndex& index) const
+    tensor(const TensorTreeNode& node, const TreeIndex& index) const
     {
+      const Tensor* t = node.tensor();
+      assert(t);
       if (auto&& i = utils::index_of(constants, t)) {
         return new Node(CONSTANT, *i);
       }
@@ -251,7 +268,6 @@ struct ScalarTree
     select(const TreeIndex& index, Index from, Index to)
     {
       assert(index.size() == from.size());
-      // assert(from.size() == to.size());
       TreeIndex out;
       out.reserve(to.size());
       for (char c : to) {
@@ -291,3 +307,53 @@ struct ScalarTree
   }
 };
 }
+
+template <>
+struct fmt::formatter<ttl::ScalarTree::Node> {
+  constexpr auto parse(format_parse_context& ctx) {
+    return ctx.begin();
+  }
+
+  template <typename FormatContext>
+  constexpr auto format(const ttl::ScalarTree::Node& node, FormatContext& ctx)
+  {
+    switch (node.tag) {
+     case ttl::ScalarTree::BINARY:    return format_to(ctx.out(), "{}", node.binary);
+     case ttl::ScalarTree::SCALAR:    return format_to(ctx.out(), "scalars[{}]", node.offset);
+     case ttl::ScalarTree::CONSTANT:  return format_to(ctx.out(), "constants[{}]", node.offset);
+     case ttl::ScalarTree::IMMEDIATE: return format_to(ctx.out(), "{}", node.d);
+    };
+    __builtin_unreachable();
+  }
+};
+
+template <>
+struct fmt::formatter<ttl::ScalarTree> {
+  constexpr auto parse(format_parse_context& ctx) {
+    return ctx.begin();
+  }
+
+  template <typename FormatContext>
+  constexpr auto format(const ttl::ScalarTree& tree, FormatContext& ctx)
+  {
+    int i = 0;
+    auto op = [&](const ttl::ScalarTree::Node* node, auto&& self) -> int {
+      if (node->tag == ttl::ScalarTree::BINARY) {
+        int a = self(node->a, self);
+        int b = self(node->b, self);
+        format_to(ctx.out(), "\tnode{}[label=\"{}\"]\n", i, *node);
+        format_to(ctx.out(), "\tnode{} -- node{}\n", i, b);
+        format_to(ctx.out(), "\tnode{} -- node{}\n", i, a);
+      }
+      else {
+        format_to(ctx.out(), "\tnode{}[label=\"{}\"]\n", i, *node);
+      }
+      return i++;
+    };
+
+    for (const ttl::ScalarTree::Node* tree : tree.roots) {
+      op(tree, op);
+    }
+    return ctx.out();
+  }
+};

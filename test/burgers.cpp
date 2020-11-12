@@ -16,12 +16,16 @@ constexpr ttl::Index j = 'j';;
 /// System of equations.
 constexpr auto   u_rhs = nu * D(u(i),i,j) - (u(i) + c(i)) * D(u(i),j);
 constexpr auto burgers = ttl::system(u = u_rhs);
-constexpr auto burgers3d = ttl::scalar_system<burgers, 3>;
+constexpr auto burgers2d = ttl::scalar_system<burgers, 2>;
 }
 
 int main() {
   // fmt::print("u_rhs = {:eqn}\n", u_rhs);
-  // fmt::print("graph u {{\n{:dot}}}\n", u_rhs);
-  auto trees = burgers3d.make_scalar_trees();
+  for (int i = 0; auto p : burgers2d.partials) {
+    fmt::print("{}: {}\n", i++, p);
+  }
+  fmt::print("graph u {{\n{}}}\n", ttl::dot(std::get<0>(burgers2d.simple)));
+  auto trees = burgers2d.make_scalar_trees();
+  fmt::print("graph u {{\n{}}}\n", std::get<0>(trees));
   return 0;
 }
