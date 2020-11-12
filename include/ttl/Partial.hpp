@@ -89,9 +89,10 @@ struct PartialManifest {
     std::sort(data, data + M);
   }
 
+  constexpr static int       dim()       { return N; }
   constexpr static int      size()       { return M; }
   constexpr decltype(auto) begin() const { return data + 0; }
-  constexpr decltype(auto)   end() const { return data + size(); }
+  constexpr decltype(auto)   end() const { return data + M; }
 
   constexpr decltype(auto) operator[](int i) const { assert(0 <= i && i < M);
     return data[i];
@@ -133,6 +134,10 @@ struct PartialManifest {
 
   constexpr auto fields() const {
     return dx(0);
+  }
+
+  constexpr int find(const Tensor* t, auto&& index) const {
+    return 0;
   }
 };
 }

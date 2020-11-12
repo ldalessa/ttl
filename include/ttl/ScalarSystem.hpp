@@ -2,6 +2,7 @@
 
 #include "Partial.hpp"
 #include "System.hpp"
+#include "ScalarTree.hpp"
 #include "TensorTree.hpp"
 #include <utility>
 
@@ -80,6 +81,16 @@ struct ScalarSystem
     auto set = make_set();
     return PartialManifest<N, M>(std::move(set));
   }();
+
+  constexpr static auto make_scalar_tree(is_tree auto const& tree) {
+    return ScalarTree(tree, partials, constants);
+  }
+
+  constexpr static auto make_scalar_trees() {
+    return std::apply([](is_tree auto const&... trees) {
+      return std::tuple(make_scalar_tree(trees)...);
+    }, simple);
+  }
 };
 
 template <const auto& system, int N>

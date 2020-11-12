@@ -33,8 +33,8 @@ constexpr T pow(T x, T y) {
 }
 
 template <typename Index>
-constexpr static bool carry_sum_inc(int N, int Order, Index&& index) {
-  for (int n = 0; n < Order; index[n++] = 0) {
+constexpr static bool carry_sum_inc(int N, int n, int Order, Index&& index) {
+  for (; n < Order; index[n++] = 0) {
     if (++index[n] < N) {
       return true; // no carry
     }
@@ -47,7 +47,7 @@ constexpr static void expand(int N, int Order, Op&& op) {
   int *index = new int[Order]{};
   do {
     op(index);
-  } while (utils::carry_sum_inc(N, Order, index));
+  } while (utils::carry_sum_inc(N, 0, Order, index));
   delete [] index;
 }
 
@@ -71,18 +71,17 @@ struct set : ce::dvector<T> {
     if (!contains(*this, temp)) {
       this->push_back(std::move(temp));
     }
-
-    // gcc produces different results in constexpr context for this code, I'm
-    // not sure why. I spent some time trying to reduce a testcase and couldn't
-    // get anything to fail.
-    //
-    // T& back = this->emplace_back(std::forward<Ts>(ts)...);
-    // for (int i = 0; i < this->size() - 1; ++i) {
-    //   if (back == (*this)[i]) {
-    //     this->pop_back();
-    //     return;
-    //   }
-    // }
+//     // gcc produces different results in constexpr context for this code, I'm
+//     // not sure why. I spent some time trying to reduce a testcase and couldn't
+//     // get anything to fail.
+//     //
+//     const T& back = this->emplace_back(std::forward<Ts>(ts)...);
+//     for (int i = 0; i < this->size() - 1; ++i) {
+//       if (back == (*this)[i]) {
+//         this->pop_back();
+//         return;
+//       }
+//     }
   }
 };
 }

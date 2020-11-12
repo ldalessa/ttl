@@ -53,7 +53,7 @@ struct TensorTree final
     int i = 0;
     for (auto&& a : a) nodes[i++] = a;
     for (auto&& b : b) nodes[i++] = b;
-    nodes[i] = Node(outer(tag, outer(a), outer(b)), tag);
+    nodes[i] = Node(ttl::outer(tag, a.outer(), b.outer()), tag);
     nodes[i].left = B + 1;
   }
 
@@ -67,7 +67,7 @@ struct TensorTree final
 
   constexpr TensorTree operator()(std::same_as<Index> auto... is) const {
     TensorTree copy = *this;
-    Index    search = outer(copy);
+    Index    search = copy.outer();
     Index   replace = {is...};
     assert(search.size() == replace.size());
     for (Node& node : copy) {
@@ -83,19 +83,23 @@ struct TensorTree final
     return N;
   }
 
-  constexpr friend Index outer(const TensorTree& tree) {
-    if (const Index* index = tree.nodes[N-1].index()) {
-      return *index;
-    }
-    return {};
-  }
-
   constexpr Tag tag(int i) const {
     return nodes[i].tag;
   }
 
   constexpr const Node& root() const {
     return nodes[N - 1];
+  }
+
+  constexpr Index outer() const {
+    if (const Index* index = root().index()) {
+      return *index;
+    }
+    return {};
+  }
+
+  constexpr int order() const {
+    return root().order();
   }
 
   constexpr const Node& a(const Node& node) const {
@@ -177,7 +181,7 @@ constexpr TensorTree<1> delta(const Index& a, const Index& b) {
 
 constexpr auto symmetrize(is_expression auto const& a) {
   TensorTree t = bind(a);
-  return Rational(1,2) * (t + t(reverse(outer(t))));
+  return Rational(1,2) * (t + t(reverse(t.outer())));
 }
 
 constexpr auto Tensor::operator()(std::same_as<Index> auto... is) const {

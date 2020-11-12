@@ -28,17 +28,17 @@ struct Hessian {
     dx_.search_and_replace(search, replace);
   }
 
-  constexpr bool operator==(const Hessian& rhs) {
-    return a_ == rhs.a_ && i_ == rhs.i_ && dx_ == rhs.dx_;
+  constexpr friend bool operator==(const Hessian& a, const Hessian& b) {
+    return a.a_ == b.a_ && a.i_ == b.i_ && a.dx_ == b.dx_;
   }
 
-  constexpr bool operator<(const Hessian& rhs) {
-    if (a_ < rhs.a_) return true;
-    if (rhs.a_ < a_) return false;
-    if (i_ < rhs.i_) return true;
-    if (rhs.i_ < i_) return false;
-    if (dx_ < rhs.dx_) return true;
-    if (rhs.dx_ < dx_) return false;
+  constexpr friend bool operator<(const Hessian&a, const Hessian& b) {
+    if (a.a_ < b.a_) return true;
+    if (b.a_ < a.a_) return false;
+    if (a.i_ < b.i_) return true;
+    if (b.i_ < a.i_) return false;
+    if (a.dx_ < b.dx_) return true;
+    if (b.dx_ < a.dx_) return false;
     return false;
   }
 

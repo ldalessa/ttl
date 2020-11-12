@@ -50,6 +50,17 @@ constexpr Index outer(Tag tag, const Index& a, const Index& b) {
   }
 }
 
+template <typename T>
+constexpr static auto apply(Tag tag, const T& a, const T& b) {
+  switch (tag) {
+   case SUM:        return a + b;
+   case DIFFERENCE: return a - b;
+   case PRODUCT:    return a * b;
+   case RATIO:      return a / b;
+   default: assert(false);
+  }
+}
+
 constexpr static const char* tag_strings[] = {
   "+",                                        // SUM
   "-",                                        // DIFFERENCE
@@ -98,9 +109,8 @@ union Data {
 };
 
 struct Node {
-  Tag     tag;
-  Data   data = {};
-  // Index   idx = {};
+  Tag   tag;
+  Data data = {};
 
   constexpr Node() {}
   constexpr Node(const Tensor* tensor)
@@ -141,6 +151,24 @@ struct Node {
 
   constexpr Index* index() {
     return (ttl::index(tag)) ? &data.index : nullptr;
+  }
+
+  constexpr const Rational& q() const {
+    assert(tag == RATIONAL);
+    return data.q;
+  }
+
+  constexpr const double& d() const {
+    assert(tag == DOUBLE);
+    return data.d;
+  }
+
+  constexpr Index outer() const {
+    return (ttl::index(tag)) ? data.index : Index();
+  }
+
+  constexpr int order() const {
+    return outer().size();
   }
 };
 }

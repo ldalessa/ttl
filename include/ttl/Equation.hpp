@@ -16,7 +16,7 @@ struct Equation {
 
 template <is_tree Tree>
 constexpr auto Tensor::operator=(Tree&& rhs) const {
-  assert(order_ == outer(rhs).size());
+  assert(order_ == rhs.outer().size());
   return Equation(this, std::forward<Tree>(rhs));
 }
 }

@@ -62,6 +62,10 @@ struct Rational
     return a.p == b.p && a.q == b.q;
   }
 
+  constexpr friend double to_double(const Rational& a) {
+    return double(a.p) / double(a.q);
+  }
+
   std::string to_string() const {
     if (q != 1) {
       return std::to_string(p).append("/").append(std::to_string(q));
