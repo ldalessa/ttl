@@ -1,31 +1,40 @@
 #pragma once
 
-#include "Tensor.hpp"
 #include "Index.hpp"
-// #include "fmt.hpp"
+#include "Node.hpp"
+#include "Tensor.hpp"
 #include <fmt/core.h>
 
 namespace ttl {
 struct Hessian {
-  const Tensor* a_;
-  Index dx_;
-  Index  i_;
+  const Tensor* a_ = nullptr;
+  Index dx_ = {};
+  Index  i_ = {};
 
-  constexpr Hessian(const Tensor* a, Index dx, Index idx)
+  constexpr Hessian() = default;
+
+  constexpr Hessian(const Tensor* a)
       : a_(a)
-      , dx_(dx)
-      , i_(idx)
   {
-    // The hessians have anonymized indices, i.e., they only care about local
-    // relative matching and not about external index identity. For example,
-    // a(i,ji) and a(j,ij) are the same hessian.
-    Index search = unique(i_ + dx_);
+  }
+
+  constexpr Hessian(const Tensor* a, Index all)
+      : a_(a)
+  {
+    Index search = unique(all);
     Index replace;
     for (int i = 0, e = search.size(); i < e; ++i) {
       replace.push_back(char('0' + i));
     }
-    i_.search_and_replace(search, replace);
-    dx_.search_and_replace(search, replace);
+    all.search_and_replace(search, replace);
+
+    int i = 0;
+    for (int e = a->order(); i < e; ++i) {
+      i_.push_back(all[i]);
+    }
+    for (int e = all.size(); i < e; ++i) {
+      dx_.push_back(all[i]);
+    }
   }
 
   constexpr friend bool operator==(const Hessian& a, const Hessian& b) {

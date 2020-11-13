@@ -21,7 +21,7 @@ constexpr auto burgers2d = ttl::scalar_system<burgers, 2>;
 
 int main() {
   // fmt::print("u_rhs = {:eqn}\n", u_rhs);
-  for (int i = 0; auto p : burgers2d.partials) {
+  for (int i = 0; auto p : burgers2d.scalars) {
     fmt::print("{}: {}\n", i++, p);
   }
   fmt::print("graph u {{\n{}}}\n", ttl::dot(std::get<0>(burgers2d.simple)));

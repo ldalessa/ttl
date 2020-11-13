@@ -15,8 +15,8 @@ struct SimpleTree
 
    private:
     bool constant_ = true;
-    Node*       a_ = nullptr;
-    Node*       b_ = nullptr;
+    const Node* a_ = nullptr;
+    const Node* b_ = nullptr;
 
     // deep copy is private, use clone
     constexpr Node(const Node& b)
@@ -66,10 +66,10 @@ struct SimpleTree
     }
 
     // binary join
-    constexpr Node(Tag tag, Node* a, Node* b)
+    constexpr Node(Tag tag, const Node* a, const Node* b)
         : tag(tag)
         , data(ttl::outer(tag, a->outer(), b->outer()))
-        , constant_(a->constant_ && b->constant_)
+        , constant_(a->is_constant() && b->is_constant())
         , a_(a)
         , b_(b)
     {
@@ -77,7 +77,7 @@ struct SimpleTree
     }
 
     // deep copy
-    constexpr friend Node* clone(const Node* n) {
+    constexpr friend const Node* clone(const Node* n) {
       return (n) ? new Node(*n) : nullptr;
     }
 
@@ -101,7 +101,7 @@ struct SimpleTree
       return data.d;
     }
 
-    constexpr bool constant() const {
+    constexpr bool is_constant() const {
       return constant_;
     }
 
@@ -136,7 +136,7 @@ struct SimpleTree
     }
   };
 
-  Node* root = nullptr;
+  const Node* root = nullptr;
 
   constexpr ~SimpleTree() {
     delete root;
@@ -151,21 +151,21 @@ struct SimpleTree
 
   constexpr SimpleTree(is_tree auto const& tree, auto const& constants)
   {
-    utils::stack<Node*> stack;
+    utils::stack<const Node*> stack;
     for (auto&& node : tree) {
-      Node* c = nullptr;
+      const Node* c = nullptr;
 
       if (node.tag == PARTIAL) {
-        Node* b = stack.pop();
-        Node* a = stack.pop();
+        const Node* b = stack.pop();
+        const Node* a = stack.pop();
         c = dx(a, b->index());
         delete a;
         delete b;
       }
       else if (binary(node.tag)) {
-        Node* b = stack.pop();
-        Node* a = stack.pop();
-        c = join(node.tag, a, b);
+        const Node* b = stack.pop();
+        const Node* a = stack.pop();
+        c = combine(node.tag, a, b);
       }
       else if (const Tensor* t = node.tensor()) {
         c = new Node(node.tag, node.data, utils::contains(constants, t));
@@ -211,12 +211,12 @@ struct SimpleTree
 
  private:
   // compute the derivative of a tree (possibly recursively)
-  constexpr static Node* dx(const Node* n, Index index) {
+  constexpr static const Node* dx(const Node* n, Index index) {
     if (n == nullptr) {
       return nullptr;
     }
 
-    if (n->constant()) {
+    if (n->is_constant()) {
       return new Node(0);
     }
 
@@ -225,13 +225,18 @@ struct SimpleTree
      case DIFFERENCE: return distribute(n, index);
      case PRODUCT:    return product(n, index);
      case RATIO:      return quotient(n, index);
+     case BIND:
      case PARTIAL:    return partial(n, index);
-     default:         return join(PARTIAL, clone(n), new Node(index));
+     case TENSOR:     return combine(PARTIAL, clone(n), new Node(index));
+     default:
+      assert(false);
     }
   }
 
-  // join two subtrees, performing some basic algebra along the way
-  constexpr static Node* join(Tag tag, Node* a, Node* b) {
+  // combine two subtrees, performing some basic algebra along the way
+  constexpr static const Node*
+  combine(Tag tag, const Node* a, const Node* b)
+  {
     assert(ttl::binary(tag));
     switch (tag) {
      case SUM:
@@ -239,7 +244,7 @@ struct SimpleTree
       if (b->is_zero()) return (delete b, a);
       break;
      case DIFFERENCE:
-      if (a->is_zero()) return (delete a, join(PRODUCT, new Node(-1), b));
+      if (a->is_zero()) return (delete a, combine(PRODUCT, new Node(-1), b));
       if (b->is_zero()) return (delete b, a);
       break;
      case PRODUCT:
@@ -256,26 +261,58 @@ struct SimpleTree
     return new Node(tag, a, b);
   }
 
-  constexpr static Node* partial(const Node* n, Index index) {
-    return join(PARTIAL, clone(n->a()), new Node(Index(n->b()->index(), index)));
+  constexpr static const Node*
+  partial(const Node* node, const Index& index)
+  {
+    const Node* a = node->a();
+    const Node* b = node->b();
+    return combine(PARTIAL, clone(a), new Node(Index(b->index(), index)));
   }
 
-  constexpr static Node* distribute(const Node* n, Index index) {
-    return join(n->tag, dx(n->a(), index), dx(n->b(), index));
+  constexpr static const Node*
+  distribute(const Node* node, const Index& index)
+  {
+    const Node* a = node->a();
+    const Node* b = node->b();
+    return combine(node->tag, dx(a, index), dx(b, index));
   }
 
-  constexpr static Node* quotient(const Node* n, Index index) {
-    Node*  p1 = join(PRODUCT, dx(n->a(), index), clone(n->b()));
-    Node*  p2 = join(PRODUCT, clone(n->a()), dx(n->b(), index));
-    Node* num = join(DIFFERENCE, p1, p2);
-    Node* den = join(PRODUCT, clone(n->b()), clone(n->b()));
-    return join(RATIO, num, den);
+  constexpr static const Node*
+  quotient(const Node* node, const Index& index)
+  {
+    const Node* a = node->a();
+    const Node* b = node->b();
+
+    // easy and important case when b is constant
+    if (b->is_constant()) {
+      return combine(RATIO, dx(a, index), clone(b));
+    }
+
+    const Node*  p1 = combine(PRODUCT, dx(a, index), clone(b));
+    const Node*  p2 = combine(PRODUCT, clone(a), dx(b, index));
+    const Node* num = combine(DIFFERENCE, p1, p2);
+    const Node* den = combine(PRODUCT, clone(b), clone(b));
+    return combine(RATIO, num, den);
   }
 
-  constexpr static Node* product(const Node* n, Index index) {
-    Node* p1 = join(PRODUCT, dx(n->a(), index), clone(n->b()));
-    Node* p2 = join(PRODUCT, clone(n->a()), dx(n->b(), index));
-    return join(SUM, p1, p2);
+  constexpr static const Node*
+  product(const Node* node, const Index& index)
+  {
+    const Node* a = node->a();
+    const Node* b = node->b();
+
+    // pre-simplify constant multiplication
+    if (a->is_constant()) {
+      return combine(PRODUCT, clone(a), dx(b, index));
+    }
+
+    if (b->is_constant()) {
+      return combine(PRODUCT, dx(a, index), clone(b));
+    }
+
+    const Node* p1 = combine(PRODUCT, dx(a, index), clone(b));
+    const Node* p2 = combine(PRODUCT, clone(a), dx(b, index));
+    return combine(SUM, p1, p2);
   }
 };
 }

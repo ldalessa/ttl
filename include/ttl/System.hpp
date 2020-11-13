@@ -70,32 +70,17 @@ struct System
 
   constexpr void hessians(utils::set<Hessian>& out, is_tree auto const& tree) const
   {
-    auto op = [&](auto const& node, Index i, Index dx, auto&& self) -> void {
-      if (node.tag == PARTIAL) {
-        dx = *tree.b(node).index() + dx;
-      }
-      if (node.tag == BIND) {
-        i = *node.index();
-      }
+    for (int i = tree.size() - 1; i >= 0; --i) {
+      const Node& node = tree[i];
       if (const Tensor* t = node.tensor()) {
-        if (!is_constant(t)) {
-          out.emplace(t, dx, i);
-        }
+        out.emplace(t);
       }
-      if (node.binary()) {
-        self(tree.b(node), i, dx, self);
-        self(tree.a(node), i, dx, self);
+      if (node.tag == PARTIAL || node.tag == BIND) {
+        const Node& b = tree[--i]; assert(b.tag == INDEX);
+        const Node& a = tree[--i]; assert(a.tag == TENSOR);
+        out.emplace(a.tensor(), *b.index());
       }
-    };
-    op(tree.root(), {}, {}, op);
-  }
-
-  constexpr auto hessians() const {
-    utils::set<Hessian> out;
-    std::apply([&](auto const&... tree) {
-      (hessians(out, tree), ...);
-    }, rhs_);
-    return out;
+    }
   }
 
   constexpr static auto simplify(is_tree auto const& tree, auto const& constants) {

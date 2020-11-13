@@ -3,15 +3,15 @@ static constexpr const char USAGE[] =
   Usage:
       sedov (-h | --help)
       sedov --version
-      sedov [--hessians] [--tensors] [--constants]  [--partials] [--eqn <rhs>]... [--dot <rhs>]...
+      sedov [--hessians] [--tensors] [--constants]  [--scalars] [--eqn <rhs>]... [--dot <rhs>]...
 
   Options:
       -h, --help         Show this screen.
       --version          Show version information.
       --hessians         Print hessians
-      --constants        Print constants
+      --constants        Print tensor constants
       --tensors          Print tensors
-      --partials         Print partials
+      --scalars          Print non-constant scalars
       --eqn <rhs>        Print an eqn for <rhs>
       --dot <rhs>        Print a dotfile for <rhs>
 )";
@@ -57,7 +57,7 @@ constexpr ttl::System sedov = {
   e = e_rhs
 };
 
-constexpr auto sedov3d = ttl::scalar_system<sedov, 3>;
+constexpr auto sedov3d = ttl::scalar_system<sedov, 2>;
 }
 
 int main(int argc, char* const argv[])
@@ -72,14 +72,6 @@ int main(int argc, char* const argv[])
     puts("");
   }
 
-  if (args["--constants"].asBool()) {
-    puts("constants:");
-    for (int i = 0; auto&& c : sedov3d.constants) {
-      printf("%d: %s\n", i++, to_string(*c).data());
-    }
-    puts("");
-  }
-
   if (args["--hessians"].asBool()) {
     puts("hessians:");
     for (int i = 0; auto&& c : sedov3d.hessians) {
@@ -88,12 +80,20 @@ int main(int argc, char* const argv[])
     puts("");
   }
 
-  if (args["--partials"].asBool()) {
-    puts("partials:");
+  if (args["--constants"].asBool()) {
+    puts("constants:");
+    for (int i = 0; auto&& c : sedov3d.constants) {
+      fmt::print("{}: {}\n", i++, c);
+    }
+    puts("");
+  }
+
+  if (args["--scalars"].asBool()) {
+    puts("scalars:");
     for (int n = 0; n < 8; ++n) {
       printf("dx in %d\n", n);
-      for (int i = 0; int dx : sedov3d.partials.dx(n)) {
-        fmt::print("({},{}): {}\n", i++, dx, sedov3d.partials[dx]);
+      for (int i = 0; int dx : sedov3d.scalars.dx(n)) {
+        fmt::print("({},{}): {}\n", i++, dx, sedov3d.scalars[dx]);
       }
       puts("");
     }
@@ -135,6 +135,12 @@ int main(int argc, char* const argv[])
   // mu       = 1.9e-5;    // [Pa.s] dynamic viscosity
   // muVolume = 1e-5;      // [Pa.s] volume viscosity
   // g        = {0, 0, 0}; //
+
+  // auto trees = sedov3d.make_scalar_trees();
+  // fmt::print("graph e {{\n{}}}\n", std::get<2>(trees));
+
+  auto trees = sedov3d.make_scalar_tree(std::get<2>(sedov3d.simple));
+  fmt::print("graph e {{\n{}}}\n", trees);
 
   return 0;
 }

@@ -95,7 +95,7 @@ struct ScalarTree
        case DIFFERENCE: return sum(node, index);
        case PRODUCT:
        case RATIO:      return product(node, index);
-       case BIND:       return bind(node, index);
+       case BIND:
        case PARTIAL:    return partial(node, index);
        case DELTA:      return delta(index);
        case TENSOR:     return tensor(node, index);
@@ -172,8 +172,8 @@ struct ScalarTree
       }
 
       // optimize the tree by performing the inverse at transformation time
-      if (tag == RATIO && b->tag != BINARY) {
-        const Node* inverse = combine(RATIO, new Node(1), b);
+      if (tag == RATIO && b->tag == IMMEDIATE) {
+        const Node* inverse = new Node(IMMEDIATE, 1.0 / b->d);
         return new Node(PRODUCT, a, inverse);
       }
 
@@ -217,27 +217,27 @@ struct ScalarTree
     {
       const TensorTreeNode& a = tree.a(node);
       const TensorTreeNode& b = tree.b(node);
-      assert(a.tag == TENSOR || a.tag == BIND);
+      assert(a.tag == TENSOR);
       assert(b.tag == INDEX);
 
-      Index outer = node.outer(); assert(outer == (a.outer() ^ b.outer()));
-      Index inner = a.outer() & b.outer();
-      Index   all = outer + inner;
+      Index outer = node.outer();
+      Index inner = b.outer();
+      Index   all = outer + repeated(inner);
 
       return contract(all, index, [&] (const TreeIndex& inner) -> const Node* {
-        return handle(a, select(inner, all, a.outer() + b.outer()));
+        return tensor(a, select(inner, all, b.outer()));
       });
     }
 
-    constexpr const Node*
-    bind(const TensorTreeNode& node, const TreeIndex& index) const
-    {
-      const TensorTreeNode& a = tree.a(node);
-      const TensorTreeNode& b = tree.b(node);
-      assert(a.tag == TENSOR);
-      assert(b.tag == INDEX);
-      return tensor(a, index);
-    }
+    // constexpr const Node*
+    // bind(const TensorTreeNode& node, const TreeIndex& index) const
+    // {
+    //   const TensorTreeNode& a = tree.a(node);
+    //   const TensorTreeNode& b = tree.b(node);
+    //   assert(a.tag == TENSOR);
+    //   assert(b.tag == INDEX);
+    //   return tensor(a, index);
+    // }
 
     constexpr const Node*
     delta(const TreeIndex& index) const
@@ -258,10 +258,10 @@ struct ScalarTree
     {
       const Tensor* t = node.tensor();
       assert(t);
-      if (auto&& i = utils::index_of(constants, t)) {
+      if (auto&& i = constants.find(t, index)) {
         return new Node(CONSTANT, *i);
       }
-      return new Node(SCALAR, scalars.find(t, index));
+      return new Node(SCALAR, *scalars.find(t, index));
     }
 
     constexpr static TreeIndex

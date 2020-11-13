@@ -16,10 +16,10 @@ struct Partial {
 
   constexpr Partial() = default;
 
-  constexpr Partial(const Tensor* t, const ce::dvector<int>& index)
+  constexpr Partial(const Tensor* t, auto const& index)
       : tensor(t)
   {
-    assert(t->order() <= index.size());
+    assert(t->order() <= std::ssize(index));
 
     int i = 0;
     for (int e = t->order(); i < e; ++i) {
@@ -30,7 +30,7 @@ struct Partial {
     }
   }
 
-  constexpr Partial(const Hessian& h, int index[])
+  constexpr Partial(const Hessian& h, auto const& index)
       : tensor(h.tensor())
   {
     Index outer = h.outer();
@@ -151,15 +151,18 @@ struct PartialManifest {
     return dx(0);
   }
 
-  constexpr int find(const Tensor* t, const ce::dvector<int>& index) const {
+  constexpr std::optional<int>
+  find(const Tensor* t, const ce::dvector<int>& index) const
+  {
     Partial<N> p(t, index);
-    auto i = std::lower_bound(data, data + M, p);
-    if (i != data + M) {
-      if (*i != p) {
-        return M;
+    auto begin = data;
+    auto   end = data + M;
+    if (auto i = std::lower_bound(begin, end, p); i < end) {
+      if (*i == p) {
+        return i - begin;
       }
     }
-    return i - data;
+    return std::nullopt;
   }
 };
 }
