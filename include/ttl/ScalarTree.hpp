@@ -17,8 +17,8 @@ struct ScalarTree
 
   struct Node {
     ScalarTag tag;
-    const Node* a = nullptr;
-    const Node* b = nullptr;
+    Node* a = nullptr;
+    Node* b = nullptr;
     union {
       struct {} _monostate = {};
       Tag binary;
@@ -26,7 +26,7 @@ struct ScalarTree
       double   d;
     };
 
-    constexpr Node(Tag t, const Node* a, const Node* b)
+    constexpr Node(Tag t, Node* a, Node* b)
         : tag(BINARY)
         , a(a)
         , b(b)
@@ -48,12 +48,30 @@ struct ScalarTree
     {
     }
 
+    constexpr friend bool operator==(const Node& a, const Node& b) {
+      if (a.tag != b.tag) return false;
+      if (a.tag == IMMEDIATE) return a.d == b.d;
+      if (a.tag != BINARY)    return a.offset == b.offset;
+      return *a.a == *b.b;
+    }
+
     constexpr bool is_zero() const {
       return (tag == IMMEDIATE && d == 0);
     }
 
     constexpr bool is_one() const {
       return (tag == IMMEDIATE && d == 1);
+    }
+
+    constexpr bool is_binary(Tag t) const {
+      return (tag == BINARY && binary == t);
+    }
+
+    constexpr Node* unlink() {
+      assert(tag == BINARY);
+      a = nullptr;
+      b = nullptr;
+      return this;
     }
   };
 
@@ -87,7 +105,7 @@ struct ScalarTree
     }
 
     // generic node dispatch
-    constexpr const Node*
+    constexpr Node*
     handle(const TensorTreeNode& node, const TreeIndex& index) const
     {
       switch (node.tag) {
@@ -107,8 +125,8 @@ struct ScalarTree
     }
 
     // simplification algorithms.
-    constexpr static const Node*
-    combine(Tag tag, const Node* a, const Node* b)
+    constexpr static Node*
+    combine(Tag tag, Node* a, Node* b)
     {
       if (tag == SUM && a->is_zero()) {
         delete a;
@@ -164,6 +182,7 @@ struct ScalarTree
         return a;
       }
 
+      // immediately evaluate immediates
       if (a->tag == IMMEDIATE && b->tag == IMMEDIATE) {
         Node* n = new Node(apply(tag, a->d, b->d));
         delete a;
@@ -173,25 +192,94 @@ struct ScalarTree
 
       // optimize the tree by performing the inverse at transformation time
       if (tag == RATIO && b->tag == IMMEDIATE) {
-        const Node* inverse = new Node(IMMEDIATE, 1.0 / b->d);
-        return new Node(PRODUCT, a, inverse);
+        Node* inverse = new Node(1.0 / b->d);
+        return combine(PRODUCT, a, inverse);
+      }
+
+      // reduce the tree when a == b
+      if (*a == *b) {
+        if (tag == SUM) {
+          delete b;
+          return combine(PRODUCT, new Node(2), a);
+        }
+        if (tag == DIFFERENCE) {
+          delete a;
+          delete b;
+          return new Node(0);
+        }
+        if (tag == RATIO) {
+          delete a;
+          delete b;
+          return new Node(1);
+        }
+      }
+
+      if (tag == PRODUCT && a->tag == IMMEDIATE && b->is_binary(PRODUCT)) {
+        Node* ba = b->a;
+        if (ba->tag == IMMEDIATE) {
+          Node* bb = b->b;
+          double d = a->d * ba->d;
+          b->unlink();
+          delete a;
+          delete b;
+          return combine(PRODUCT, new Node(d), bb);
+        }
+        return new Node(PRODUCT, a, b);
+      }
+
+      if (tag == PRODUCT && a->is_binary(PRODUCT) && b->tag == IMMEDIATE) {
+        Node* aa = a->a;
+        if (aa->tag == IMMEDIATE) {
+          Node* ab = a->b;
+          double d = aa->d * b->d;
+          a->unlink();
+          delete a;
+          delete b;
+          return combine(PRODUCT, new Node(d), ab);
+        }
+        return new Node(PRODUCT, b, a);
+      }
+
+      if (tag == PRODUCT && a->is_binary(PRODUCT) && b->is_binary(PRODUCT)) {
+        Node* aa = a->a;
+        Node* ab = a->b;
+        Node* ba = b->a;
+        Node* bb = b->b;
+        if (aa->tag == IMMEDIATE && ba->tag == IMMEDIATE) {
+          delete a->unlink();
+          delete b->unlink();
+          double d = aa->d * ba->d;
+          a = new Node(d);
+          b = new Node(PRODUCT, ab, bb);
+          return combine(PRODUCT, a, b);
+        }
+        if (aa->tag == IMMEDIATE) {
+          delete a->unlink();
+          b = new Node(PRODUCT, ab, b);
+          return new Node(PRODUCT, aa, b);
+        }
+        if (ba->tag == IMMEDIATE) {
+          delete b->unlink();
+          a = new Node(PRODUCT, bb, a);
+          return new Node(PRODUCT, ba, a);
+        }
       }
 
       return new Node(tag, a, b);
     }
 
-    constexpr const Node*
+    constexpr Node*
     sum(const TensorTreeNode& node, const TreeIndex& index) const
     {
       const TensorTreeNode& a = tree.a(node);
       const TensorTreeNode& b = tree.b(node);
       Index outer = node.outer();
-      const Node* l = handle(a, select(index, outer, a.outer()));
-      const Node* r = handle(b, select(index, outer, b.outer()));
+      Node* l = handle(a, select(index, outer, a.outer()));
+      Node* r = handle(b, select(index, outer, b.outer()));
       return combine(node.tag, l, r);
     }
 
-    constexpr const Node*
+    constexpr Node*
     product(const TensorTreeNode& node, const TreeIndex& index) const
     {
       const TensorTreeNode& a = tree.a(node);
@@ -205,14 +293,14 @@ struct ScalarTree
       Index inner = a.outer() & b.outer();
       Index   all = outer + inner;
 
-      return contract(all, index, [&] (const TreeIndex& inner) -> const Node* {
-        const Node* l = handle(a, select(inner, all, a.outer()));
-        const Node* r = handle(b, select(inner, all, b.outer()));
+      return contract(all, index, [&] (const TreeIndex& inner) -> Node* {
+        Node* l = handle(a, select(inner, all, a.outer()));
+        Node* r = handle(b, select(inner, all, b.outer()));
         return combine(node.tag, l, r);
       });
     }
 
-    constexpr const Node*
+    constexpr Node*
     partial(const TensorTreeNode& node, const TreeIndex& index) const
     {
       const TensorTreeNode& a = tree.a(node);
@@ -224,22 +312,12 @@ struct ScalarTree
       Index inner = b.outer();
       Index   all = outer + repeated(inner);
 
-      return contract(all, index, [&] (const TreeIndex& inner) -> const Node* {
+      return contract(all, index, [&] (const TreeIndex& inner) -> Node* {
         return tensor(a, select(inner, all, b.outer()));
       });
     }
 
-    // constexpr const Node*
-    // bind(const TensorTreeNode& node, const TreeIndex& index) const
-    // {
-    //   const TensorTreeNode& a = tree.a(node);
-    //   const TensorTreeNode& b = tree.b(node);
-    //   assert(a.tag == TENSOR);
-    //   assert(b.tag == INDEX);
-    //   return tensor(a, index);
-    // }
-
-    constexpr const Node*
+    constexpr Node*
     delta(const TreeIndex& index) const
     {
       if (int e = index.size()) {
@@ -253,7 +331,7 @@ struct ScalarTree
       return new Node(1);
     }
 
-    constexpr const Node*
+    constexpr Node*
     tensor(const TensorTreeNode& node, const TreeIndex& index) const
     {
       const Tensor* t = node.tensor();
@@ -277,7 +355,7 @@ struct ScalarTree
     }
 
     template <typename Op>
-    constexpr const Node*
+    constexpr Node*
     contract(const Index& all, const TreeIndex& index, Op&& op) const
     {
       int n = index.size();
@@ -289,7 +367,7 @@ struct ScalarTree
       }
 
       // return a sum of ops
-      const Node* out = new Node(0);
+      Node* out = new Node(0);
       do {
         out = combine(SUM, out, op(inner));
       } while (utils::carry_sum_inc(N, n, order, inner));

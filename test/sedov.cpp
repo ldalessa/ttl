@@ -49,7 +49,8 @@ constexpr auto     q = cm::fouriers_law(theta, kappa);
 /// System of equations.
 constexpr auto rho_rhs = - D(rho,i) * v(i) - rho * D(v(i),i);
 constexpr auto   v_rhs = - D(v(i),j) * v(j) + D(sigma(i,j),j) / rho + g(i);
-constexpr auto   e_rhs = - v(i) * D(e,i) + sigma(i,j) * d(i,j) / rho - D(q(i),i) / rho;
+// constexpr auto   e_rhs = - v(i) * D(e,i) + sigma(i,j) * d(i,j) / rho - D(q(i),i) / rho;
+constexpr auto   e_rhs = sigma(i,j) * d(i,j);
 
 constexpr ttl::System sedov = {
   rho = rho_rhs,
