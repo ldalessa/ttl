@@ -1,40 +1,14 @@
 #pragma once
 
+#include "Tag.hpp"
 #include "ttl/Index.hpp"
 #include "ttl/Rational.hpp"
 #include "ttl/Tensor.hpp"
 #include <fmt/core.h>
 #include <utility>
 
-namespace ttl::tensor {
-enum Tag {
-  SUM,
-  DIFFERENCE,
-  PRODUCT,
-  RATIO,
-  PARTIAL,
-  INDEX,
-  TENSOR,
-  RATIONAL,
-  DOUBLE
-};
-
-constexpr Index outer(Tag tag, const Index& a, const Index& b) {
-  switch (tag) {
-   case SUM:
-   case DIFFERENCE:
-    assert(permutation(a, b));
-    return a;
-   case PRODUCT:
-   case RATIO:
-    return a ^ b;
-   case PARTIAL:
-    return exclusive(a + b);
-   default:
-    assert(false);
-  }
-}
-
+namespace ttl::tensor
+{
 struct RPNNode {
   Tag  tag;
   int    left = 0;
@@ -53,7 +27,7 @@ struct RPNNode {
       , left(left)
       , index(i)
   {
-    assert(tag < INDEX);
+    assert(tag_is_binary(tag));
     assert(1 < left);
   }
 
@@ -118,7 +92,7 @@ struct RPNTree
     int i = 0;
     for (auto&& node : a.data) data[i++] = node;
     for (auto&& node : b.data) data[i++] = node;
-    data[i] = RPNNode(tag, b.size() + 1, tensor::outer(tag, a.outer(), b.outer()));
+    data[i] = RPNNode(tag, b.size() + 1, tag_outer(tag, a.outer(), b.outer()));
   }
 
 
@@ -146,31 +120,6 @@ struct RPNTree
 template <int A, int B>
 RPNTree(Tag, RPNTree<A>, RPNTree<B>) -> RPNTree<A + B + 1>;
 }
-
-template <>
-struct fmt::formatter<ttl::tensor::Tag>
-{
-  constexpr static const char* tag_strings[] = {
-    "+",                                        // SUM
-    "-",                                        // DIFFERENCE
-    "*",                                        // PRODUCT
-    "/",                                        // RATIO
-    "dx",                                       // PARTIAL
-    "",                                         // INDEX
-    "",                                         // TENSOR
-    "",                                         // RATIONAL
-    ""                                          // DOUBLE
-  };
-
-  constexpr auto parse(format_parse_context& ctx) {
-    return ctx.begin();
-  }
-
-  template <typename FormatContext>
-  constexpr auto format(ttl::tensor::Tag tag, FormatContext& ctx) {
-    return format_to(ctx.out(), "{}", tag_strings[tag]);
-  }
-};
 
 template <>
 struct fmt::formatter<ttl::tensor::RPNNode>
