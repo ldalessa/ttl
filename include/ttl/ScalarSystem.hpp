@@ -15,7 +15,7 @@ struct ScalarSystem
     // https://gcc.gnu.org/bugzilla/show_bug.cgi?id=97790.
     constexpr auto simplify_all = [] {
       constexpr auto inner = []<std::size_t i>(std::integral_constant<std::size_t, i>) {
-        return system.simplify(std::get<i>(system.trees()), system.constants());
+        return system.simplify(std::get<i>(system.trees()), system.make_constants());
       };
 
       return [&]<std::size_t... i>(std::index_sequence<i...>) {
@@ -58,36 +58,23 @@ struct ScalarSystem
   }();
 
   constexpr static auto constants = [] {
-    constexpr auto make_set = [] {
-      utils::set<Partial<N>> out;
-      out.reserve(64);
-      for (auto&& h : hessians) {
-        if (system.is_constant(h.tensor())) {
-          utils::expand(N, h.order(), [&](int index[]) {
-            out.emplace(h, index);
-          });
-        }
-      }
-      return out;
-    };
-
-    constexpr int M = [&] {
-      auto constants = make_set();
+    constexpr int M = [] {
+      auto&& [constants, scalars] = system.make_partials(N);
       return constants.size();
     }();
 
-    auto set = make_set();
-    return PartialManifest<N, M>(std::move(set));
+    auto&& [constants, scalars] = system.make_partials(N);
+    return PartialManifest<M>(N, std::move(constants));
   }();
 
   constexpr static auto scalars = [] {
     constexpr auto make_set = [] {
-      utils::set<Partial<N>> out;
+      utils::set<Partial> out;
       out.reserve(64);
       for (auto&& h : hessians) {
         if (not system.is_constant(h.tensor())) {
           utils::expand(N, h.order(), [&](int index[]) {
-            out.emplace(h, index);
+            out.emplace(N, h, index);
           });
         }
       }
@@ -100,17 +87,21 @@ struct ScalarSystem
     }();
 
     auto set = make_set();
-    return PartialManifest<N, M>(std::move(set));
+    return PartialManifest<M>(N, std::move(set));
   }();
 
-  constexpr static auto make_scalar_tree(is_tree auto const& tree) {
-    return ScalarTree(tree, scalars, constants);
+  constexpr static ScalarTree
+  make_scalar_tree(is_tree auto const& tree)
+  {
+    return ScalarTree(N, tree, scalars, constants);
   }
 
   constexpr static auto make_scalar_trees() {
-    return std::apply([](is_tree auto const&... trees) {
-      return std::tuple(make_scalar_tree(trees)...);
+    ce::dvector<const ScalarTreeNode*> out;
+    std::apply([&](is_tree auto const&... trees) {
+      (ScalarTreeBuilder(N, trees, scalars, constants)(out), ...);
     }, simple);
+    return out;
   }
 };
 

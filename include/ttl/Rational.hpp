@@ -25,36 +25,40 @@ struct Rational
     return { q, p };
   }
 
-  constexpr friend Rational operator+(Rational a) {
+  constexpr friend Rational operator+(const Rational& a) {
     return a;
   }
 
-  constexpr friend Rational operator-(Rational a) {
+  constexpr friend Rational operator-(const Rational& a) {
     return { -a.p, a.q };
   }
 
-  constexpr friend Rational operator+(Rational a, Rational b) {
+  constexpr friend Rational operator+(const Rational& a, const Rational& b) {
     auto d = std::gcd(a.q, b.q);
     auto l = (a.q / d);
     auto r = (b.q / d);
     return { a.p * r + b.p * l, l * r };
   }
 
-  constexpr friend Rational operator-(Rational a, Rational b) {
+  constexpr friend Rational operator-(const Rational& a, const Rational& b) {
     auto d = std::gcd(a.q, b.q);
     auto l = (a.q / d);
     auto r = (b.q / d);
     return { a.p * r - b.p * l, l * r };
   }
 
-  constexpr friend Rational operator*(Rational a, Rational b) {
+  constexpr friend Rational operator*(const Rational& a, const Rational& b) {
     auto l = std::gcd(a.p, b.q);
     auto r = std::gcd(b.p, a.q);
     return { (a.p / l) * (b.p / r),
              (a.q / r) * (b.q / l) };
   }
 
-  constexpr friend Rational operator/(Rational a, Rational b) {
+  constexpr friend Rational& operator*=(Rational& a, const Rational& b) {
+    return a = a * b;
+  }
+
+  constexpr friend Rational operator/(const Rational& a, const Rational& b) {
     return a * b.inverse();
   }
 

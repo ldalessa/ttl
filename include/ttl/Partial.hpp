@@ -8,17 +8,19 @@
 #include <ranges>
 
 namespace ttl {
-template <int N> requires(N > 0)
 struct Partial {
   const Tensor* tensor = nullptr;
   int component = 0;
-  int     dx[N] = {};
+  int     dx[8] = {};
+  int         N = 0;
 
   constexpr Partial() = default;
 
-  constexpr Partial(const Tensor* t, auto const& index)
+  constexpr Partial(int N, const Tensor* t, auto const& index)
       : tensor(t)
+      , N(N)
   {
+    assert(N <= std::size(dx));
     assert(t->order() <= std::ssize(index));
 
     int i = 0;
@@ -30,9 +32,11 @@ struct Partial {
     }
   }
 
-  constexpr Partial(const Hessian& h, auto const& index)
+  constexpr Partial(int N, const Hessian& h, auto const& index)
       : tensor(h.tensor())
+      , N(N)
   {
+    assert(N <= std::size(dx));
     Index outer = h.outer();
 
     for (int i = 0; auto&& c : h.index()) {
@@ -93,18 +97,22 @@ struct Partial {
   }
 };
 
-template <int N, int M>
+template <int M>
 struct PartialManifest {
-  Partial<N> data[M];
+  Partial data[M];
+  int N;
 
-  constexpr PartialManifest(utils::set<Partial<N>>&& partials) {
+  constexpr PartialManifest(int N, utils::set<Partial>&& partials)
+      : N(N)
+  {
+    assert(M == partials.size());
     for (int i = 0; auto&& p : partials) {
+      assert(N == p.N);
       data[i++] = p;
     }
     std::sort(data, data + M);
   }
 
-  constexpr static int       dim()       { return N; }
   constexpr static int      size()       { return M; }
   constexpr decltype(auto) begin() const { return data + 0; }
   constexpr decltype(auto)   end() const { return data + M; }
@@ -118,10 +126,10 @@ struct PartialManifest {
   }
 
   constexpr auto dx(int mask) const {
-    auto a = std::ranges::lower_bound(data, mask, std::less{}, [](const Partial<N>& dx) {
+    auto a = std::ranges::lower_bound(data, mask, std::less{}, [](const Partial& dx) {
       return dx.partial_mask();
     });
-    auto b = std::ranges::lower_bound(data, mask + 1, std::less{}, [](const Partial<N>& dx) {
+    auto b = std::ranges::lower_bound(data, mask + 1, std::less{}, [](const Partial& dx) {
       return dx.partial_mask();
     });
 
@@ -154,7 +162,7 @@ struct PartialManifest {
   constexpr std::optional<int>
   find(const Tensor* t, const ce::dvector<int>& index) const
   {
-    Partial<N> p(t, index);
+    Partial p(N, t, index);
     auto begin = data;
     auto   end = data + M;
     if (auto i = std::lower_bound(begin, end, p); i < end) {
@@ -167,14 +175,14 @@ struct PartialManifest {
 };
 }
 
-template <int N>
-struct fmt::formatter<ttl::Partial<N>> {
+template <>
+struct fmt::formatter<ttl::Partial> {
   constexpr auto parse(format_parse_context& ctx) {
     return ctx.begin();
   }
 
   template <typename FormatContext>
-  auto format(const ttl::Partial<N>& p, FormatContext& ctx) {
+  auto format(const ttl::Partial& p, FormatContext& ctx) {
     return format_to(ctx.out(), "{} {} d{}", *p.tensor, p.component,
                      p.partial_string());
   }

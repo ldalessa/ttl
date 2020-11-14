@@ -26,6 +26,6 @@ int main() {
   }
   fmt::print("graph u {{\n{}}}\n", ttl::dot(std::get<0>(burgers2d.simple)));
   auto trees = burgers2d.make_scalar_trees();
-  fmt::print("graph u {{\n{}}}\n", std::get<0>(trees));
+  fmt::print("graph u {{\n{}}}\n", *trees[0]);
   return 0;
 }

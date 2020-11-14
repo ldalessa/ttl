@@ -60,7 +60,7 @@ struct System
     }
   }
 
-  constexpr auto constants() const {
+  constexpr auto make_constants() const {
     utils::set<const Tensor*> out;
     std::apply([&](auto&... tree) {
       (constants(out, tree), ...);
@@ -83,6 +83,34 @@ struct System
     }
   }
 
+  constexpr auto make_hessians() const {
+    utils::set constants = make_constants();
+    utils::set<Hessian> out;
+    std::apply([&](auto const&... tree) {
+      (simplify(tree, constants).hessians(out), ...);
+    }, rhs_);
+    return out;
+  }
+
+  constexpr auto make_partials(int N) const {
+    struct {
+      utils::set<Partial> constants;
+      utils::set<Partial> scalars;
+    } out;
+    for (auto&& h : make_hessians()) {
+      bool constant = is_constant(h.tensor());
+      utils::expand(N, h.order(), [&](int index[]) {
+        if (constant) {
+          out.constants.emplace(N, h, index);
+        }
+        else {
+          out.scalars.emplace(N, h, index);
+        }
+      });
+    }
+    return out;
+  }
+
   constexpr static auto simplify(is_tree auto const& tree, auto const& constants) {
     return SimpleTree(tree, constants);
   }
@@ -93,7 +121,7 @@ struct System
 
   constexpr auto simplify() const {
     return std::apply([&](is_tree auto const&... tree) {
-      return std::tuple(simplify(tree)...);
+      return std::array{ simplify(tree)... };
     }, rhs_);
   }
 };

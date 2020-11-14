@@ -134,6 +134,19 @@ struct SimpleTree
     constexpr int size() const {
       return (ttl::leaf(tag)) ?: a_->size() + b_->size() + 1;
     }
+
+    constexpr void hessians(utils::set<Hessian>& out) const {
+      if (tag == TENSOR) {
+        out.emplace(data.tensor);
+      }
+      else if (tag == PARTIAL || tag == BIND) {
+        out.emplace(a_->tensor(), b_->index());
+      }
+      else if (ttl::binary(tag)) {
+        a_->hessians(out);
+        b_->hessians(out);
+      }
+    }
   };
 
   const Node* root = nullptr;
@@ -187,6 +200,10 @@ struct SimpleTree
 
   constexpr int size() const {
     return root->size();
+  }
+
+  constexpr void hessians(utils::set<Hessian>& out) const {
+    return root->hessians(out);
   }
 
   template <typename Tree> requires(is_tree<Tree>)
