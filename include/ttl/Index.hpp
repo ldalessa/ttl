@@ -1,10 +1,8 @@
 #pragma once
 
-#include <algorithm>
 #include <cassert>
 #include <concepts>
 #include <optional>
-#include <span>
 #include <string_view>
 #include <fmt/core.h>
 
@@ -61,13 +59,19 @@ struct Index
 
   // Count the number of `c` in the index.
   constexpr int count(char c) const {
-    return std::count(data, data + n, c);
+    int cnt = 0;
+    for (char d : data) {
+      cnt += (c == d);
+    }
+    return cnt;
   }
 
   // Return the index of the first instance of `c` in the index, or nullopt.
   constexpr std::optional<int> index_of(char c) const {
-    if (auto i = std::find(data, data + n, c); i != data + n) {
-      return i - data;
+    for (int i = 0, e = n; i < e; ++i) {
+      if (c == data[i]) {
+        return i;
+      }
     }
     return std::nullopt;
   }
@@ -75,8 +79,8 @@ struct Index
   // Hopefully obviously, search for chars in `search` and replace with the
   // corresponding char in `replace`.
   constexpr Index& search_and_replace(const Index& search, const Index& replace) {
-    assert(search.n == replace.n);
-    for (char& c : std::span(data)) {
+    assert(search.size() == replace.size());
+    for (char& c : data) {
       if (auto&& i = search.index_of(c)) {
         c = replace[*i];
       }

@@ -15,17 +15,17 @@ constexpr ttl::Index j = 'j';;
 
 /// System of equations.
 constexpr auto   u_rhs = nu * D(u(i),i,j) - (u(i) + c(i)) * D(u(i),j);
-constexpr auto burgers = ttl::system(u = u_rhs);
-constexpr auto burgers2d = ttl::scalar_system<burgers, 2>;
+// constexpr auto burgers = ttl::system(u = u_rhs);
+// constexpr auto burgers2d = ttl::scalar_system<burgers, 2>;
 }
 
 int main() {
-  // fmt::print("u_rhs = {:eqn}\n", u_rhs);
-  for (int i = 0; auto p : burgers2d.scalars) {
-    fmt::print("{}: {}\n", i++, p);
-  }
-  fmt::print("graph u {{\n{}}}\n", ttl::dot(std::get<0>(burgers2d.simple)));
-  auto trees = burgers2d.make_scalar_trees();
-  fmt::print("graph u {{\n{}}}\n", *trees[0]);
+  fmt::print("u_rhs = {}\n", u_rhs);
+  // for (int i = 0; auto p : burgers2d.scalars) {
+  //   fmt::print("{}: {}\n", i++, p);
+  // }
+  // fmt::print("graph u {{\n{}}}\n", ttl::dot(std::get<0>(burgers2d.simple)));
+  // auto trees = burgers2d.make_scalar_trees();
+  // fmt::print("graph u {{\n{}}}\n", *trees[0]);
   return 0;
 }

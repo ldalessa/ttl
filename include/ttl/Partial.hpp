@@ -5,7 +5,7 @@
 #include "Index.hpp"
 #include "utils.hpp"
 #include <ce/dvector.hpp>
-#include <ranges>
+#include <algorithm>
 
 namespace ttl {
 struct Partial {

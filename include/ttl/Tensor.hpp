@@ -9,11 +9,11 @@ namespace ttl {
 struct Tensor
 {
  private:
-  int order_;
   std::string_view id_;
+  int order_;
 
  public:
-  constexpr Tensor(int order, std::string_view id) : order_(order), id_(id) {
+  constexpr Tensor(std::string_view id, int order) : id_(id), order_(order) {
   }
 
   constexpr int order() const {
@@ -44,11 +44,11 @@ constexpr std::string_view to_string(const Tensor& t) {
 }
 
 constexpr ttl::Tensor scalar(std::string_view id) {
-  return { 0, id };
+  return { id, 0 };
 }
 
 constexpr ttl::Tensor vector(std::string_view id) {
-  return { 1, id };
+  return { id, 1 };
 }
 }
 

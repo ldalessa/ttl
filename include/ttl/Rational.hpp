@@ -2,7 +2,6 @@
 
 #include <cassert>
 #include <numeric>
-#include <string>
 #include <utility>
 #include <fmt/core.h>
 
@@ -69,15 +68,6 @@ struct Rational
   constexpr friend double to_double(const Rational& a) {
     return double(a.p) / double(a.q);
   }
-
-  std::string to_string() const {
-    if (q != 1) {
-      return std::to_string(p).append("/").append(std::to_string(q));
-    }
-    else {
-      return std::to_string(p);
-    }
-  }
 };
 }
 
@@ -89,6 +79,11 @@ struct fmt::formatter<ttl::Rational> {
 
   template <typename FormatContext>
   constexpr auto format(const ttl::Rational& q, FormatContext& ctx) {
-    return format_to(ctx.out(), "{}", q.to_string());
+    if (q.q != 1) {
+      return format_to(ctx.out(), "{}/{}", q.p, q.q);
+    }
+    else {
+      return format_to(ctx.out(), "{}", q.p);
+    }
   }
 };
