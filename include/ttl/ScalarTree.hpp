@@ -76,11 +76,11 @@ struct ScalarTree
   }
 
   constexpr bool is_zero() const {
-    return tag == RATIONAL && q == Rational(0);
+    return (tag == RATIONAL && q == Rational(0)) || (tag == DOUBLE && d == 0.0);
   }
 
   constexpr bool is_one() const {
-    return tag == RATIONAL && q == Rational(1);
+    return (tag == RATIONAL && q == Rational(1)) || (tag == DOUBLE && d == 1.0);
   }
 
   constexpr friend bool is_equivalent(const ScalarTree* a, const ScalarTree* b) {
@@ -290,6 +290,39 @@ struct ScalarTreeBuilder
       delete b;
       return a;
     }
+
+    // canonical trees have rational numbers as left children
+    if (b->tag == RATIONAL) {
+      return reduce(PRODUCT, b, a);
+    }
+
+    // factor out and combine any common rational state between the two terms
+    if (a->tag == PRODUCT && b->tag == PRODUCT) {
+      ScalarTree* aa = a->a_;
+      ScalarTree* ab = a->b_;
+      ScalarTree* ba = b->a_;
+      ScalarTree* bb = b->b_;
+      if (aa->tag == RATIONAL && ba->tag == RATIONAL) {
+        a->a_ = nullptr;
+        a->b_ = nullptr;
+        delete a;
+        b->a_ = ab;
+        b->b_ = bb;
+        a = reduce(PRODUCT, aa, ba);
+        return reduce(PRODUCT, a, b);
+      }
+      if (ba->tag == RATIONAL) {
+        std::swap(b->a_, a);
+        return reduce(PRODUCT, a, b);
+      }
+      if (aa->tag == RATIONAL) {
+        a->a_ = ab;
+        a->b_ = b;
+        a = aa;
+        return reduce(PRODUCT, a, b);
+      }
+    }
+
     return new ScalarTree(PRODUCT, a, b);
   }
 
@@ -305,12 +338,21 @@ struct ScalarTreeBuilder
       delete b;
       return a;
     }
+
+    // todo: not really safe if fields can have singularities
     if (is_equivalent(a, b)) {
-      // todo: not really safe if fields can have singularities
       delete a;
       delete b;
       return new ScalarTree(1);
     }
+
+    if (b->tag == RATIO) {
+      ScalarTree* ba = std::exchange(b->a_, nullptr);
+      ScalarTree* bb = std::exchange(b->b_, nullptr);
+      delete b;
+      return reduce(PRODUCT, a, b);
+    }
+
     return new ScalarTree(RATIO, a, b);
   }
 };
