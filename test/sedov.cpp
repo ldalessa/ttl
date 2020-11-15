@@ -3,17 +3,18 @@ static constexpr const char USAGE[] =
   Usage:
       sedov (-h | --help)
       sedov --version
-      sedov [--hessians] [--tensors] [--constants]  [--scalars] [--eqn <rhs>]... [--dot <rhs>]...
+      sedov [-ptser] [--eqn <rhs>]... [--dot <rhs>]...
 
   Options:
       -h, --help         Show this screen.
       --version          Show version information.
-      --hessians         Print hessians
-      --constants        Print tensor constants
-      --tensors          Print tensors
-      --scalars          Print non-constant scalars
       --eqn <rhs>        Print an eqn for <rhs>
       --dot <rhs>        Print a dotfile for <rhs>
+      -p                 Print parse trees
+      -t                 Print tensor trees
+      -s                 Print scalar trees
+      -e                 Print executable trees
+      -r                 Print runtime trees
 )";
 
 #include "cm.hpp"
@@ -57,76 +58,153 @@ constexpr ttl::System sedov = {
   e = e_rhs
 };
 
-constexpr auto sedov3d = ttl::scalar_system<sedov, 2>;
+constexpr int N = 2;
+
+//constexpr auto sedov3d = ttl::scalar_system<sedov, 2>;
 }
 
 int main(int argc, char* const argv[])
 {
   std::map args = docopt::docopt(USAGE, {argv + 1, argv + argc});
 
-  if (args["--tensors"].asBool()) {
-    puts("tensors:");
-    for (int i = 0; auto&& c : sedov.tensors()) {
-      printf("%d: %s\n", i++, to_string(*c).data());
-    }
-    puts("");
-  }
+  // if (args["--tensors"].asBool()) {
+  //   puts("tensors:");
+  //   for (int i = 0; auto&& c : sedov.tensors()) {
+  //     printf("%d: %s\n", i++, to_string(*c).data());
+  //   }
+  //   puts("");
+  // }
 
-  if (args["--hessians"].asBool()) {
-    puts("hessians:");
-    for (int i = 0; auto&& c : sedov3d.hessians) {
-      fmt::print("{}: {}\n", i++, c);
-    }
-    puts("");
-  }
+  // if (args["--hessians"].asBool()) {
+  //   puts("hessians:");
+  //   for (int i = 0; auto&& c : sedov3d.hessians) {
+  //     fmt::print("{}: {}\n", i++, c);
+  //   }
+  //   puts("");
+  // }
 
-  if (args["--constants"].asBool()) {
-    puts("constants:");
-    for (int i = 0; auto&& c : sedov3d.constants) {
-      fmt::print("{}: {}\n", i++, c);
-    }
-    puts("");
-  }
+  // if (args["--constants"].asBool()) {
+  //   puts("constants:");
+  //   for (int i = 0; auto&& c : sedov3d.constants) {
+  //     fmt::print("{}: {}\n", i++, c);
+  //   }
+  //   puts("");
+  // }
 
-  if (args["--scalars"].asBool()) {
-    puts("scalars:");
-    for (int n = 0; n < 8; ++n) {
-      printf("dx in %d\n", n);
-      for (int i = 0; int dx : sedov3d.scalars.dx(n)) {
-        fmt::print("({},{}): {}\n", i++, dx, sedov3d.scalars[dx]);
-      }
-      puts("");
-    }
-    puts("");
-  }
+  // if (args["--scalars"].asBool()) {
+  //   puts("scalars:");
+  //   for (int n = 0; n < 8; ++n) {
+  //     printf("dx in %d\n", n);
+  //     for (int i = 0; int dx : sedov3d.scalars.dx(n)) {
+  //       fmt::print("({},{}): {}\n", i++, dx, sedov3d.scalars[dx]);
+  //     }
+  //     puts("");
+  //   }
+  //   puts("");
+  // }
 
   auto eqns = args["--eqn"].asStringList();
   if (ttl::utils::index_of(eqns, "rho")) {
-    fmt::print("rho_rhs = {}\n", rho_rhs);
+    if (args["-p"].asBool()) {
+      fmt::print("parse: rho = {}\n", rho_rhs);
+    }
+    if (args["-t"].asBool()) {
+      fmt::print("tensor: rho = {}\n", *sedov.simplify(rho_rhs));
+    }
+    if (args["-s"].asBool()) {
+      for (int i = 0; auto tree : sedov.scalar_trees(N, sedov.simplify(rho_rhs))) {
+        fmt::print("scalar: rho{} = {}\n", i++, *tree);
+      }
+    }
+    // if (args["-e"].asBool()) {
+    //   fmt::print("executable: rho = {}\n", rho_rhs);
+    // }
+    // if (args["-r"].asBool()) {
+    //   fmt::print("runtime: rho = {}\n", rho_rhs);
+    // }
   }
 
   if (ttl::utils::index_of(eqns, "v")) {
-    fmt::print("  v_rhs = {}\n", v_rhs);
+    if (args["-p"].asBool()) {
+      fmt::print("parse: v = {}\n", v_rhs);
+    }
+    if (args["-t"].asBool()) {
+      fmt::print("tensor: v = {}\n", *sedov.simplify(v_rhs));
+    }
+    if (args["-s"].asBool()) {
+      for (int i = 0; auto tree : sedov.scalar_trees(N, sedov.simplify(v_rhs))) {
+        fmt::print("scalar: v{} = {}\n", i++, *tree);
+      }
+    }
+    // if (args["-e"].asBool()) {
+    //   fmt::print("executable: v = {}\n", v_rhs);
+    // }
+    // if (args["-r"].asBool()) {
+    //   fmt::print("runtime: v = {}\n", v_rhs);
+    // }
   }
 
   if (ttl::utils::index_of(eqns, "e")) {
-    fmt::print("  e_rhs = {}\n", e_rhs);
+    if (args["-p"].asBool()) {
+      fmt::print("parse: e = {}\n", e_rhs);
+    }
+    if (args["-t"].asBool()) {
+      fmt::print("tensor: e = {}\n", *sedov.simplify(e_rhs));
+    }
+    if (args["-s"].asBool()) {
+      for (int i = 0; auto tree : sedov.scalar_trees(N, sedov.simplify(e_rhs))) {
+        fmt::print("scalar: e{} = {}\n", i++, *tree);
+      }
+    }
+    // if (args["-e"].asBool()) {
+    //   fmt::print("executable: e = {}\n", e_rhs);
+    // }
+    // if (args["-r"].asBool()) {
+    //   fmt::print("runtime: e = {}\n", e_rhs);
+    // }
   }
 
   auto dots = args["--dot"].asStringList();
   if (ttl::utils::contains(dots, "rho")) {
-    fmt::print("graph rho {{\n{}}}\n", ttl::dot(rhs<0>(sedov)));
-    fmt::print("graph rho {{\n{}}}\n", ttl::dot(std::get<0>(sedov3d.simple)));
+    if (args["-p"].asBool()) {
+      fmt::print("graph rho_parse {{\n{}}}\n", ttl::dot(rho_rhs.root()));
+    }
+    if (args["-t"].asBool()) {
+      fmt::print("graph rho_tensor {{\n{}}}\n", ttl::dot(sedov.simplify(rho_rhs)));
+    }
+    if (args["-s"].asBool()) {
+      for (int i = 0; auto tree : sedov.scalar_trees(N, sedov.simplify(rho_rhs))) {
+        fmt::print("graph rho{} {{\n{}}}\n", i++, ttl::dot(tree));
+      }
+    }
   }
 
   if (ttl::utils::contains(dots, "v")) {
-    fmt::print("graph v {{\n{}}}\n", ttl::dot(rhs<1>(sedov)));
-    fmt::print("graph v {{\n{}}}\n", ttl::dot(std::get<1>(sedov3d.simple)));
+    if (args["-p"].asBool()) {
+      fmt::print("graph v_parse {{\n{}}}\n", ttl::dot(v_rhs.root()));
+    }
+    if (args["-t"].asBool()) {
+      fmt::print("graph v_tensor {{\n{}}}\n", ttl::dot(sedov.simplify(v_rhs)));
+    }
+    if (args["-s"].asBool()) {
+      for (int i = 0; auto tree : sedov.scalar_trees(N, sedov.simplify(v_rhs))) {
+        fmt::print("graph v{} {{\n{}}}\n", i++, ttl::dot(tree));
+      }
+    }
   }
 
   if (ttl::utils::contains(dots, "e")) {
-    fmt::print("graph e {{\n{}}}\n", ttl::dot(rhs<2>(sedov)));
-    fmt::print("graph e {{\n{}}}\n", ttl::dot(std::get<2>(sedov3d.simple)));
+    if (args["-p"].asBool()) {
+      fmt::print("graph e_parse {{\n{}}}\n", ttl::dot(e_rhs.root()));
+    }
+    if (args["-t"].asBool()) {
+      fmt::print("graph e_tensor {{\n{}}}\n", ttl::dot(sedov.simplify(e_rhs)));
+    }
+    if (args["-s"].asBool()) {
+      for (int i = 0; auto tree : sedov.scalar_trees(N, sedov.simplify(e_rhs))) {
+        fmt::print("graph e{} {{\n{}}}\n", i++, ttl::dot(tree));
+      }
+    }
   }
 
   // gamma    = 1.4;       // [-]ratio of specific heats
@@ -135,12 +213,6 @@ int main(int argc, char* const argv[])
   // mu       = 1.9e-5;    // [Pa.s] dynamic viscosity
   // muVolume = 1e-5;      // [Pa.s] volume viscosity
   // g        = {0, 0, 0}; //
-
-  // auto trees = sedov3d.make_scalar_trees();
-  // fmt::print("graph e {{\n{}}}\n", std::get<2>(trees));
-
-  auto trees = sedov3d.make_scalar_tree(std::get<2>(sedov3d.simple));
-  fmt::print("graph e {{\n{}}}\n", trees);
 
   return 0;
 }

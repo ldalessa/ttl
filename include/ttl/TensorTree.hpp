@@ -1,232 +1,326 @@
 #pragma once
 
-#include "Index.hpp"
-#include "Node.hpp"
-#include "Rational.hpp"
-#include "Tensor.hpp"
-#include "utils.hpp"
-#include <concepts>
-#include <string>
 #include <fmt/core.h>
 
 namespace ttl {
-struct TensorTreeNode : ttl::Node {
-  int left = 0;
-  static constexpr int right = 1;
-  using ttl::Node::Node;
-};
+struct TensorTree {
+  Tag tag;
+  Index index = {};
+  TensorTree*  a_ = nullptr;
+  TensorTree* b_ = nullptr;
+  union {
+    double      d = 0;
+    Rational    q;
+    Tensor tensor;
+  };
+  bool constant = true;
+  int      size = 1;
 
-template <int N = 1>
-struct TensorTree final
-{
-  using Node = TensorTreeNode;
-
-  constexpr static std::true_type is_tree_tag = {};
-  Node nodes[N];
-
-  constexpr TensorTree() = default;
-
-  constexpr TensorTree(Index index, Tag tag = INDEX) {
-    nodes[0] = Node(index, tag);
+  constexpr ~TensorTree() {
+    delete a_;
+    delete b_;
   }
 
-  constexpr TensorTree(const Tensor* t) {
-    nodes[0] = Node(t);
+  constexpr TensorTree(const TensorTree& rhs)
+      : tag(rhs.tag)
+      , index(rhs.index)
+      , a_(clone(rhs.a_))
+      , b_(clone(rhs.b_))
+      , constant(rhs.constant)
+      , size(rhs.size)
+  {
+    if (tag == DOUBLE) d = rhs.d;
+    if (tag == RATIONAL) q = rhs.q;
+    if (tag == TENSOR) tensor = rhs.tensor;
   }
 
-  constexpr TensorTree(Rational q) {
-    nodes[0] = Node(q);
+  constexpr TensorTree(const Tensor& tensor, const Index& index, bool constant)
+      : tag(TENSOR)
+      , index(index)
+      , tensor(tensor)
+      , constant(constant)
+  {
+    assert(tensor.order() <= index.size());
   }
 
-  constexpr TensorTree(std::signed_integral auto i) {
-    nodes[0] = Node(Rational(i));
+  constexpr TensorTree(const Index& index)
+      : tag(INDEX)
+      , index(index)
+  {
   }
 
-  constexpr TensorTree(std::floating_point auto d) {
-    nodes[0] = Node(d);
+  constexpr TensorTree(const Rational& q)
+      : tag(RATIONAL)
+      , q(q)
+  {
   }
 
-  template <int A, int B>
-  constexpr TensorTree(Tag tag, const TensorTree<A>& a, const TensorTree<B>& b) {
-    assert(A + B + 1 == N);
-    assert(binary(tag));
-    int i = 0;
-    for (auto&& a : a) nodes[i++] = a;
-    for (auto&& b : b) nodes[i++] = b;
-    nodes[i] = Node(ttl::outer(tag, a.outer(), b.outer()), tag);
-    nodes[i].left = B + 1;
+  constexpr TensorTree(std::signed_integral auto i)
+      : tag(RATIONAL)
+      , q(i)
+  {
   }
 
-  constexpr const Node& operator[](int i) const { return nodes[i]; }
-  constexpr       Node& operator[](int i)       { return nodes[i]; }
-
-  constexpr const Node* begin() const { return nodes; }
-  constexpr const Node*   end() const { return nodes + N; }
-  constexpr       Node* begin()       { return nodes; }
-  constexpr       Node*   end()       { return nodes + N; }
-
-  constexpr TensorTree operator()(std::same_as<Index> auto... is) const {
-    TensorTree copy = *this;
-    Index    search = copy.outer();
-    Index   replace = {is...};
-    assert(search.size() == replace.size());
-    for (Node& node : copy) {
-      if (Index* index = node.index()) {
-        index->search_and_replace(search, replace);
-      }
-    }
-
-    return copy;
+  constexpr TensorTree(std::floating_point auto d)
+      : tag(DOUBLE)
+      , d(d)
+  {
   }
 
-  constexpr static int size() {
-    return N;
+  constexpr TensorTree(Tag tag, TensorTree* a, TensorTree* b)
+      : tag(tag)
+      , index(tag_outer(tag, a->outer(), b->outer()))
+      , a_(a)
+      , b_(b)
+      , constant(a->constant && b->constant)
+      , size(a->size + b->size + 1)
+  {
+    assert(tag_is_binary(tag));
   }
 
-  constexpr Tag tag(int i) const {
-    return nodes[i].tag;
+  constexpr friend TensorTree* clone(const TensorTree* rhs) {
+    return (rhs) ? new TensorTree(*rhs) : nullptr;
   }
 
-  constexpr const Node& root() const {
-    return nodes[N - 1];
+  constexpr const TensorTree* a() const {
+    return a_;
+  }
+
+  constexpr const TensorTree* b() const {
+    return b_;
   }
 
   constexpr Index outer() const {
-    if (const Index* index = root().index()) {
-      return *index;
-    }
-    return {};
+    return (tag == TENSOR) ? exclusive(index) : index;
   }
 
   constexpr int order() const {
-    return root().order();
+    return outer().size();
   }
 
-  constexpr const Node& a(const Node& node) const {
-    assert(node.binary());
-    assert(node.left > 0);
-    return nodes[&node - nodes - node.left];
+  constexpr bool is_zero() const {
+    return tag == RATIONAL && q == Rational(0);
   }
 
-  constexpr const Node& b(const Node& node) const {
-    assert(node.binary());
-    assert(node.right == 1);
-    return nodes[&node - nodes - node.right];
+  constexpr bool is_one() const {
+    return tag == RATIONAL && q == Rational(1);
+  }
+
+  constexpr friend bool is_equivalent(const TensorTree* a, const TensorTree* b) {
+    assert(a && b);
+    if (a->tag != b->tag) return false;
+    if (a->index != b->index) return false;
+    if (a->constant != b->constant) return false;
+    switch (a->tag) { // todo: commutative
+     case SUM:
+     case DIFFERENCE:
+     case PRODUCT:
+     case RATIO: return (is_equivalent(a->a(), b->a()) && is_equivalent(a->b(), b->b()));
+     case DOUBLE:   return (a->d != b->d);
+     case RATIONAL: return (a->q != b->q);
+     case TENSOR:   return (a->tensor != b->tensor);
+     default: return true;
+    }
   }
 };
 
-template <int A, int B>
-TensorTree(Tag, TensorTree<A>, TensorTree<B>) -> TensorTree<A + B + 1>;
+template <typename Constants>
+struct TreeBuilder {
+  Constants constants;
 
-template <typename T>
-concept is_expression =
- is_tree<T> ||
- std::same_as<T, Tensor> ||
- std::same_as<T, Rational> ||
- std::signed_integral<T> ||
- std::floating_point<T>;
+  constexpr TreeBuilder(Constants&& constants) : constants(std::move(constants)) {}
 
-constexpr auto bind(const Tensor& t) {
-  return TensorTree(std::addressof(t));
+  constexpr TensorTree* map(const ParseNode* node) const {
+    switch (node->tag) {
+     default:
+      return reduce(node->tag, map(node->a()), map(node->b()));
+     case PARTIAL:
+      return dx(map(node->a()), node->b()->index);
+     case INDEX:
+      return new TensorTree(node->index);
+     case TENSOR:
+      return new TensorTree(node->tensor, node->index, constants(node->tensor));
+     case RATIONAL:
+      return new TensorTree(node->q);
+     case DOUBLE:
+      return new TensorTree(node->d);
+    }
+  }
+
+  constexpr TensorTree* reduce(Tag tag, TensorTree* a, TensorTree* b) const {
+    switch (tag) {
+     case SUM:        return reduce_sum(a, b);
+     case DIFFERENCE: return reduce_difference(a, b);
+     case PRODUCT:    return reduce_product(a, b);
+     case RATIO:      return reduce_ratio(a, b);
+     default: assert(false);
+    }
+  }
+
+  constexpr TensorTree* reduce_sum(TensorTree* a, TensorTree* b) const {
+    if (a->is_zero()) {
+      delete a;
+      return b;
+    }
+    if (b->is_zero()) {
+      delete b;
+      return a;
+    }
+    if (is_equivalent(a, b)) {
+      delete a;
+      return new TensorTree(PRODUCT, new TensorTree(2), b);
+    }
+    return new TensorTree(SUM, a, b);
+  }
+
+  constexpr TensorTree* reduce_difference(TensorTree* a, TensorTree* b) const {
+    if (b->is_zero()) {
+      delete b;
+      return a;
+    }
+    if (a->is_zero()) {
+      delete a;
+      return new TensorTree(PRODUCT, new TensorTree(-1), b);
+    }
+    if (is_equivalent(a, b)) {
+      delete a;
+      delete b;
+      return new TensorTree(0);
+    }
+    return new TensorTree(DIFFERENCE, a, b);
+  }
+
+  constexpr TensorTree* reduce_product(TensorTree* a, TensorTree* b) const {
+    if (a->is_zero()) {
+      delete b;
+      return a;
+    }
+    if (b->is_zero()) {
+      delete a;
+      return b;
+    }
+    if (a->is_one()) {
+      delete a;
+      return b;
+    }
+    if (b->is_one()) {
+      delete b;
+      return a;
+    }
+    return new TensorTree(PRODUCT, a, b);
+  }
+
+  constexpr TensorTree* reduce_ratio(TensorTree* a, TensorTree* b) const {
+    if (a->is_zero()) {
+      delete b;
+      return a;
+    }
+    if (b->is_zero()) {
+      assert(false);
+    }
+    if (b->is_one()) {
+      delete b;
+      return a;
+    }
+    if (is_equivalent(a, b)) {
+      // todo: not really safe
+      delete a;
+      delete b;
+      return new TensorTree(1);
+    }
+    return new TensorTree(RATIO, a, b);
+  }
+
+  constexpr TensorTree* dx(TensorTree* node, const Index& index) const {
+    if (node->constant) {
+      delete node;
+      return new TensorTree(0);
+    }
+
+    if (node->tag == TENSOR) {
+      node->index += index;
+      return node;
+    }
+
+    Tag tag = node->tag;
+    TensorTree* a = std::exchange(node->a_, nullptr);
+    TensorTree* b = std::exchange(node->b_, nullptr);
+    delete node;
+
+    switch (tag) {
+     case SUM:        return reduce(SUM, dx(a, index), dx(b, index));
+     case DIFFERENCE: return reduce(DIFFERENCE, dx(a, index), dx(b, index));
+     case PRODUCT:    return dx_product(a, b, index);
+     case RATIO:      return dx_quotient(a, b, index);
+     default: assert(false);
+    }
+  }
+
+  constexpr TensorTree* dx_product(TensorTree* a, TensorTree* b, const Index& index) const {
+    if (a->constant) {
+      return reduce(PRODUCT, a, dx(b, index));
+    }
+    if (b->constant) {
+      return reduce(PRODUCT, dx(a, index), b);
+    }
+
+    // (a'b + ab')
+    TensorTree* t = reduce(PRODUCT, dx(clone(a), index), clone(b));
+    TensorTree* u = reduce(PRODUCT, a, dx(b, index));
+    return reduce(SUM, t, u);
+  }
+
+  constexpr TensorTree* dx_quotient(TensorTree* a, TensorTree* b, const Index& index) const {
+    if (b->constant) {
+      return reduce(RATIO, dx(a, index), b);
+    }
+
+    // (a'b - ab')/b^2
+    TensorTree*   b2 = reduce(PRODUCT, clone(b), clone(b));
+    TensorTree* ap_b = reduce(PRODUCT, dx(clone(a), index), clone(b));
+    TensorTree* a_bp = reduce(PRODUCT, a, dx(b, index));
+    return reduce(RATIO, reduce(DIFFERENCE, ap_b, a_bp), b2);
+  }
+};
+
+template <typename Constants>
+TreeBuilder(Constants) -> TreeBuilder<Constants>;
 }
 
-template <int N>
-constexpr TensorTree<N>&& bind(TensorTree<N>&& a) {
-  return a;
-}
-
-template <int N>
-constexpr auto bind(const TensorTree<N>& a) {
-  return a;
-}
-
-constexpr auto bind(is_expression auto const& a) {
-  return TensorTree(a);
-}
-
-constexpr auto operator+(is_expression auto const& a) {
-  return bind(a);
-}
-
-constexpr auto operator+(is_expression auto const& a, is_expression auto const& b) {
-  return TensorTree(SUM, bind(a), bind(b));
-}
-
-constexpr auto operator*(is_expression auto const& a, is_expression auto const& b) {
-  return TensorTree(PRODUCT, bind(a), bind(b));
-}
-
-constexpr auto operator-(is_expression auto const& a, is_expression auto const& b) {
-  return TensorTree(DIFFERENCE, bind(a), bind(b));
-}
-
-constexpr auto operator-(is_expression auto const& a) {
-  return Rational(-1) * bind(a);
-}
-
-constexpr auto operator/(is_expression auto const& a, is_expression auto const& b) {
-  return TensorTree(RATIO, bind(a), bind(b));
-}
-
-constexpr auto D(is_expression auto const& a, std::same_as<Index> auto... is) {
-  return TensorTree(PARTIAL, bind(a), TensorTree((is + ...)));
-}
-
-constexpr TensorTree<1> delta(const Index& a, const Index& b) {
-  assert(a.size() == 1);
-  assert(b.size() == 1);
-  assert(a != b);
-  return TensorTree(a + b, DELTA);
-}
-
-constexpr auto symmetrize(is_expression auto const& a) {
-  TensorTree t = bind(a);
-  return Rational(1,2) * (t + t(reverse(t.outer())));
-}
-
-constexpr auto Tensor::operator()(std::same_as<Index> auto... is) const {
-  return TensorTree(BIND, TensorTree(this), TensorTree((is + ...)));
-}
-}
-
-template <int N>
-struct fmt::formatter<ttl::TensorTree<N>> {
+template <>
+struct fmt::formatter<ttl::TensorTree>
+{
   constexpr auto parse(format_parse_context& ctx) {
     return ctx.begin();
   }
 
   template <typename FormatContext>
-  constexpr auto format(const ttl::TensorTree<N>& tree, FormatContext& ctx)
+  constexpr auto format(const ttl::TensorTree& tree, FormatContext& ctx)
   {
-    ttl::utils::stack<std::string> stack;
-    for (auto&& node : tree) {
-      switch (node.tag) {
-       case ttl::SUM:
-       case ttl::DIFFERENCE:
-       case ttl::PRODUCT:
-       case ttl::RATIO:
-        stack.push(fmt::format("({1} {2} {0})", stack.pop(), stack.pop(), node));
-        break;
-       case ttl::BIND:
-        stack.push(fmt::format("{1}({0})", stack.pop(), stack.pop()));
-        break;
-       case ttl::PARTIAL:
-        stack.push(fmt::format("D({1},{0})", stack.pop(), stack.pop()));
-        break;
-       case ttl::DELTA:
-        stack.push(fmt::format("delta({})", node));
-        break;
-       case ttl::INDEX:
-
-       case ttl::TENSOR:
-       case ttl::RATIONAL:
-       case ttl::DOUBLE:
-        stack.push(fmt::format("{}", node));
-        break;
-       default:
-        __builtin_unreachable();
+    using namespace ttl;
+    auto op = [&](const TensorTree& tree, auto&& self) -> std::string {
+      switch (tree.tag) {
+       case SUM:
+       case DIFFERENCE:
+       case PRODUCT:
+       case RATIO: {
+         std::string b = self(*tree.b(), self);
+         std::string a = self(*tree.a(), self);
+         return fmt::format("({} {} {})", a, tree.tag, b);
+       }
+       case INDEX:    return fmt::format("{}", tree.index);
+       case RATIONAL: return fmt::format("{}", tree.q);
+       case DOUBLE:   return fmt::format("{}", tree.d);
+       case TENSOR:
+        if (tree.index.size()) {
+          return fmt::format("{}({})", tree.tensor, tree.index);
+        }
+        else {
+          return fmt::format("{}", tree.tensor);
+        }
+       default: assert(false);
       }
-    }
-    return format_to(ctx.out(), "{}", stack.pop());
+    };
+    return format_to(ctx.out(), "{}", op(tree, op));
   }
 };

@@ -11,7 +11,7 @@ namespace ttl {
 struct Partial {
   const Tensor* tensor = nullptr;
   int component = 0;
-  int     dx[8] = {};
+  int        dx[8] = {};
   int         N = 0;
 
   constexpr Partial() = default;

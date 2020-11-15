@@ -17,8 +17,14 @@ struct Index
     data[n++] = c;
   }
 
-  constexpr Index(std::same_as<Index> auto const&... is) {
-    ([&] { for (auto c : is) data[n++] = c; }(), ...);
+  constexpr Index(std::same_as<Index> auto const&... is)
+      : n(0)
+  {
+    ([&] {
+      for (char c : is) {
+        data[n++] = c;
+      }
+    }(), ...);
   }
 
   constexpr int size() const { return n; }

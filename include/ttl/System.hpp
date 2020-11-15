@@ -2,135 +2,85 @@
 
 #include "Equation.hpp"
 #include "Hessian.hpp"
-#include "SimpleTree.hpp"
-#include "concepts.hpp"
+#include "ParseTree.hpp"
+#include "ScalarTree.hpp"
+#include "TensorTree.hpp"
 #include "utils.hpp"
-#include <span>
 #include <tuple>
 
-namespace ttl
-{
-template <typename... Tree> requires(is_tree<Tree> && ...)
+namespace ttl {
+template <typename... Trees>
+requires(is_tree<Trees> && ...)
 struct System
 {
-  static constexpr int M = sizeof...(Tree);
-  const Tensor* lhs_[M];
-  std::tuple<Tree...> rhs_;
+  constexpr static int M = sizeof...(Trees);
 
-  constexpr System(is_equation auto&&... eqns) noexcept
-      : lhs_ { eqns.lhs... }
-      , rhs_ { eqns.rhs... }
+  Tensor lhs[M];
+  std::tuple<Trees...> rhs;
+
+  constexpr System(Equation<Trees>&&... eqns)
+      : lhs { eqns.lhs... }
+      , rhs { eqns.rhs... }
   {
   }
 
-  template <typename... Tuples>
-  constexpr System(Tuples&&... tuples) noexcept
-      : lhs_ {std::get<0>(tuples)...}
-      , rhs_ {std::get<1>(tuples)...}
-  {}
-
-  constexpr static int size() {
-    return M;
-  }
-
-  template <int i>
-  constexpr friend auto rhs(const System& system) {
-    return std::get<i>(system.rhs_);
-  }
-
-  constexpr decltype(auto) tensors() const {
-    return std::span(lhs_);
-  }
-
-  constexpr decltype(auto) trees() const {
-    return rhs_;
-  }
-
-  constexpr bool is_constant(const Tensor* t) const {
-    return not utils::contains(lhs_, t);
-  }
-
-  constexpr void constants(utils::set<const Tensor*>& out, is_tree auto const& tree) const {
-    for (auto const& node : tree) {
-      if (const Tensor* t = node.tensor()) {
-        if (is_constant(t)) {
-          out.emplace(t);
-        }
-      }
+  constexpr bool is_constant(const Tensor& t) const
+  {
+    for (const Tensor& u : lhs) {
+      if (t == u) return false;
     }
+    return true;
   }
 
-  constexpr auto make_constants() const {
-    utils::set<const Tensor*> out;
-    std::apply([&](auto&... tree) {
-      (constants(out, tree), ...);
-    }, rhs_);
+  template <int M>
+  constexpr const TensorTree* simplify(const ParseTree<M>& tree) const
+  {
+    TreeBuilder builder = [&](const Tensor& t) {
+      return is_constant(t);
+    };
+    return builder.map(tree.root());
+  }
+
+  constexpr void
+  scalar_trees(int N, const TensorTree* tree, utils::set<const ScalarTree*>& out) const
+  {
+    ScalarTreeBuilder builder(N);
+    builder(out, tree);
+  }
+
+  constexpr utils::set<const ScalarTree*>
+  scalar_trees(int N, const TensorTree* tree) const
+  {
+    utils::set<const ScalarTree*> out;
+    ScalarTreeBuilder builder(N);
+    builder(out, tree);
     return out;
   }
 
-  constexpr void hessians(utils::set<Hessian>& out, is_tree auto const& tree) const
+  constexpr auto
+  scalar_trees(int N) const
   {
-    for (int i = tree.size() - 1; i >= 0; --i) {
-      const Node& node = tree[i];
-      if (const Tensor* t = node.tensor()) {
-        out.emplace(t);
-      }
-      if (node.tag == PARTIAL || node.tag == BIND) {
-        const Node& b = tree[--i]; assert(b.tag == INDEX);
-        const Node& a = tree[--i]; assert(a.tag == TENSOR);
-        out.emplace(a.tensor(), *b.index());
-      }
-    }
-  }
-
-  constexpr auto make_hessians() const {
-    utils::set constants = make_constants();
-    utils::set<Hessian> out;
+    TreeBuilder builder = [&](const Tensor& t) {
+      return is_constant(t);
+    };
+    utils::set<const ScalarTree*> out;
     std::apply([&](auto const&... tree) {
-      (simplify(tree, constants).hessians(out), ...);
-    }, rhs_);
+      (scalar_trees(N, builder.map(tree.root()), out), ...);
+    }, rhs);
     return out;
   }
 
-  constexpr auto make_partials(int N) const {
-    struct {
-      utils::set<Partial> constants;
-      utils::set<Partial> scalars;
-    } out;
-    for (auto&& h : make_hessians()) {
-      bool constant = is_constant(h.tensor());
-      utils::expand(N, h.order(), [&](int index[]) {
-        if (constant) {
-          out.constants.emplace(N, h, index);
-        }
-        else {
-          out.scalars.emplace(N, h, index);
-        }
-      });
+  constexpr void hessians(utils::set<Hessian>& out, const TensorTree* tree) const {
+    if (tree->tag == TENSOR) {
+      out.emplace(tree->tensor, tree->index);
     }
-    return out;
-  }
-
-  constexpr static auto simplify(is_tree auto const& tree, auto const& constants) {
-    return SimpleTree(tree, constants);
-  }
-
-  constexpr auto simplify(is_tree auto const& tree) const {
-    return simplify(tree, constants());
-  }
-
-  constexpr auto simplify() const {
-    return std::apply([&](is_tree auto const&... tree) {
-      return std::array{ simplify(tree)... };
-    }, rhs_);
+    if (tag_is_binary(tree->tag)) {
+      hessians(out, tree->a());
+      hessians(out, tree->b());
+    }
   }
 };
 
-template <typename... Tree> requires(is_tree<Tree> && ...)
-System(Equation<Tree>...) -> System<Tree...>;
-
-template <typename... Equations> requires(is_equation<Equations> && ...)
-constexpr auto system(Equations&&... eqns) {
-  return System(std::forward<Equations>(eqns)...);
-}
+template <typename... Trees>
+System(Equation<Trees>...) -> System<Trees...>;
 }
