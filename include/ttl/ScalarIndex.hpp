@@ -19,6 +19,24 @@ struct ScalarIndex : ce::dvector<int> {
     }
     return out;
   }
+
+  constexpr friend bool operator==(const ScalarIndex& a, const ScalarIndex& b) {
+    if (a.size() != b.size()) return false;
+    for (int i = 0, e = a.size(); i < e; ++i) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
+
+  constexpr friend bool operator<(const ScalarIndex& a, const ScalarIndex& b) {
+    if (a.size() < b.size()) return true;
+    if (b.size() < a.size()) return false;
+    for (int i = 0, e = a.size(); i < e; ++i) {
+      if (a[i] < b[i]) return true;
+      if (b[i] < a[i]) return false;
+    }
+    return false;
+  }
 };
 }
 

@@ -1,50 +1,34 @@
 #pragma once
 
-#include "Hessian.hpp"
 #include "Tensor.hpp"
-#include "Index.hpp"
 #include "utils.hpp"
-#include <ce/dvector.hpp>
 #include <algorithm>
+#include <string>
+#include <string_view>
+
 
 namespace ttl {
 struct Partial {
-  const Tensor* tensor = nullptr;
+  Tensor tensor = {};
   int component = 0;
   int        dx[8] = {};
   int         N = 0;
 
   constexpr Partial() = default;
 
-  constexpr Partial(int N, const Tensor* t, auto const& index)
+  constexpr Partial(int N, const Tensor& t, auto const& index)
       : tensor(t)
       , N(N)
   {
     assert(N <= std::size(dx));
-    assert(t->order() <= std::ssize(index));
+    assert(t.order() <= std::ssize(index));
 
     int i = 0;
-    for (int e = t->order(); i < e; ++i) {
+    for (int e = t.order(); i < e; ++i) {
       component += utils::pow(N, i) * index[i];
     }
     for (int e = index.size(); i < e; ++i) {
       ++dx[index[i]];
-    }
-  }
-
-  constexpr Partial(int N, const Hessian& h, auto const& index)
-      : tensor(h.tensor())
-      , N(N)
-  {
-    assert(N <= std::size(dx));
-    Index outer = h.outer();
-
-    for (int i = 0; auto&& c : h.index()) {
-      component += utils::pow(N, i++) * index[*utils::index_of(outer, c)];
-    }
-
-    for (auto&& c : h.partial()) {
-      ++dx[index[*utils::index_of(outer, c)]];
     }
   }
 
@@ -72,7 +56,7 @@ struct Partial {
   }
 
   constexpr std::string_view id() const {
-    return tensor->id();
+    return tensor.id();
   }
 
   constexpr int partial_mask() const {
@@ -160,7 +144,7 @@ struct PartialManifest {
   }
 
   constexpr std::optional<int>
-  find(const Tensor* t, const ce::dvector<int>& index) const
+  find(const Tensor& t, const ce::dvector<int>& index) const
   {
     Partial p(N, t, index);
     auto begin = data;

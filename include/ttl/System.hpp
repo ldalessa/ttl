@@ -3,6 +3,7 @@
 #include "Equation.hpp"
 #include "Hessian.hpp"
 #include "ParseTree.hpp"
+#include "Partial.hpp"
 #include "ScalarTree.hpp"
 #include "TensorTree.hpp"
 #include "utils.hpp"
@@ -67,6 +68,29 @@ struct System
     std::apply([&](auto const&... tree) {
       (scalar_trees(N, builder.map(tree.root()), out), ...);
     }, rhs);
+    return out;
+  }
+
+  constexpr void
+  partials(int N, const ScalarTree* tree, utils::set<Partial>& out) const
+  {
+    if (tag_is_binary(tree->tag)) {
+      partials(N, tree->a(), out);
+      partials(N, tree->b(), out);
+    }
+    if (tree->tag == TENSOR) {
+      out.emplace(N, tree->tensor, tree->index, tree->constant);
+    }
+  }
+
+  constexpr utils::set<Partial>
+  partials(int N) const
+  {
+    utils::set<Partial> out;
+    for (const ScalarTree* tree : scalar_trees(N)) {
+      partials(N, tree, out);
+    }
+    std::sort(out.begin(), out.end());
     return out;
   }
 

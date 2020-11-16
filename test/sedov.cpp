@@ -3,13 +3,14 @@ static constexpr const char USAGE[] =
   Usage:
       sedov (-h | --help)
       sedov --version
-      sedov [-ptser] [--eqn <rhs>]... [--dot <rhs>]...
+      sedov [--partials] [-ptser] [--eqn <rhs>]... [--dot <rhs>]... [N]
 
   Options:
       -h, --help         Show this screen.
       --version          Show version information.
       --eqn <rhs>        Print an eqn for <rhs>
       --dot <rhs>        Print a dotfile for <rhs>
+      --partials         Print a list of partial derivatives
       -p                 Print parse trees
       -t                 Print tensor trees
       -s                 Print scalar trees
@@ -58,14 +59,14 @@ constexpr ttl::System sedov = {
   e = e_rhs
 };
 
-constexpr int N = 2;
-
 //constexpr auto sedov3d = ttl::scalar_system<sedov, 2>;
 }
 
 int main(int argc, char* const argv[])
 {
   std::map args = docopt::docopt(USAGE, {argv + 1, argv + argc});
+
+  int N = args["N"] ? args["N"].asLong() : 3;
 
   // if (args["--tensors"].asBool()) {
   //   puts("tensors:");
@@ -102,6 +103,14 @@ int main(int argc, char* const argv[])
   //   }
   //   puts("");
   // }
+
+  if (args["--partials"].asBool()) {
+    puts("partials:");
+    for (int i = 0; auto&& c : sedov.partials(N)) {
+      fmt::print("{}: {}\n", i++, c);
+    }
+    puts("");
+  }
 
   auto eqns = args["--eqn"].asStringList();
   if (ttl::utils::index_of(eqns, "rho")) {
