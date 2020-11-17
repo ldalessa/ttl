@@ -1,9 +1,10 @@
 #pragma once
 
 #include "Equation.hpp"
+#include "ExecutableTree.hpp"
 #include "Hessian.hpp"
 #include "ParseTree.hpp"
-#include "Partial.hpp"
+#include "Scalar.hpp"
 #include "ScalarTree.hpp"
 #include "TensorTree.hpp"
 #include "utils.hpp"
@@ -34,63 +35,63 @@ struct System
   }
 
   template <int M>
-  constexpr const TensorTree* simplify(const ParseTree<M>& tree) const
+  constexpr utils::box<const TensorTree> simplify(const ParseTree<M>& tree) const
   {
-    TreeBuilder builder = [&](const Tensor& t) {
+    TensorTreeBuilder builder = [&](const Tensor& t) {
       return is_constant(t);
     };
-    return builder.map(tree.root());
+    return builder(tree);
   }
 
   constexpr void
-  scalar_trees(int N, const TensorTree* tree, utils::set<const ScalarTree*>& out) const
+  scalar_trees(int N, const TensorTree* tree,
+               ce::dvector<utils::box<const ScalarTree>>& out) const
   {
     ScalarTreeBuilder builder(N);
-    builder(out, tree);
+    builder(tree, out);
   }
 
-  constexpr utils::set<const ScalarTree*>
+  constexpr ce::dvector<utils::box<const ScalarTree>>
   scalar_trees(int N, const TensorTree* tree) const
   {
-    utils::set<const ScalarTree*> out;
+    ce::dvector<utils::box<const ScalarTree>> out;
     ScalarTreeBuilder builder(N);
-    builder(out, tree);
+    builder(tree, out);
     return out;
   }
 
   constexpr auto
   scalar_trees(int N) const
   {
-    TreeBuilder builder = [&](const Tensor& t) {
+    TensorTreeBuilder builder = [&](const Tensor& t) {
       return is_constant(t);
     };
-    utils::set<const ScalarTree*> out;
+    ce::dvector<utils::box<const ScalarTree>> out;
     std::apply([&](auto const&... tree) {
-      (scalar_trees(N, builder.map(tree.root()), out), ...);
+      (scalar_trees(N, utils::box(builder(tree)), out), ...);
     }, rhs);
     return out;
   }
 
   constexpr void
-  partials(int N, const ScalarTree* tree, utils::set<Partial>& out) const
+  scalars(int N, const ScalarTree* tree, utils::set<Scalar>& out) const
   {
     if (tag_is_binary(tree->tag)) {
-      partials(N, tree->a(), out);
-      partials(N, tree->b(), out);
+      scalars(N, tree->a(), out);
+      scalars(N, tree->b(), out);
     }
     if (tree->tag == TENSOR) {
-      out.emplace(N, tree->tensor, tree->index, tree->constant);
+      out.emplace(N, tree);
     }
   }
 
-  constexpr utils::set<Partial>
-  partials(int N) const
+  constexpr utils::set<Scalar>
+  scalars(int N) const
   {
-    utils::set<Partial> out;
-    for (const ScalarTree* tree : scalar_trees(N)) {
-      partials(N, tree, out);
+    utils::set<Scalar> out;
+    for (auto&& tree : scalar_trees(N)) {
+      scalars(N, tree, out);
     }
-    std::sort(out.begin(), out.end());
     return out;
   }
 

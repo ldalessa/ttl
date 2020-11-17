@@ -4,6 +4,7 @@
 #include "Tag.hpp"
 #include "TensorTree.hpp"
 #include "utils.hpp"
+#include <memory>
 
 namespace ttl
 {
@@ -23,6 +24,8 @@ struct ScalarTree
   };
 
   constexpr ~ScalarTree() {
+    assert(a_ != this);
+    assert(b_ != this);
     delete a_;
     delete b_;
   }
@@ -111,14 +114,15 @@ struct ScalarTreeBuilder
   constexpr ScalarTreeBuilder(int N) : N(N) {}
 
   constexpr void
-  operator()(utils::set<const ScalarTree*>& out, const TensorTree* tree) const
+  operator()(const TensorTree* tree, ce::dvector<utils::box<const ScalarTree>>& out) const
   {
     int order = tree->order();
     ScalarIndex index(order);
     do {
-      out.emplace(map(tree, index));
+      out.emplace_back(map(tree, index));
     } while (utils::carry_sum_inc(N, 0, order, index));
   }
+
   constexpr ScalarTree*
   map(const TensorTree* tree, const ScalarIndex& index) const
   {
@@ -179,6 +183,7 @@ struct ScalarTreeBuilder
     int order = inner.size();
 
     // extend the index so we have enough space for the contracted index
+    // ScalarIndex i(index);
     index.resize(order);
 
     // build the sum of products
@@ -203,6 +208,7 @@ struct ScalarTreeBuilder
     int order = inner.size();
 
     // extend the index so we have enough space for the contracted index
+    // ScalarIndex i(index);
     index.resize(order);
 
     // build the sum of products

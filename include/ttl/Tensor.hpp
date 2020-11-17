@@ -13,6 +13,8 @@ struct Tensor
   int order_;
 
  public:
+  constexpr Tensor() = default;
+
   constexpr Tensor(std::string_view id, int order) : id_(id), order_(order) {
   }
 

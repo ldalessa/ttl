@@ -1,6 +1,8 @@
 #pragma once
 
+#include "ParseTree.hpp"
 #include <fmt/core.h>
+#include <memory>
 
 namespace ttl {
 struct TensorTree {
@@ -9,7 +11,7 @@ struct TensorTree {
   TensorTree*  a_ = nullptr;
   TensorTree* b_ = nullptr;
   union {
-    double      d = 0;
+    double      d;
     Rational    q;
     Tensor tensor;
   };
@@ -29,9 +31,22 @@ struct TensorTree {
       , constant(rhs.constant)
       , size(rhs.size)
   {
-    if (tag == DOUBLE) d = rhs.d;
-    if (tag == RATIONAL) q = rhs.q;
-    if (tag == TENSOR) tensor = rhs.tensor;
+    if (tag == DOUBLE) std::construct_at(&d, rhs.d);
+    if (tag == RATIONAL) std::construct_at(&q, rhs.q);
+    if (tag == TENSOR) std::construct_at(&tensor, rhs.tensor);
+  }
+
+  constexpr TensorTree(TensorTree&& rhs)
+      : tag(rhs.tag)
+      , index(rhs.index)
+      , a_(std::exchange(rhs.a_, nullptr))
+      , b_(std::exchange(rhs.b_, nullptr))
+      , constant(rhs.constant)
+      , size(rhs.size)
+  {
+    if (tag == DOUBLE) std::construct_at(&d, rhs.d);
+    if (tag == RATIONAL) std::construct_at(&q, rhs.q);
+    if (tag == TENSOR) std::construct_at(&tensor, rhs.tensor);
   }
 
   constexpr TensorTree(const Tensor& tensor, const Index& index, bool constant)
@@ -125,10 +140,15 @@ struct TensorTree {
 };
 
 template <typename Constants>
-struct TreeBuilder {
+struct TensorTreeBuilder {
   Constants constants;
 
-  constexpr TreeBuilder(Constants&& constants) : constants(std::move(constants)) {}
+  constexpr TensorTreeBuilder(Constants&& constants) : constants(std::move(constants)) {}
+
+  template <int M>
+  constexpr const TensorTree* operator()(const ParseTree<M>& tree) const {
+    return map(tree.root());
+  }
 
   constexpr TensorTree* map(const ParseNode* node) const {
     switch (node->tag) {
@@ -284,7 +304,7 @@ struct TreeBuilder {
 };
 
 template <typename Constants>
-TreeBuilder(Constants) -> TreeBuilder<Constants>;
+TensorTreeBuilder(Constants) -> TensorTreeBuilder<Constants>;
 }
 
 template <>

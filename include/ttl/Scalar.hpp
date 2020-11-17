@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ScalarIndex.hpp"
+#include "ScalarTree.hpp"
 #include "Tensor.hpp"
 #include "utils.hpp"
 #include <cassert>
@@ -8,7 +9,7 @@
 
 namespace ttl
 {
-struct Partial
+struct Scalar
 {
   Tensor  tensor;
   int  component = 0;
@@ -16,7 +17,15 @@ struct Partial
   bool constant = false;
   ScalarIndex dx = {};
 
-  constexpr Partial(int N, const Tensor& t, const ScalarIndex& index, bool constant)
+  constexpr Scalar() = default;
+
+  constexpr Scalar(int N, const ScalarTree* tree)
+      : Scalar(N, tree->tensor, tree->index, tree->constant)
+  {
+    assert(tree->tag == TENSOR);
+  }
+
+  constexpr Scalar(int N, const Tensor& t, const ScalarIndex& index, bool constant)
       : tensor(t)
       , dx(N)
       , constant(constant)
@@ -42,9 +51,11 @@ struct Partial
         mask += utils::pow(2, n);
       }
     }
+
+    assert(!constant || mask == 0);
   }
 
-  constexpr friend bool operator==(const Partial& a, const Partial& b) {
+  constexpr friend bool operator==(const Scalar& a, const Scalar& b) {
     if (a.component != b.component) return false;
     if (a.tensor != b.tensor) return false;
     if (a.dx != b.dx) return false;
@@ -52,11 +63,11 @@ struct Partial
   }
 
   // this ordering is important for the partial manifest
-  constexpr friend bool operator<(const Partial& a, const Partial& b) {
-    if (not a.constant && b.constant) return true;
-    if (not b.constant && a.constant) return false;
+  constexpr friend bool operator<(const Scalar& a, const Scalar& b) {
     if (a.mask < b.mask) return true;
     if (b.mask < a.mask) return false;
+    if (a.constant && !b.constant) return true;
+    if (!b.constant && a.constant) return false;
     if (a.dx < b.dx) return true;
     if (b.dx < a.dx) return false;
     if (a.tensor.id() < b.tensor.id()) return true;
@@ -69,15 +80,15 @@ struct Partial
 }
 
 template <>
-struct fmt::formatter<ttl::Partial> {
-  constexpr static const char ids[] = "xyz";
+struct fmt::formatter<ttl::Scalar> {
+  constexpr static const char ids[] = "xyzw";
 
   constexpr auto parse(format_parse_context& ctx) {
     return ctx.begin();
   }
 
   template <typename FormatContext>
-  auto format(const ttl::Partial& p, FormatContext& ctx) {
+  auto format(const ttl::Scalar& p, FormatContext& ctx) {
     if (p.mask != 0) {
       format_to(ctx.out(), "d");
     }

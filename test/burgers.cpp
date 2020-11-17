@@ -15,21 +15,29 @@ constexpr ttl::Index j = 'j';;
 
 /// System of equations.
 constexpr auto   u_rhs = nu * D(u(i),i,j) - (u(i) + c(i)) * D(u(i),j);
-constexpr auto burgers = ttl::System(u = u_rhs);
-// constexpr auto burgers2d = ttl::scalar_system<burgers, 2>;
+constexpr ttl::System burgers = { u = u_rhs };
+constexpr ttl::ScalarSystem<burgers, 1> burgers1d;
 }
 
-int main() {
+int main()
+{
   fmt::print("u_rhs = {}\n", u_rhs);
   fmt::print("graph u {{\n{}}}\n", ttl::dot(u_rhs.root()));
-  fmt::print("u_rhs = {}\n", *burgers.simplify(u_rhs));
-  fmt::print("graph u {{\n{}}}\n", ttl::dot(burgers.simplify(u_rhs)));
-  for (int i = 0; auto* tree : burgers.scalar_trees(2)) {
+
+  auto&& sp = burgers.simplify(u_rhs);
+  fmt::print("u_rhs = {}\n", *sp);
+  fmt::print("graph u {{\n{}}}\n", ttl::dot(sp));
+
+  for (int i = 0; auto&& tree : burgers.scalar_trees(2))
+  {
     fmt::print("u{} = {}\n", i++, *tree);
   }
-  for (int i = 0; auto* tree : burgers.scalar_trees(2)) {
-    fmt::print("graph u{} {{\n{}}}\n", i++, ttl::dot(tree));
-  }
+
+  // for (int i = 0; auto&& tree : burgers.scalar_trees(2))
+  // {
+  //   fmt::print("graph u{} {{\n{}}}\n", i++, ttl::dot(tree));
+  // }
+
   // for (int i = 0; auto p : burgers2d.scalars) {
   //   fmt::print("{}: {}\n", i++, p);
   // }

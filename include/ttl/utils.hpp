@@ -66,6 +66,15 @@ struct set : ce::dvector<T> {
   using ce::dvector<T>::dvector;
 
   template <typename... Ts>
+  constexpr std::optional<int> find(Ts&&... ts) {
+    T temp(std::forward<Ts>(ts)...);
+    auto i = std::lower_bound(this->begin(), this->end(), temp);
+    if (i == this->end()) return std::nullopt;
+    if (*i != temp) return std::nullopt;
+    return i - this->begin();
+  }
+
+  template <typename... Ts>
   constexpr void emplace(Ts&&... ts) {
     T temp(std::forward<Ts>(ts)...);
     if (!contains(*this, temp)) {
@@ -82,6 +91,41 @@ struct set : ce::dvector<T> {
 //         return;
 //       }
 //     }
+  }
+};
+
+
+template <typename T>
+struct box
+{
+  T* ptr = nullptr;
+
+  constexpr box() = default;
+  constexpr box(const box&) = delete;
+  constexpr box& operator=(const box&) = delete;
+
+  constexpr ~box() {
+    delete ptr;
+  }
+
+  constexpr box(T* ptr) : ptr(ptr) {
+  }
+
+  constexpr box(box&& rhs) : ptr(std::exchange(rhs.ptr, nullptr)) {
+  }
+
+  constexpr box& operator=(box&& rhs) {
+    delete ptr;
+    ptr = std::exchange(rhs.ptr, nullptr);
+    return *this;
+  }
+
+  constexpr operator T*() const {
+    return ptr;
+  }
+
+  constexpr operator T*() {
+    return ptr;
   }
 };
 }

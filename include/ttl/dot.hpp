@@ -1,17 +1,22 @@
 #pragma once
 
-#include "concepts.hpp"
+#include "utils.hpp"
+#include <fmt/core.h>
 
 namespace ttl {
 template <typename T>
 struct dot {
-  const T* tree;
-  constexpr dot(const T* tree) : tree(tree) {}
+  T* tree;
+  constexpr dot(T* tree) : tree(tree) {}
 };
+
+template <template <typename> typename Box, typename T>
+dot(const Box<T>&) -> dot<T>;
 }
 
 template <typename T>
-struct fmt::formatter<ttl::dot<T>> {
+struct fmt::formatter<ttl::dot<T>>
+{
   constexpr auto parse(format_parse_context& ctx) {
     return ctx.begin();
   }

@@ -1,21 +1,46 @@
 #pragma once
 
 #include "Index.hpp"
-#include <ce/dvector.hpp>
 #include <fmt/core.h>
 
 namespace ttl {
-struct ScalarIndex : ce::dvector<int> {
-  using ce::dvector<int>::dvector;
+struct ScalarIndex
+{
+ private:
+  int size_ = 0;
+  int data_[9] = {};
+
+ public:
+  constexpr ScalarIndex() = default;
+  constexpr ScalarIndex(int n) : size_(n) {}
+
+  constexpr auto  size() const { return size_; }
+  constexpr auto begin() const { return data_; }
+  constexpr auto   end() const { return data_ + size_; }
+
+  constexpr const int& operator[](int i) const {
+    return data_[i];
+  }
+
+  constexpr int& operator[](int i) {
+    return data_[i];
+  }
+
+  constexpr void resize(int n) {
+    size_ = n;
+  }
 
   constexpr ScalarIndex
   select(const Index& from, const Index& to) const
   {
-    assert(this->size() == from.size());
-    ScalarIndex out;
-    out.reserve(to.size());
-    for (char c : to) {
-      out.push_back((*this)[*from.index_of(c)]);
+    assert(this->size_ == from.size());
+    ScalarIndex out(to.size());
+    for (int i = 0, e = to.size(); i < e; ++i) {
+      for (int j = 0, e = from.size(); j < e; ++j) {
+        if (to[i] == from[j]) {
+          out[i] = data_[j];
+        }
+      }
     }
     return out;
   }
