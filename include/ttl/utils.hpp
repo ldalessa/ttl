@@ -120,6 +120,10 @@ struct box
     return *this;
   }
 
+  constexpr const T* operator->() const {
+    return ptr;
+  }
+
   constexpr operator T*() const {
     return ptr;
   }

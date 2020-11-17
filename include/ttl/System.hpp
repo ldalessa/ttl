@@ -43,6 +43,12 @@ struct System
     return builder(tree);
   }
 
+  constexpr int n_scalar_trees(int N) const {
+    return std::apply([N](auto const&... tree) {
+      return (0 + ... + utils::pow(N, tree.order()));
+    }, rhs);
+  }
+
   constexpr void
   scalar_trees(int N, const TensorTree* tree,
                ce::dvector<utils::box<const ScalarTree>>& out) const

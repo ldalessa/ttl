@@ -4,7 +4,6 @@
 #include "Rational.hpp"
 #include "Tag.hpp"
 #include "Tensor.hpp"
-#include <fmt/core.h>
 #include <utility>
 
 namespace ttl
@@ -58,6 +57,40 @@ struct ParseNode {
 
   constexpr const ParseNode* b() const {
     return this - right;
+  }
+
+  std::string to_string() const
+  {
+    switch (tag)
+    {
+     case SUM:
+     case DIFFERENCE:
+     case PRODUCT:
+     case RATIO:
+      return fmt::format("({} {} {})", a()->to_string(), tag, b()->to_string());
+
+     case PARTIAL:
+      return fmt::format("D({},{})", a()->to_string(), b()->to_string());
+
+     case INDEX:
+      return fmt::format("{}", index);
+
+     case TENSOR:
+      if (index.size()) {
+        return fmt::format("{}({})", tensor, index);
+      }
+      else {
+        return fmt::format("{}", tensor);
+      }
+
+     case RATIONAL:
+      return fmt::format("{}", q);
+
+     case DOUBLE:
+      return fmt::format("{}", d);
+
+     default: assert(false);
+    }
   }
 };
 
@@ -127,84 +160,19 @@ struct ParseTree
     return exclusive(data[M - 1].index);
   }
 
+  constexpr int order() const {
+    return outer().size();
+  }
+
   constexpr const ParseNode* root() const {
     return data + M - 1;
+  }
+
+  std::string to_string() const {
+    return data[M - 1].to_string();
   }
 };
 
 template <int A, int B>
 ParseTree(Tag, ParseTree<A>, ParseTree<B>) -> ParseTree<A + B + 1>;
 }
-
-template <>
-struct fmt::formatter<ttl::ParseNode>
-{
-  constexpr auto parse(format_parse_context& ctx) {
-    return ctx.begin();
-  }
-
-  template <typename FormatContext>
-  constexpr auto format(const ttl::ParseNode& node, FormatContext& ctx)
-  {
-    using namespace ttl;
-    switch (node.tag) {
-     case SUM:
-     case DIFFERENCE:
-     case PRODUCT:
-     case RATIO:
-     case PARTIAL:  return format_to(ctx.out(), "{}", node.tag);
-     case INDEX:    return format_to(ctx.out(), "{}", node.index);
-     case RATIONAL: return format_to(ctx.out(), "{}", node.q);
-     case DOUBLE:   return format_to(ctx.out(), "{}", node.d);
-     case TENSOR:
-      if (node.index.size()) {
-        return format_to(ctx.out(), "{}({})", node.tensor, node.index);
-      }
-      else {
-        return format_to(ctx.out(), "{}", node.tensor);
-      }
-     default:
-      __builtin_unreachable();
-    }
-  }
-};
-
-template <int N>
-struct fmt::formatter<ttl::ParseTree<N>> {
-  constexpr auto parse(format_parse_context& ctx) {
-    return ctx.begin();
-  }
-
-  template <typename FormatContext>
-  constexpr auto format(const ttl::ParseTree<N>& tree, FormatContext& ctx)
-  {
-    using namespace ttl;
-    auto op = [&](const ParseNode* node, auto&& self) -> std::string {
-      switch (node->tag) {
-       case SUM:
-       case DIFFERENCE:
-       case PRODUCT:
-       case RATIO: {
-         std::string b = self(node->b(), self);
-         std::string a = self(node->a(), self);
-         return fmt::format("({} {} {})", a, *node, b);
-       }
-
-       case PARTIAL: {
-         std::string b = self(node->b(), self);
-         std::string a = self(node->a(), self);
-         return fmt::format("D({},{}", a, b);
-       }
-
-       case INDEX:
-       case TENSOR:
-       case RATIONAL:
-       case DOUBLE:
-        return fmt::format("{}", *node);
-
-       default: assert(false);
-      }
-    };
-    return format_to(ctx.out(), "{}", op(tree.root(), op));
-  }
-};

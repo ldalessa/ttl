@@ -36,7 +36,7 @@ struct fmt::formatter<ttl::dot<T>>
         format_to(out, "\tnode{} -- node{}\n", i, b);
       }
       else {
-        format_to(out, "\tnode{}[label=\"{}\"]\n", i, *tree);
+        format_to(out, "\tnode{}[label=\"{}\"]\n", i, tree->to_string());
       }
       return i++;
     };

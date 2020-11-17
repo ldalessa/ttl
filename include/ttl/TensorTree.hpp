@@ -1,14 +1,13 @@
 #pragma once
 
 #include "ParseTree.hpp"
-#include <fmt/core.h>
 #include <memory>
 
 namespace ttl {
 struct TensorTree {
   Tag tag;
   Index index = {};
-  TensorTree*  a_ = nullptr;
+  TensorTree* a_ = nullptr;
   TensorTree* b_ = nullptr;
   union {
     double      d;
@@ -135,6 +134,30 @@ struct TensorTree {
      case RATIONAL: return (a->q != b->q);
      case TENSOR:   return (a->tensor != b->tensor);
      default: return true;
+    }
+  }
+
+  std::string to_string() const
+  {
+    switch (tag)
+    {
+     case SUM:
+     case DIFFERENCE:
+     case PRODUCT:
+     case RATIO:
+      return fmt::format("({} {} {})", a_->to_string(), tag, b_->to_string());
+
+     case INDEX:    return fmt::format("{}", index);
+     case RATIONAL: return fmt::format("{}", q);
+     case DOUBLE:   return fmt::format("{}", d);
+     case TENSOR:
+      if (index.size()) {
+        return fmt::format("{}({})", tensor, index);
+      }
+      else {
+        return fmt::format("{}", tensor);
+      }
+     default: assert(false);
     }
   }
 };
@@ -306,41 +329,3 @@ struct TensorTreeBuilder {
 template <typename Constants>
 TensorTreeBuilder(Constants) -> TensorTreeBuilder<Constants>;
 }
-
-template <>
-struct fmt::formatter<ttl::TensorTree>
-{
-  constexpr auto parse(format_parse_context& ctx) {
-    return ctx.begin();
-  }
-
-  template <typename FormatContext>
-  constexpr auto format(const ttl::TensorTree& tree, FormatContext& ctx)
-  {
-    using namespace ttl;
-    auto op = [&](const TensorTree& tree, auto&& self) -> std::string {
-      switch (tree.tag) {
-       case SUM:
-       case DIFFERENCE:
-       case PRODUCT:
-       case RATIO: {
-         std::string b = self(*tree.b(), self);
-         std::string a = self(*tree.a(), self);
-         return fmt::format("({} {} {})", a, tree.tag, b);
-       }
-       case INDEX:    return fmt::format("{}", tree.index);
-       case RATIONAL: return fmt::format("{}", tree.q);
-       case DOUBLE:   return fmt::format("{}", tree.d);
-       case TENSOR:
-        if (tree.index.size()) {
-          return fmt::format("{}({})", tree.tensor, tree.index);
-        }
-        else {
-          return fmt::format("{}", tree.tensor);
-        }
-       default: assert(false);
-      }
-    };
-    return format_to(ctx.out(), "{}", op(tree, op));
-  }
-};

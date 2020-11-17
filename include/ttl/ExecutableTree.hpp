@@ -5,6 +5,8 @@
 #include "ScalarTree.hpp"
 #include "Tensor.hpp"
 #include "utils.hpp"
+#include <fmt/core.h>
+#include <memory>
 
 namespace ttl {
 struct ExecutableTreeNode
@@ -19,12 +21,35 @@ struct ExecutableTreeNode
     double   d;
   };
 
+  constexpr ExecutableTreeNode() {}
+
   constexpr const ExecutableTreeNode* a() const {
     return this - left;
   }
 
   constexpr const ExecutableTreeNode* b() const {
     return this - 1;
+  }
+
+  std::string to_string() const {
+    switch (tag) {
+     case SUM:
+     case DIFFERENCE:
+     case PRODUCT:
+     case RATIO:
+      return fmt::format("({} {} {})", a()->to_string(), tag, b()->to_string());
+
+     case RATIONAL: return fmt::format("{}", q);
+     case DOUBLE:   return fmt::format("{}", d);
+     case TENSOR:
+      if (constant) {
+        return fmt::format("c({})", offset);
+      }
+      else {
+        return fmt::format("s({})", offset);
+      }
+     default: assert(false);
+    }
   }
 };
 
@@ -33,48 +58,76 @@ struct ExecutableTree
 {
   ExecutableTreeNode data[M];
 
-  constexpr ExecutableTree(int N, const ScalarTree* tree, auto&& partials)
+  constexpr ExecutableTree(const ScalarTree* tree, auto const& scalars, auto const& constants)
   {
-    int i = M;
-    auto op = [&](const ScalarTree* tree, auto&& self) -> int {
-      auto n = --i;
-      switch (tree->tag)
-      {
-       case SUM:
-       case DIFFERENCE:
-       case PRODUCT:
-       case RATIO:  {
-         int a = self(tree->b(), self);
-         int b = self(tree->a(), self);
-         assert(a == n - 1);
-         data[n].tag = tree->tag;
-         data[n].left = b;
-         return n;
-       }
+    assert(M == tree->size());
+    auto i = map(M - 1, tree, scalars, constants);
+    assert(i == M);
+  }
 
-       case TENSOR: {
-         data[n].tag = TENSOR;
-         data[n].constant = tree->constant;
-         data[n].offset = partials.find(N, tree);
-         return n;
-       }
+  constexpr int size() const {
+    return M;
+  }
 
-       case RATIONAL: {
-         data[n].tag = RATIONAL;
-         data[n].q = tree->q;
-         return n;
-       }
+  constexpr const ExecutableTreeNode* root() const {
+    return data + M - 1;
+  }
 
-       case DOUBLE:  {
-         data[n].tag = DOUBLE;
-         data[n].d = tree->d;
-         return n;
-       }
+  std::string to_string() const {
+    return data[M - 1].to_string();
+  }
 
-       default: assert(false);
-      }
-    };
-    op(tree, op);
+ private:
+
+  constexpr int map(int i, const ScalarTree* tree, auto const& scalars, auto const& constants)
+  {
+    switch (tree->tag)
+    {
+     case SUM:
+     case DIFFERENCE:
+     case PRODUCT:
+     case RATIO:  return map_binary(i, tree, scalars, constants);
+     case TENSOR: return map_tensor(i, tree, scalars, constants);
+     case RATIONAL: return map_rational(i, tree);
+     case DOUBLE: return map_double(i, tree);
+     default: assert(false);
+    }
+  }
+
+  constexpr int map_binary(int i, const ScalarTree* tree, auto const& scalars, auto const& constants)
+  {
+    int b = map(i - 1, tree->b(), scalars, constants);
+    int a = map(i - (b + 1), tree->a(), scalars, constants);
+    data[i].tag = tree->tag;
+    data[i].left = b + 1;
+    return a + b + 1;
+  }
+
+  constexpr int map_tensor(int i, const ScalarTree* tree, auto const& scalars, auto const& constants)
+  {
+    data[i].tag = TENSOR;
+    data[i].constant = tree->constant;
+    if (tree->constant) {
+      data[i].offset = constants.find(tree);
+    }
+    else {
+      data[i].offset = scalars.find(tree);
+    }
+    return 1;
+  }
+
+  constexpr int map_rational(int i, const ScalarTree* tree)
+  {
+    data[i].tag = RATIONAL;
+    std::construct_at(&data[i].q, tree->q); // to change active member
+    return 1;
+  }
+
+  constexpr int map_double(int i, const ScalarTree* tree)
+  {
+    data[i].tag = DOUBLE;
+    std::construct_at(&data[i].d, tree->d); // to change active member
+    return 1;
   }
 };
 }

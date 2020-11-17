@@ -14,7 +14,6 @@ struct ScalarTree
   ScalarTree*    a_ = nullptr;
   ScalarTree*    b_ = nullptr;
   bool     constant = true;
-  int          size = 1;
   ScalarIndex index = {};
 
   union {
@@ -66,6 +65,13 @@ struct ScalarTree
     assert(tag_is_binary(tag));
   }
 
+  constexpr int size() const {
+    if (tag_is_binary(tag)) {
+      return a_->size() + b_->size() + 1;
+    }
+    return 1;
+  }
+
   constexpr const ScalarIndex& outer() const {
     return index;
   }
@@ -103,6 +109,33 @@ struct ScalarTree
      case RATIONAL: return (a->q != b->q);
      case TENSOR:   return (a->tensor != b->tensor);
      default: return true;
+    }
+  }
+
+  std::string to_string() const
+  {
+    switch (tag)
+    {
+     case SUM:
+     case DIFFERENCE:
+     case PRODUCT:
+     case RATIO:
+      return fmt::format("({} {} {})", a_->to_string(), tag, b_->to_string());
+
+     case RATIONAL:
+      return fmt::format("{}", q);
+
+     case DOUBLE:
+      return fmt::format("{}", d);
+
+     case TENSOR:
+      if (index.size()) {
+        return fmt::format("{}({})", tensor, index);
+      }
+      else {
+        return fmt::format("{}", tensor);
+      }
+     default: assert(false);
     }
   }
 };
@@ -363,41 +396,3 @@ struct ScalarTreeBuilder
   }
 };
 }
-
-template <>
-struct fmt::formatter<ttl::ScalarTree>
-{
-  constexpr auto parse(format_parse_context& ctx) {
-    return ctx.begin();
-  }
-
-  template <typename FormatContext>
-  constexpr auto format(const ttl::ScalarTree& tree, FormatContext& ctx)
-  {
-    using namespace ttl;
-    auto op = [&](const ScalarTree& tree, auto&& self) -> std::string {
-      switch (tree.tag) {
-       case SUM:
-       case DIFFERENCE:
-       case PRODUCT:
-       case RATIO: {
-         std::string b = self(*tree.b(), self);
-         std::string a = self(*tree.a(), self);
-         return fmt::format("({} {} {})", a, tree.tag, b);
-       }
-
-       case RATIONAL: return fmt::format("{}", tree.q);
-       case DOUBLE:   return fmt::format("{}", tree.d);
-       case TENSOR:
-        if (tree.index.size()) {
-          return fmt::format("{}({})", tree.tensor, tree.index);
-        }
-        else {
-          return fmt::format("{}", tree.tensor);
-        }
-       default: assert(false);
-      }
-    };
-    return format_to(ctx.out(), "{}", op(tree, op));
-  }
-};

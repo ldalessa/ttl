@@ -124,14 +124,14 @@ int main(int argc, char* const argv[])
   auto eqns = args["--eqn"].asStringList();
   if (ttl::utils::index_of(eqns, "rho")) {
     if (args["-p"].asBool()) {
-      fmt::print("parse: rho = {}\n", rho_rhs);
+      fmt::print("parse: rho = {}\n", rho_rhs.to_string());
     }
     if (args["-t"].asBool()) {
-      fmt::print("tensor: rho = {}\n", *sedov.simplify(rho_rhs));
+      fmt::print("tensor: rho = {}\n", sedov.simplify(rho_rhs)->to_string());
     }
     if (args["-s"].asBool()) {
       for (int i = 0; auto&& tree : sedov.scalar_trees(N, sedov.simplify(rho_rhs))) {
-        fmt::print("scalar: rho{} = {}\n", i++, *tree);
+        fmt::print("scalar: rho{} = {}\n", i++, tree->to_string());
       }
     }
     // if (args["-e"].asBool()) {
@@ -142,20 +142,29 @@ int main(int argc, char* const argv[])
     // }
   }
 
+  if (args["-e"].asBool()) {
+    std::apply([](auto const&... tree) {
+      int i = 0;
+      (fmt::print("executable: {} = {}\n", i++, tree.to_string()), ...);
+    }, sedov3d.executable);
+  }
+
   if (ttl::utils::index_of(eqns, "v")) {
     if (args["-p"].asBool()) {
-      fmt::print("parse: v = {}\n", v_rhs);
+      fmt::print("parse: v = {}\n", v_rhs.to_string());
     }
     if (args["-t"].asBool()) {
-      fmt::print("tensor: v = {}\n", *sedov.simplify(v_rhs));
+      fmt::print("tensor: v = {}\n", sedov.simplify(v_rhs)->to_string());
     }
     if (args["-s"].asBool()) {
       for (int i = 0; auto&& tree : sedov.scalar_trees(N, sedov.simplify(v_rhs))) {
-        fmt::print("scalar: v{} = {}\n", i++, *tree);
+        fmt::print("scalar: v{} = {}\n", i++, tree->to_string());
       }
     }
     // if (args["-e"].asBool()) {
-    //   fmt::print("executable: v = {}\n", v_rhs);
+    //   for (int i = 0; auto&& tree : sedov3d.executable) {
+    //     fmt::print("executable: v{} = {}\n", i++, *tree);
+    //   }
     // }
     // if (args["-r"].asBool()) {
     //   fmt::print("runtime: v = {}\n", v_rhs);
@@ -164,14 +173,14 @@ int main(int argc, char* const argv[])
 
   if (ttl::utils::index_of(eqns, "e")) {
     if (args["-p"].asBool()) {
-      fmt::print("parse: e = {}\n", e_rhs);
+      fmt::print("parse: e = {}\n", e_rhs.to_string());
     }
     if (args["-t"].asBool()) {
-      fmt::print("tensor: e = {}\n", *sedov.simplify(e_rhs));
+      fmt::print("tensor: e = {}\n", sedov.simplify(e_rhs)->to_string());
     }
     if (args["-s"].asBool()) {
       for (int i = 0; auto&& tree : sedov.scalar_trees(N, sedov.simplify(e_rhs))) {
-        fmt::print("scalar: e{} = {}\n", i++, *tree);
+        fmt::print("scalar: e{} = {}\n", i++, tree->to_string());
       }
     }
     // if (args["-e"].asBool()) {
