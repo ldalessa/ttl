@@ -65,11 +65,14 @@ struct ScalarTree
     assert(tag_is_binary(tag));
   }
 
-  constexpr int size() const {
+  constexpr std::array<int, 2> size() const {
     if (tag_is_binary(tag)) {
-      return a_->size() + b_->size() + 1;
+      auto [a_size, a_depth] = a_->size();
+      auto [b_size, b_depth] = b_->size();
+
+      return std::array{a_size + b_size + 1, std::max(a_size, b_size) + 1};
     }
-    return 1;
+    return std::array{1, 1};
   }
 
   constexpr const ScalarIndex& outer() const {
