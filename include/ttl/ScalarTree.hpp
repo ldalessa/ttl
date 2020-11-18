@@ -29,7 +29,7 @@ struct ScalarTree
     delete b_;
   }
 
-  constexpr ScalarTree(const TensorTree* tree, const ScalarIndex& i)
+  constexpr ScalarTree(const TensorTree::Node* tree, const ScalarIndex& i)
       : tag(TENSOR)
       , constant(tree->constant)
       , tensor(tree->tensor)
@@ -150,17 +150,17 @@ struct ScalarTreeBuilder
   constexpr ScalarTreeBuilder(int N) : N(N) {}
 
   constexpr void
-  operator()(const TensorTree* tree, ce::dvector<utils::box<const ScalarTree>>& out) const
+  operator()(const TensorTree& tree, ce::dvector<utils::box<const ScalarTree>>& out) const
   {
-    int order = tree->order();
+    int order = tree.order();
     ScalarIndex index(order);
     do {
-      out.emplace_back(map(tree, index));
+      out.emplace_back(map(tree.root(), index));
     } while (utils::carry_sum_inc(N, 0, order, index));
   }
 
   constexpr ScalarTree*
-  map(const TensorTree* tree, const ScalarIndex& index) const
+  map(const TensorTree::Node* tree, const ScalarIndex& index) const
   {
     switch (tree->tag) {
      case SUM:
@@ -189,9 +189,9 @@ struct ScalarTreeBuilder
   }
 
   constexpr ScalarTree*
-  sum(const TensorTree* tree, const ScalarIndex& index) const {
-    const TensorTree* a = tree->a();
-    const TensorTree* b = tree->b();
+  sum(const TensorTree::Node* tree, const ScalarIndex& index) const {
+    const TensorTree::Node* a = tree->a();
+    const TensorTree::Node* b = tree->b();
     const Index& outer = tree->outer();
     ScalarTree* l = map(a, index.select(outer, a->outer()));
     ScalarTree* r = map(b, index.select(outer, b->outer()));
@@ -199,10 +199,10 @@ struct ScalarTreeBuilder
   }
 
   constexpr ScalarTree*
-  contract(const TensorTree* tree, ScalarIndex index) const
+  contract(const TensorTree::Node* tree, ScalarIndex index) const
   {
-    const TensorTree* a = tree->a();
-    const TensorTree* b = tree->b();
+    const TensorTree::Node* a = tree->a();
+    const TensorTree::Node* b = tree->b();
 
     // can't handle arbitrary inverse b_ now
     if (tree->tag == RATIO) {
@@ -234,7 +234,7 @@ struct ScalarTreeBuilder
   }
 
   constexpr ScalarTree*
-  tensor(const TensorTree* tree, ScalarIndex index) const
+  tensor(const TensorTree::Node* tree, ScalarIndex index) const
   {
     // tensor indices can designate "self" contractions, like a trace `a(ii)`
     Index outer = exclusive(tree->index);

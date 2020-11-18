@@ -27,8 +27,8 @@ int main()
   fmt::print("graph u {{\n{}}}\n", ttl::dot(u_rhs.root()));
 
   auto&& sp = burgers.simplify(u_rhs);
-  fmt::print("u_rhs = {}\n", sp->to_string());
-  fmt::print("graph u {{\n{}}}\n", ttl::dot(sp));
+  fmt::print("u_rhs = {}\n", sp.to_string());
+  // fmt::print("graph u {{\n{}}}\n", ttl::dot(sp));
 
   for (int i = 0; auto&& tree : burgers.scalar_trees(2))
   {
