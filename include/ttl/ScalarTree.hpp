@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Scalar.hpp"
 #include "ScalarIndex.hpp"
 #include "Tag.hpp"
 #include "TensorTree.hpp"
@@ -10,156 +11,191 @@ namespace ttl
 {
 struct ScalarTree
 {
-  Tag           tag;
-  ScalarTree*    a_ = nullptr;
-  ScalarTree*    b_ = nullptr;
-  bool     constant = true;
-  ScalarIndex index = {};
+  struct Node {
+    Tag tag;
+    Node* a_ = nullptr;
+    Node* b_ = nullptr;
+    bool constant = true;
+    ScalarIndex index = {};
 
-  union {
-    double      d = 0;
-    Rational    q;
-    Tensor tensor;
+    union {
+      double      d = 0;
+      Rational    q;
+      Tensor tensor;
+    };
+
+    constexpr ~Node() {
+      assert(a_ != this);
+      assert(b_ != this);
+      delete a_;
+      delete b_;
+    }
+
+    constexpr Node(const TensorTree::Node* tree, const ScalarIndex& i)
+        : tag(TENSOR)
+        , constant(tree->constant)
+        , tensor(tree->tensor)
+        , index(i)
+    {
+      assert(tree->tag == TENSOR);
+    }
+
+    constexpr Node(const Rational& q)
+        : tag(RATIONAL)
+        , q(q)
+    {
+    }
+
+    constexpr Node(std::signed_integral auto i)
+        : tag(RATIONAL)
+        , q(i)
+    {
+    }
+
+    constexpr Node(std::floating_point auto d)
+        : tag(DOUBLE)
+        , d(d)
+    {
+    }
+
+    constexpr Node(Tag tag, Node* a, Node* b)
+        : tag(tag)
+        , a_(a)
+        , b_(b)
+        , constant(a->constant && b->constant)
+    {
+      assert(tag_is_binary(tag));
+    }
+
+    constexpr std::array<int, 2> size() const {
+      if (tag_is_binary(tag)) {
+        auto [a_size, a_depth] = a_->size();
+        auto [b_size, b_depth] = b_->size();
+
+        return std::array{a_size + b_size + 1, std::max(a_size, b_size) + 1};
+      }
+      return std::array{1, 1};
+    }
+
+    constexpr const ScalarIndex& outer() const {
+      return index;
+    }
+
+    constexpr const Node* a() const {
+      return a_;
+    }
+
+    constexpr const Node* b() const {
+      return b_;
+    }
+
+    constexpr bool is_zero() const {
+      return (tag == RATIONAL && q == Rational(0)) || (tag == DOUBLE && d == 0.0);
+    }
+
+    constexpr bool is_one() const {
+      return (tag == RATIONAL && q == Rational(1)) || (tag == DOUBLE && d == 1.0);
+    }
+
+    constexpr void scalars(int N, utils::set<Scalar>& out) const
+    {
+      if (tag_is_binary(tag)) {
+        a_->scalars(N, out);
+        b_->scalars(N, out);
+      }
+      if (tag == TENSOR) {
+        out.emplace(N, this);
+      }
+    }
+
+    constexpr friend bool is_equivalent(const Node* a, const Node* b) {
+      assert(a && b);
+      if (a->tag != b->tag) return false;
+      if (a->index.size() != b->index.size()) return false;
+      for (int i = 0, e = a->index.size(); i < e; ++i) {
+        if (a->index[i] != b->index[i]) return false;
+      }
+      if (a->constant != b->constant) return false;
+      switch (a->tag) { // todo: commutative
+       case SUM:
+       case DIFFERENCE:
+       case PRODUCT:
+       case RATIO: return (is_equivalent(a->a(), b->a()) && is_equivalent(a->b(), b->b()));
+       case DOUBLE:   return (a->d != b->d);
+       case RATIONAL: return (a->q != b->q);
+       case TENSOR:   return (a->tensor != b->tensor);
+       default: return true;
+      }
+    }
+
+    std::string to_string() const
+    {
+      switch (tag)
+      {
+       case SUM:
+       case DIFFERENCE:
+       case PRODUCT:
+       case RATIO:
+        return fmt::format("({} {} {})", a_->to_string(), tag, b_->to_string());
+
+       case RATIONAL:
+        return fmt::format("{}", q);
+
+       case DOUBLE:
+        return fmt::format("{}", d);
+
+       case TENSOR:
+        if (index.size()) {
+          return fmt::format("{}({})", tensor, index);
+        }
+        else {
+          return fmt::format("{}", tensor);
+        }
+       default: assert(false);
+      }
+    }
   };
 
+  int N;
+  Node* root_;
+
   constexpr ~ScalarTree() {
-    assert(a_ != this);
-    assert(b_ != this);
-    delete a_;
-    delete b_;
+    delete root_;
   }
 
-  constexpr ScalarTree(const TensorTree::Node* tree, const ScalarIndex& i)
-      : tag(TENSOR)
-      , constant(tree->constant)
-      , tensor(tree->tensor)
-      , index(i)
-  {
-    assert(tree->tag == TENSOR);
-  }
-
-  constexpr ScalarTree(const Rational& q)
-      : tag(RATIONAL)
-      , q(q)
+  constexpr ScalarTree(int N, const TensorTree& tree, const ScalarIndex& outer)
+      : N(N)
+      , root_(map(tree.root(), outer))
   {
   }
 
-  constexpr ScalarTree(std::signed_integral auto i)
-      : tag(RATIONAL)
-      , q(i)
+  constexpr ScalarTree(const ScalarTree&) = delete;
+  constexpr ScalarTree(ScalarTree&& b)
+      : N(std::exchange(b.N, 0))
+      , root_(std::exchange(b.root_, nullptr))
   {
   }
 
-  constexpr ScalarTree(std::floating_point auto d)
-      : tag(DOUBLE)
-      , d(d)
-  {
+  constexpr const Node* root() const {
+    return root_;
   }
 
-  constexpr ScalarTree(Tag tag, ScalarTree* a, ScalarTree* b)
-      : tag(tag)
-      , a_(a)
-      , b_(b)
-      , constant(a->constant && b->constant)
-  {
-    assert(tag_is_binary(tag));
+  constexpr void scalars(utils::set<Scalar>& out) const {
+    assert(N != 0);
+    assert(root_ != nullptr);
+    return root_->scalars(N, out);
   }
 
   constexpr std::array<int, 2> size() const {
-    if (tag_is_binary(tag)) {
-      auto [a_size, a_depth] = a_->size();
-      auto [b_size, b_depth] = b_->size();
-
-      return std::array{a_size + b_size + 1, std::max(a_size, b_size) + 1};
-    }
-    return std::array{1, 1};
+    return root_->size();
   }
 
-  constexpr const ScalarIndex& outer() const {
-    return index;
+  std::string to_string() const {
+    return root_->to_string();
   }
 
-  constexpr const ScalarTree* a() const {
-    return a_;
-  }
-
-  constexpr const ScalarTree* b() const {
-    return b_;
-  }
-
-  constexpr bool is_zero() const {
-    return (tag == RATIONAL && q == Rational(0)) || (tag == DOUBLE && d == 0.0);
-  }
-
-  constexpr bool is_one() const {
-    return (tag == RATIONAL && q == Rational(1)) || (tag == DOUBLE && d == 1.0);
-  }
-
-  constexpr friend bool is_equivalent(const ScalarTree* a, const ScalarTree* b) {
-    assert(a && b);
-    if (a->tag != b->tag) return false;
-    if (a->index.size() != b->index.size()) return false;
-    for (int i = 0, e = a->index.size(); i < e; ++i) {
-      if (a->index[i] != b->index[i]) return false;
-    }
-    if (a->constant != b->constant) return false;
-    switch (a->tag) { // todo: commutative
-     case SUM:
-     case DIFFERENCE:
-     case PRODUCT:
-     case RATIO: return (is_equivalent(a->a(), b->a()) && is_equivalent(a->b(), b->b()));
-     case DOUBLE:   return (a->d != b->d);
-     case RATIONAL: return (a->q != b->q);
-     case TENSOR:   return (a->tensor != b->tensor);
-     default: return true;
-    }
-  }
-
-  std::string to_string() const
-  {
-    switch (tag)
-    {
-     case SUM:
-     case DIFFERENCE:
-     case PRODUCT:
-     case RATIO:
-      return fmt::format("({} {} {})", a_->to_string(), tag, b_->to_string());
-
-     case RATIONAL:
-      return fmt::format("{}", q);
-
-     case DOUBLE:
-      return fmt::format("{}", d);
-
-     case TENSOR:
-      if (index.size()) {
-        return fmt::format("{}({})", tensor, index);
-      }
-      else {
-        return fmt::format("{}", tensor);
-      }
-     default: assert(false);
-    }
-  }
-};
-
-struct ScalarTreeBuilder
-{
-  int N;
-
-  constexpr ScalarTreeBuilder(int N) : N(N) {}
-
-  constexpr void
-  operator()(const TensorTree& tree, ce::dvector<utils::box<const ScalarTree>>& out) const
-  {
-    int order = tree.order();
-    ScalarIndex index(order);
-    do {
-      out.emplace_back(map(tree.root(), index));
-    } while (utils::carry_sum_inc(N, 0, order, index));
-  }
-
-  constexpr ScalarTree*
+ private:
+  constexpr Node*
   map(const TensorTree::Node* tree, const ScalarIndex& index) const
   {
     switch (tree->tag) {
@@ -169,36 +205,36 @@ struct ScalarTreeBuilder
      case RATIO: return contract(tree, index);
      case INDEX: return delta(index);
      case TENSOR: return tensor(tree, index);
-     case RATIONAL: return new ScalarTree(tree->q);
-     case DOUBLE: return new ScalarTree(tree->d);
+     case RATIONAL: return new Node(tree->q);
+     case DOUBLE: return new Node(tree->d);
      default: assert(false);
     }
   }
 
-  constexpr ScalarTree*
+  constexpr Node*
   delta(const ScalarIndex& index) const {
     if (int e = index.size()) {
       int n = index[0];
       for (int i = 1; i < e; ++i) {
         if (index[i] != n) {
-          return new ScalarTree(0);
+          return new Node(0);
         }
       }
     }
-    return new ScalarTree(1);
+    return new Node(1);
   }
 
-  constexpr ScalarTree*
+  constexpr Node*
   sum(const TensorTree::Node* tree, const ScalarIndex& index) const {
     const TensorTree::Node* a = tree->a();
     const TensorTree::Node* b = tree->b();
     const Index& outer = tree->outer();
-    ScalarTree* l = map(a, index.select(outer, a->outer()));
-    ScalarTree* r = map(b, index.select(outer, b->outer()));
+    Node* l = map(a, index.select(outer, a->outer()));
+    Node* r = map(b, index.select(outer, b->outer()));
     return reduce(tree->tag, l, r);
   }
 
-  constexpr ScalarTree*
+  constexpr Node*
   contract(const TensorTree::Node* tree, ScalarIndex index) const
   {
     const TensorTree::Node* a = tree->a();
@@ -223,17 +259,17 @@ struct ScalarTreeBuilder
     index.resize(order);
 
     // build the sum of products
-    ScalarTree* out = new ScalarTree(0);
+    Node* out = new Node(0);
     do {
-      ScalarTree*  l = map(a, index.select(inner, a->outer()));
-      ScalarTree*  r = map(b, index.select(inner, b->outer()));
-      ScalarTree* lr = reduce(tree->tag, l, r);
+      Node*  l = map(a, index.select(inner, a->outer()));
+      Node*  r = map(b, index.select(inner, b->outer()));
+      Node* lr = reduce(tree->tag, l, r);
       out = reduce(SUM, out, lr);
     } while (utils::carry_sum_inc(N, n, order, index));
     return out;
   }
 
-  constexpr ScalarTree*
+  constexpr Node*
   tensor(const TensorTree::Node* tree, ScalarIndex index) const
   {
     // tensor indices can designate "self" contractions, like a trace `a(ii)`
@@ -248,26 +284,26 @@ struct ScalarTreeBuilder
     index.resize(order);
 
     // build the sum of products
-    ScalarTree* out = new ScalarTree(0);
+    Node* out = new Node(0);
     do {
-      ScalarTree* t = new ScalarTree(tree, index.select(inner, tree->index));
+      Node* t = new Node(tree, index.select(inner, tree->index));
       out = reduce(SUM, out, t);
     } while (utils::carry_sum_inc(N, n, order, index));
     return out;
   }
 
-  constexpr ScalarTree* reduce(Tag tag, ScalarTree* a, ScalarTree* b) const
+  constexpr Node* reduce(Tag tag, Node* a, Node* b) const
   {
     // simple constant folding for rational and doubles
     if (a->tag == RATIONAL && b->tag == RATIONAL) {
-      ScalarTree* out = new ScalarTree(tag_apply(tag, a->q, b->q));
+      Node* out = new Node(tag_apply(tag, a->q, b->q));
       delete a;
       delete b;
       return out;
     }
 
     if (a->tag == DOUBLE && b->tag == DOUBLE) {
-      ScalarTree* out = new ScalarTree(tag_apply(tag, a->d, b->d));
+      Node* out = new Node(tag_apply(tag, a->d, b->d));
       delete a;
       delete b;
       return out;
@@ -282,7 +318,7 @@ struct ScalarTreeBuilder
     }
   }
 
-  constexpr ScalarTree* reduce_sum(ScalarTree* a, ScalarTree* b) const {
+  constexpr Node* reduce_sum(Node* a, Node* b) const {
     if (a->is_zero()) {
       delete a;
       return b;
@@ -293,29 +329,29 @@ struct ScalarTreeBuilder
     }
     if (is_equivalent(a, b)) {
       delete a;
-      return new ScalarTree(PRODUCT, new ScalarTree(2), b);
+      return new Node(PRODUCT, new Node(2), b);
     }
-    return new ScalarTree(SUM, a, b);
+    return new Node(SUM, a, b);
   }
 
-  constexpr ScalarTree* reduce_difference(ScalarTree* a, ScalarTree* b) const {
+  constexpr Node* reduce_difference(Node* a, Node* b) const {
     if (b->is_zero()) {
       delete b;
       return a;
     }
     if (a->is_zero()) {
       delete a;
-      return new ScalarTree(PRODUCT, new ScalarTree(-1), b);
+      return new Node(PRODUCT, new Node(-1), b);
     }
     if (is_equivalent(a, b)) {
       delete a;
       delete b;
-      return new ScalarTree(0);
+      return new Node(0);
     }
-    return new ScalarTree(DIFFERENCE, a, b);
+    return new Node(DIFFERENCE, a, b);
   }
 
-  constexpr ScalarTree* reduce_product(ScalarTree* a, ScalarTree* b) const {
+  constexpr Node* reduce_product(Node* a, Node* b) const {
     if (a->is_zero()) {
       delete b;
       return a;
@@ -340,10 +376,10 @@ struct ScalarTreeBuilder
 
     // factor out and combine any common rational state between the two terms
     if (a->tag == PRODUCT && b->tag == PRODUCT) {
-      ScalarTree* aa = a->a_;
-      ScalarTree* ab = a->b_;
-      ScalarTree* ba = b->a_;
-      ScalarTree* bb = b->b_;
+      Node* aa = a->a_;
+      Node* ab = a->b_;
+      Node* ba = b->a_;
+      Node* bb = b->b_;
       if (aa->tag == RATIONAL && ba->tag == RATIONAL) {
         a->a_ = nullptr;
         a->b_ = nullptr;
@@ -365,10 +401,10 @@ struct ScalarTreeBuilder
       }
     }
 
-    return new ScalarTree(PRODUCT, a, b);
+    return new Node(PRODUCT, a, b);
   }
 
-  constexpr ScalarTree* reduce_ratio(ScalarTree* a, ScalarTree* b) const {
+  constexpr Node* reduce_ratio(Node* a, Node* b) const {
     if (a->is_zero()) {
       delete b;
       return a;
@@ -385,17 +421,34 @@ struct ScalarTreeBuilder
     if (is_equivalent(a, b)) {
       delete a;
       delete b;
-      return new ScalarTree(1);
+      return new Node(1);
     }
 
     if (b->tag == RATIO) {
-      ScalarTree* ba = std::exchange(b->a_, nullptr);
-      ScalarTree* bb = std::exchange(b->b_, nullptr);
+      Node* ba = std::exchange(b->a_, nullptr);
+      Node* bb = std::exchange(b->b_, nullptr);
       delete b;
       return reduce(PRODUCT, a, b);
     }
 
-    return new ScalarTree(RATIO, a, b);
+    return new Node(RATIO, a, b);
+  }
+};
+
+struct ScalarTreeBuilder
+{
+  int N;
+
+  constexpr ScalarTreeBuilder(int N) : N(N) {}
+
+  constexpr void
+  operator()(const TensorTree& tree, ce::dvector<ScalarTree>& out) const
+  {
+    int order = tree.order();
+    ScalarIndex index(order);
+    do {
+      out.emplace_back(N, tree, index);
+    } while (utils::carry_sum_inc(N, 0, order, index));
   }
 };
 }

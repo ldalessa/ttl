@@ -42,9 +42,9 @@ struct ExecutableTree
 
   Node data[M];
 
-  constexpr ExecutableTree(const ScalarTree* tree, auto const& scalars, auto const& constants)
+  constexpr ExecutableTree(const ScalarTree& tree, auto const& scalars, auto const& constants)
   {
-    auto i = map(M - 1, tree, scalars, constants);
+    auto i = map(M - 1, tree.root(), scalars, constants);
     assert(i == M);
   }
 
@@ -103,7 +103,7 @@ struct ExecutableTree
   }
 
  private:
-  constexpr int map(int i, const ScalarTree* tree, auto const& scalars, auto const& constants)
+  constexpr int map(int i, const ScalarTree::Node* tree, auto const& scalars, auto const& constants)
   {
     switch (tree->tag)
     {
@@ -118,7 +118,7 @@ struct ExecutableTree
     }
   }
 
-  constexpr int map_binary(int i, const ScalarTree* tree, auto const& scalars, auto const& constants)
+  constexpr int map_binary(int i, const ScalarTree::Node* tree, auto const& scalars, auto const& constants)
   {
     int b = map(i - 1, tree->b(), scalars, constants);
     int a = map(i - (b + 1), tree->a(), scalars, constants);
@@ -132,7 +132,7 @@ struct ExecutableTree
     return a + b + 1;
   }
 
-  constexpr int map_tensor(int i, const ScalarTree* tree, auto const& scalars, auto const& constants)
+  constexpr int map_tensor(int i, const ScalarTree::Node* tree, auto const& scalars, auto const& constants)
   {
     if (tree->constant) {
       data[i].tag = CONSTANT;
@@ -145,14 +145,14 @@ struct ExecutableTree
     return 1;
   }
 
-  constexpr int map_rational(int i, const ScalarTree* tree)
+  constexpr int map_rational(int i, const ScalarTree::Node* tree)
   {
     data[i].tag = IMMEDIATE;
     data[i].d = to_double(tree->q);
     return 1;
   }
 
-  constexpr int map_double(int i, const ScalarTree* tree)
+  constexpr int map_double(int i, const ScalarTree::Node* tree)
   {
     data[i].tag = IMMEDIATE;
     data[i].d = tree->d;

@@ -93,43 +93,4 @@ struct set : ce::dvector<T> {
 //     }
   }
 };
-
-
-template <typename T>
-struct box
-{
-  T* ptr = nullptr;
-
-  constexpr box() = default;
-  constexpr box(const box&) = delete;
-  constexpr box& operator=(const box&) = delete;
-
-  constexpr ~box() {
-    delete ptr;
-  }
-
-  constexpr box(T* ptr) : ptr(ptr) {
-  }
-
-  constexpr box(box&& rhs) : ptr(std::exchange(rhs.ptr, nullptr)) {
-  }
-
-  constexpr box& operator=(box&& rhs) {
-    delete ptr;
-    ptr = std::exchange(rhs.ptr, nullptr);
-    return *this;
-  }
-
-  constexpr const T* operator->() const {
-    return ptr;
-  }
-
-  constexpr operator T*() const {
-    return ptr;
-  }
-
-  constexpr operator T*() {
-    return ptr;
-  }
-};
 }

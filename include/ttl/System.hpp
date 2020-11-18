@@ -48,17 +48,16 @@ struct System
   }
 
   constexpr void
-  scalar_trees(int N, const TensorTree& tree,
-               ce::dvector<utils::box<const ScalarTree>>& out) const
+  scalar_trees(int N, const TensorTree& tree, ce::dvector<ScalarTree>& out) const
   {
     ScalarTreeBuilder builder(N);
     builder(tree, out);
   }
 
-  constexpr ce::dvector<utils::box<const ScalarTree>>
+  constexpr ce::dvector<ScalarTree>
   scalar_trees(int N, const TensorTree& tree) const
   {
-    ce::dvector<utils::box<const ScalarTree>> out;
+    ce::dvector<ScalarTree> out;
     ScalarTreeBuilder builder(N);
     builder(tree, out);
     return out;
@@ -70,23 +69,11 @@ struct System
     auto constants = [&](const Tensor& t) {
       return is_constant(t);
     };
-    ce::dvector<utils::box<const ScalarTree>> out;
+    ce::dvector<ScalarTree> out;
     std::apply([&](auto const&... tree) {
       (scalar_trees(N, TensorTree(tree, constants), out), ...);
     }, rhs);
     return out;
-  }
-
-  constexpr void
-  scalars(int N, const ScalarTree* tree, utils::set<Scalar>& out) const
-  {
-    if (tag_is_binary(tree->tag)) {
-      scalars(N, tree->a(), out);
-      scalars(N, tree->b(), out);
-    }
-    if (tree->tag == TENSOR) {
-      out.emplace(N, tree);
-    }
   }
 
   constexpr utils::set<Scalar>
@@ -94,7 +81,7 @@ struct System
   {
     utils::set<Scalar> out;
     for (auto&& tree : scalar_trees(N)) {
-      scalars(N, tree, out);
+      tree.scalars(out);
     }
     return out;
   }

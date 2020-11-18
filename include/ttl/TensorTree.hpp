@@ -170,8 +170,6 @@ struct TensorTree
     delete root_;
   }
 
-  constexpr TensorTree() = default;
-
   template <int M>
   constexpr TensorTree(const ParseTree<M>& tree, auto&& constants)
       : root_(map(tree.root(), constants))

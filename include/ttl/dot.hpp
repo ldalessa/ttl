@@ -6,12 +6,9 @@
 namespace ttl {
 template <typename T>
 struct dot {
-  T* tree;
-  constexpr dot(T* tree) : tree(tree) {}
+  const T& tree;
+  constexpr dot(const T& tree) : tree(tree) {}
 };
-
-template <template <typename> typename Box, typename T>
-dot(const Box<T>&) -> dot<T>;
 }
 
 template <typename T>
@@ -40,34 +37,7 @@ struct fmt::formatter<ttl::dot<T>>
       }
       return i++;
     };
-    op(box.tree, op);
+    op(box.tree.root(), op);
     return out;
   }
 };
-
-// This works for RPN trees that can be processed bottom up, but not all trees.
-//
-// template <typename T>
-// struct fmt::formatter<ttl::dot<T>> {
-//   constexpr auto parse(format_parse_context& ctx) {
-//     return ctx.begin();
-//   }
-
-//   template <typename FormatContext>
-//   constexpr auto format(ttl::dot<T> box, FormatContext& ctx)
-//   {
-//     ttl::utils::stack<int> stack;
-//     for (int i = 0; auto&& node : box.tree) {
-//       if (node.binary()) {
-//         format_to(ctx.out(), "\tnode{}[label=\"{} {}\"]\n", i, node, *node.index());
-//         format_to(ctx.out(), "\tnode{} -- node{}\n", i, stack.pop());
-//         format_to(ctx.out(), "\tnode{} -- node{}\n", i, stack.pop());
-//       }
-//       else {
-//         format_to(ctx.out(), "\tnode{}[label=\"{}\"]\n", i, node);
-//       }
-//       stack.push(i++);
-//     }
-//     return ctx.out();
-//   }
-// };

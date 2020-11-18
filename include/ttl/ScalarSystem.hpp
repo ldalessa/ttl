@@ -54,7 +54,7 @@ struct ScalarSystem
       std::array<std::array<int, 2>, M.trees> out;
       auto trees = system.scalar_trees(N);
       for (int i = 0; i < M.trees; ++i) {
-        out[i] = trees[i]->size();
+        out[i] = trees[i].size();
       }
       return out;
     }();

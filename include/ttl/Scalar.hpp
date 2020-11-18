@@ -1,7 +1,6 @@
 #pragma once
 
 #include "ScalarIndex.hpp"
-#include "ScalarTree.hpp"
 #include "Tensor.hpp"
 #include "utils.hpp"
 #include <cassert>
@@ -19,10 +18,10 @@ struct Scalar
 
   constexpr Scalar() = default;
 
-  constexpr Scalar(int N, const ScalarTree* tree)
-      : Scalar(N, tree->tensor, tree->index, tree->constant)
+  constexpr Scalar(int N, const auto* node)
+      : Scalar(N, node->tensor, node->index, node->constant)
   {
-    assert(tree->tag == TENSOR);
+    assert(node->tag == TENSOR);
   }
 
   constexpr Scalar(int N, const Tensor& t, const ScalarIndex& index, bool constant)

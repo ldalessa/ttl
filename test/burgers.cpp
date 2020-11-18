@@ -21,30 +21,18 @@ constexpr ttl::ScalarSystem<burgers, 1> burgers1d;
 
 int main()
 {
-  fmt::print("u1 = {}\n", burgers.scalar_trees(1)[0]->to_string());
+  fmt::print("u1 = {}\n", burgers.scalar_trees(1)[0].to_string());
 
   fmt::print("u_rhs = {}\n", u_rhs.to_string());
-  fmt::print("graph u {{\n{}}}\n", ttl::dot(u_rhs.root()));
+  fmt::print("graph u {{\n{}}}\n", ttl::dot(u_rhs));
 
   auto&& sp = burgers.simplify(u_rhs);
   fmt::print("u_rhs = {}\n", sp.to_string());
-  // fmt::print("graph u {{\n{}}}\n", ttl::dot(sp));
+  fmt::print("graph u {{\n{}}}\n", ttl::dot(sp));
 
   for (int i = 0; auto&& tree : burgers.scalar_trees(2))
   {
-    fmt::print("u{} = {}\n", i++, tree->to_string());
+    fmt::print("u{} = {}\n", i++, tree.to_string());
   }
-
-  // for (int i = 0; auto&& tree : burgers.scalar_trees(2))
-  // {
-  //   fmt::print("graph u{} {{\n{}}}\n", i++, ttl::dot(tree));
-  // }
-
-  // for (int i = 0; auto p : burgers2d.scalars) {
-  //   fmt::print("{}: {}\n", i++, p);
-  // }
-  // fmt::print("graph u {{\n{}}}\n", ttl::dot(std::get<0>(burgers2d.simple)));
-  // auto trees = burgers2d.make_scalar_trees();
-  // fmt::print("graph u {{\n{}}}\n", *trees[0]);
   return 0;
 }

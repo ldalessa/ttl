@@ -41,7 +41,7 @@ struct ScalarManifest
     return std::span(data + bounds[mask], data + bounds[mask + 1]);
   }
 
-  constexpr int find(const ScalarTree* tree) const {
+  constexpr int find(const ScalarTree::Node* tree) const {
     Scalar scalar(N, tree);
     for (int i = 0; i < M; ++i) {
       if (scalar == data[i]) {
