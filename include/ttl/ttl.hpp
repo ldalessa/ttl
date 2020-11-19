@@ -1,7 +1,9 @@
 #pragma once
 
-#include "Rational.hpp"
+
+#include "Index.hpp"
 #include "ScalarSystem.hpp"
-#include "System.hpp"
 #include "Tensor.hpp"
-#include "TaggedTree.hpp"
+#include "System.hpp"
+#include "dot.hpp"
+#include "grammar.hpp"

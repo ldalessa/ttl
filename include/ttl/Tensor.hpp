@@ -2,19 +2,20 @@
 
 #include "Index.hpp"
 #include "concepts.hpp"
-
-#include <fmt/format.h>
 #include <string_view>
+#include <fmt/core.h>
 
 namespace ttl {
 struct Tensor
 {
  private:
-  int order_;
   std::string_view id_;
+  int order_;
 
  public:
-  constexpr Tensor(int order, std::string_view id) : order_(order), id_(id) {
+  constexpr Tensor() = default;
+
+  constexpr Tensor(std::string_view id, int order) : id_(id), order_(order) {
   }
 
   constexpr int order() const {
@@ -40,12 +41,16 @@ struct Tensor
   constexpr auto operator=(is_tree auto&&) const;
 };
 
+constexpr std::string_view to_string(const Tensor& t) {
+  return t.id();
+}
+
 constexpr ttl::Tensor scalar(std::string_view id) {
-  return { 0, id };
+  return { id, 0 };
 }
 
 constexpr ttl::Tensor vector(std::string_view id) {
-  return { 1, id };
+  return { id, 1 };
 }
 }
 
@@ -56,7 +61,7 @@ struct fmt::formatter<ttl::Tensor> {
   }
 
   template <typename FormatContext>
-  auto format(const ttl::Tensor& tensor, FormatContext& ctx) {
-    return format_to(ctx.out(), "{}", tensor.id());
+  constexpr auto format(const ttl::Tensor& tensor, FormatContext& ctx) {
+    return format_to(ctx.out(), "{}", to_string(tensor));
   }
 };

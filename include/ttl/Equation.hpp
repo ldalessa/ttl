@@ -4,20 +4,23 @@
 #include "concepts.hpp"
 
 namespace ttl {
-template <typename RHS>
-requires(is_tree<RHS>)
+template <is_tree Tree>
 struct Equation {
-  Tensor lhs;
-  RHS rhs;
   constexpr static std::true_type is_equation_tag = {};
 
-  constexpr Equation(Tensor lhs, RHS rhs) : lhs(lhs), rhs(rhs) {
+  Tensor lhs;
+  Tree rhs;
+
+  constexpr Equation(const Tensor& lhs, Tree rhs)
+      : lhs(lhs)
+      , rhs(rhs)
+  {
   }
 };
 
-constexpr auto
-Tensor::operator=(is_tree auto&& rhs) const
-{
-  return Equation(*this, rhs);
+template <is_tree Tree>
+constexpr auto Tensor::operator=(Tree&& rhs) const {
+  assert(order_ == rhs.outer().size());
+  return Equation(*this, std::forward<Tree>(rhs));
 }
 }

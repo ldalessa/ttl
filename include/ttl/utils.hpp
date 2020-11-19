@@ -1,16 +1,11 @@
 #pragma once
 
-#include <ce/cvector.hpp>
 #include <ce/dvector.hpp>
 #include <concepts>
 #include <optional>
 #include <utility>
 
 namespace ttl::utils {
-template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
-template<class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
-
-/// Simple wrapper for finding the index of a value in a range.
 template <typename Range, typename T>
 constexpr std::optional<int> index_of(Range&& range, T&& value) {
   auto begin = std::begin(range);
@@ -22,12 +17,10 @@ constexpr std::optional<int> index_of(Range&& range, T&& value) {
   return std::nullopt;
 }
 
-// basic debugging utility to print the types of expressions.
-template <typename... Ts>
-struct print_types_t;
-
-template <typename... Ts>
-void print_types(Ts...) { print_types_t<Ts...> _; }
+template <typename Range, typename T>
+constexpr bool contains(Range&& range, T&& value) {
+  return std::find(std::begin(range), std::end(range), value) != std::end(range);
+}
 
 template <std::integral T>
 constexpr T pow(T x, T y) {
@@ -40,8 +33,8 @@ constexpr T pow(T x, T y) {
 }
 
 template <typename Index>
-constexpr static bool carry_sum_inc(int N, int Order, Index&& index) {
-  for (int n = 0; n < Order; index[n++] = 0) {
+constexpr static bool carry_sum_inc(int N, int n, int Order, Index&& index) {
+  for (; n < Order; index[n++] = 0) {
     if (++index[n] < N) {
       return true; // no carry
     }
@@ -54,38 +47,50 @@ constexpr static void expand(int N, int Order, Op&& op) {
   int *index = new int[Order]{};
   do {
     op(index);
-  } while (utils::carry_sum_inc(N, Order, index));
+  } while (utils::carry_sum_inc(N, 0, Order, index));
   delete [] index;
 }
-
-template <typename T, int N>
-struct set : ce::cvector<T, N> {
-  using ce::cvector<T, N>::cvector;
-
-  template <typename... Ts>
-  constexpr void emplace(Ts&&... ts) {
-    auto& back = this->emplace_back(std::forward<Ts>(ts)...);
-    if (index_of(*this, back) != size(*this) - 1) {
-      this->pop_back();
-    }
-  }
-
-  constexpr bool contains(const T& t) const {
-    return index_of(*this, t).has_value();
-  }
-
-  constexpr set& sort() {
-    std::sort(this->begin(), this->end());
-    return *this;
-  }
-};
 
 template <typename T>
 struct stack : ce::dvector<T> {
   using ce::dvector<T>::dvector;
 
-  constexpr void push(const T& t) { this->push_back(t); }
-  constexpr void push(T&& t) { this->push_back(std::move(t)); }
-  constexpr    T pop() { return this->pop_back(); }
+  constexpr void  push(const T& t) { this->push_back(t); }
+  constexpr void  push(T&& t) { this->push_back(std::move(t)); }
+  constexpr    T  pop() { return this->pop_back(); }
+  constexpr    T& top() { return this->back(); }
+};
+
+template <typename T>
+struct set : ce::dvector<T> {
+  using ce::dvector<T>::dvector;
+
+  template <typename... Ts>
+  constexpr std::optional<int> find(Ts&&... ts) {
+    T temp(std::forward<Ts>(ts)...);
+    auto i = std::lower_bound(this->begin(), this->end(), temp);
+    if (i == this->end()) return std::nullopt;
+    if (*i != temp) return std::nullopt;
+    return i - this->begin();
+  }
+
+  template <typename... Ts>
+  constexpr void emplace(Ts&&... ts) {
+    T temp(std::forward<Ts>(ts)...);
+    if (!contains(*this, temp)) {
+      this->push_back(std::move(temp));
+    }
+//     // gcc produces different results in constexpr context for this code, I'm
+//     // not sure why. I spent some time trying to reduce a testcase and couldn't
+//     // get anything to fail.
+//     //
+//     const T& back = this->emplace_back(std::forward<Ts>(ts)...);
+//     for (int i = 0; i < this->size() - 1; ++i) {
+//       if (back == (*this)[i]) {
+//         this->pop_back();
+//         return;
+//       }
+//     }
+  }
 };
 }

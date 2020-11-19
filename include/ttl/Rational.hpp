@@ -1,10 +1,9 @@
 #pragma once
 
-#include <fmt/format.h>
 #include <cassert>
 #include <numeric>
-#include <string>
 #include <utility>
+#include <fmt/core.h>
 
 namespace ttl {
 struct Rational
@@ -25,36 +24,40 @@ struct Rational
     return { q, p };
   }
 
-  constexpr friend Rational operator+(Rational a) {
+  constexpr friend Rational operator+(const Rational& a) {
     return a;
   }
 
-  constexpr friend Rational operator-(Rational a) {
+  constexpr friend Rational operator-(const Rational& a) {
     return { -a.p, a.q };
   }
 
-  constexpr friend Rational operator+(Rational a, Rational b) {
+  constexpr friend Rational operator+(const Rational& a, const Rational& b) {
     auto d = std::gcd(a.q, b.q);
     auto l = (a.q / d);
     auto r = (b.q / d);
     return { a.p * r + b.p * l, l * r };
   }
 
-  constexpr friend Rational operator-(Rational a, Rational b) {
+  constexpr friend Rational operator-(const Rational& a, const Rational& b) {
     auto d = std::gcd(a.q, b.q);
     auto l = (a.q / d);
     auto r = (b.q / d);
     return { a.p * r - b.p * l, l * r };
   }
 
-  constexpr friend Rational operator*(Rational a, Rational b) {
+  constexpr friend Rational operator*(const Rational& a, const Rational& b) {
     auto l = std::gcd(a.p, b.q);
     auto r = std::gcd(b.p, a.q);
     return { (a.p / l) * (b.p / r),
              (a.q / r) * (b.q / l) };
   }
 
-  constexpr friend Rational operator/(Rational a, Rational b) {
+  constexpr friend Rational& operator*=(Rational& a, const Rational& b) {
+    return a = a * b;
+  }
+
+  constexpr friend Rational operator/(const Rational& a, const Rational& b) {
     return a * b.inverse();
   }
 
@@ -62,13 +65,8 @@ struct Rational
     return a.p == b.p && a.q == b.q;
   }
 
-  std::string to_string() const {
-    if (q != 1) {
-      return std::to_string(p).append("/").append(std::to_string(q));
-    }
-    else {
-      return std::to_string(p);
-    }
+  constexpr friend double to_double(const Rational& a) {
+    return double(a.p) / double(a.q);
   }
 };
 }
@@ -80,7 +78,12 @@ struct fmt::formatter<ttl::Rational> {
   }
 
   template <typename FormatContext>
-  auto format(const ttl::Rational& q, FormatContext& ctx) {
-    return format_to(ctx.out(), "{}", q.to_string());
+  constexpr auto format(const ttl::Rational& q, FormatContext& ctx) {
+    if (q.q != 1) {
+      return format_to(ctx.out(), "{}/{}", q.p, q.q);
+    }
+    else {
+      return format_to(ctx.out(), "{}", q.p);
+    }
   }
 };

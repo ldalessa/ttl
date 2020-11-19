@@ -1,29 +1,34 @@
 #pragma once
 
-#include "Hessian.hpp"
 #include "Tensor.hpp"
-#include "Index.hpp"
 #include "utils.hpp"
-#include <ranges>
+#include <algorithm>
+#include <string>
+#include <string_view>
+
 
 namespace ttl {
-template <int N> requires(N > 0)
 struct Partial {
-  Tensor tensor;
+  Tensor tensor = {};
   int component = 0;
-  int     dx[N] = {};
+  int        dx[8] = {};
+  int         N = 0;
 
-  constexpr Partial(const Hessian& h, int index[])
-      : tensor(h.tensor())
+  constexpr Partial() = default;
+
+  constexpr Partial(int N, const Tensor& t, auto const& index)
+      : tensor(t)
+      , N(N)
   {
-    Index outer = h.outer();
+    assert(N <= std::size(dx));
+    assert(t.order() <= std::ssize(index));
 
-    for (int i = 0; auto&& c : h.index()) {
-      component += utils::pow(N, i++) * index[*utils::index_of(outer, c)];
+    int i = 0;
+    for (int e = t.order(); i < e; ++i) {
+      component += utils::pow(N, i) * index[i];
     }
-
-    for (auto&& c : h.partial()) {
-      ++dx[index[*utils::index_of(outer, c)]];
+    for (int e = index.size(); i < e; ++i) {
+      ++dx[index[i]];
     }
   }
 
@@ -76,20 +81,25 @@ struct Partial {
   }
 };
 
-template <int N, int M>
+template <int M>
 struct PartialManifest {
-  Partial<N> data[M];
+  Partial data[M];
+  int N;
 
-  template <typename... Ts>
-  requires(std::same_as<std::remove_cvref_t<Ts>, Partial<N>> && ...)
-  constexpr PartialManifest(Ts&&... ps)
-      : data { std::forward<Ts>(ps)... }
+  constexpr PartialManifest(int N, utils::set<Partial>&& partials)
+      : N(N)
   {
+    assert(M == partials.size());
+    for (int i = 0; auto&& p : partials) {
+      assert(N == p.N);
+      data[i++] = p;
+    }
+    std::sort(data, data + M);
   }
 
   constexpr static int      size()       { return M; }
   constexpr decltype(auto) begin() const { return data + 0; }
-  constexpr decltype(auto)   end() const { return data + size(); }
+  constexpr decltype(auto)   end() const { return data + M; }
 
   constexpr decltype(auto) operator[](int i) const { assert(0 <= i && i < M);
     return data[i];
@@ -100,10 +110,10 @@ struct PartialManifest {
   }
 
   constexpr auto dx(int mask) const {
-    auto a = std::ranges::lower_bound(data, mask, std::less{}, [](const Partial<N>& dx) {
+    auto a = std::ranges::lower_bound(data, mask, std::less{}, [](const Partial& dx) {
       return dx.partial_mask();
     });
-    auto b = std::ranges::lower_bound(data, mask + 1, std::less{}, [](const Partial<N>& dx) {
+    auto b = std::ranges::lower_bound(data, mask + 1, std::less{}, [](const Partial& dx) {
       return dx.partial_mask();
     });
 
@@ -132,22 +142,32 @@ struct PartialManifest {
   constexpr auto fields() const {
     return dx(0);
   }
-};
 
-template <int N>
-PartialManifest(Partial<N>, std::same_as<Partial<N>> auto... rest) ->
-  PartialManifest<N, 1 + sizeof...(rest)>;
+  constexpr std::optional<int>
+  find(const Tensor& t, const ce::dvector<int>& index) const
+  {
+    Partial p(N, t, index);
+    auto begin = data;
+    auto   end = data + M;
+    if (auto i = std::lower_bound(begin, end, p); i < end) {
+      if (*i == p) {
+        return i - begin;
+      }
+    }
+    return std::nullopt;
+  }
+};
 }
 
-template <int N>
-struct fmt::formatter<ttl::Partial<N>> {
+template <>
+struct fmt::formatter<ttl::Partial> {
   constexpr auto parse(format_parse_context& ctx) {
     return ctx.begin();
   }
 
   template <typename FormatContext>
-  auto format(const ttl::Partial<N>& p, FormatContext& ctx) {
-    return format_to(ctx.out(), "{} {} d{}", p.tensor, p.component,
+  auto format(const ttl::Partial& p, FormatContext& ctx) {
+    return format_to(ctx.out(), "{} {} d{}", *p.tensor, p.component,
                      p.partial_string());
   }
 };
