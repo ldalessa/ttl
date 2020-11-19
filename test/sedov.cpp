@@ -94,7 +94,7 @@ int main(int argc, char* const argv[])
   auto eqns = args["--eqn"].asStringList();
   if (ttl::utils::index_of(eqns, "rho")) {
     if (args["-p"].asBool()) {
-      fmt::print("parse: rho = {}\n", rho_rhs.to_string());
+      fmt::print("parse: {} = {}\n", v, rho_rhs.to_string());
     }
     if (args["-t"].asBool()) {
       fmt::print("tensor: {}\n", sedov.simplify(rho, rho_rhs).to_string());
@@ -112,7 +112,7 @@ int main(int argc, char* const argv[])
 
   if (ttl::utils::index_of(eqns, "v")) {
     if (args["-p"].asBool()) {
-      fmt::print("parse: v = {}\n", v_rhs.to_string());
+      fmt::print("parse: {} = {}\n", v, v_rhs.to_string());
     }
     if (args["-t"].asBool()) {
       fmt::print("tensor: {}\n", sedov.simplify(v, v_rhs).to_string());
@@ -131,7 +131,7 @@ int main(int argc, char* const argv[])
 
   if (ttl::utils::index_of(eqns, "e")) {
     if (args["-p"].asBool()) {
-      fmt::print("parse: e = {}\n", e_rhs.to_string());
+      fmt::print("parse: {} = {}\n", e, e_rhs.to_string());
     }
     if (args["-t"].asBool()) {
       fmt::print("tensor: {}\n", sedov.simplify(e, e_rhs).to_string());
@@ -194,14 +194,14 @@ int main(int argc, char* const argv[])
   std::vector<double> next[sedov3d.n_scalars()];
   double constants[sedov3d.n_constants()];
 
-  constants[sedov3d.constants(gamma)] = 1.4;     // [-]ratio of specific heats
-  constants[sedov3d.constants(cv)] = 717.f;      // [J/kg.K] specific heat at constant volume
-  constants[sedov3d.constants(kappa)] = 0.02545; // [W/m.K] thermal conductivity
-  constants[sedov3d.constants(mu)] = 1.9e-5;     // [Pa.s] dynamic viscosity
-  constants[sedov3d.constants(muVolume)] = 1e-5; // [Pa.s] volume viscosity
-  constants[sedov3d.constants(g, 0)] = 0;        // no gravity
-  constants[sedov3d.constants(g, 1)] = 0;        // no gravity
-  constants[sedov3d.constants(g, 2)] = 0;        // no gravity
+  constants[sedov3d.constants(gamma)]    = 1.4;     // [-]ratio of specific heats
+  constants[sedov3d.constants(cv)]       = 717.f;   // [J/kg.K] specific heat at constant volume
+  constants[sedov3d.constants(kappa)]    = 0.02545; // [W/m.K] thermal conductivity
+  constants[sedov3d.constants(mu)]       = 1.9e-5;  // [Pa.s] dynamic viscosity
+  constants[sedov3d.constants(muVolume)] = 1e-5;    // [Pa.s] volume viscosity
+  constants[sedov3d.constants(g, 0)]     = 0;       // no gravity
+  constants[sedov3d.constants(g, 1)]     = 0;       // no gravity
+  constants[sedov3d.constants(g, 2)]     = 0;       // no gravity
 
   sedov3d.evaluate(std::atoi(argv[1]),
                    [&](int n, int i) -> double& {
