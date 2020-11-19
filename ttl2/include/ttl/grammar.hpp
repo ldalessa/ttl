@@ -1,3 +1,0 @@
-#pramga once
-namespace ttl {
-}
