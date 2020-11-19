@@ -25,7 +25,8 @@ static constexpr const char USAGE[] =
 #include <vector>
 
 namespace {
-inline namespace model {
+inline
+namespace model {
 /// Model parameters
 constexpr ttl::Tensor    gamma = ttl::scalar("gamma");
 constexpr ttl::Tensor       mu = ttl::scalar("mu");

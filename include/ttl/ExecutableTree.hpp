@@ -21,6 +21,27 @@ enum Tag {
   SCALAR,
   CONSTANT
 };
+
+struct Node
+{
+  Tag tag;
+  int offset = 0;
+  double   d = 0.0;
+
+  std::string to_string() const {
+    switch (tag) {
+     case SUM:        return "+";
+     case DIFFERENCE: return "-";
+     case PRODUCT:    return "*";
+     case RATIO:      return "/";
+     case IMMEDIATE:  return fmt::format("{}", d);
+     case SCALAR:     return fmt::format("s{}", offset);
+     case CONSTANT:   return fmt::format("c{}", offset);
+     default: assert(false);
+    }
+    __builtin_unreachable();
+  }
+};
 }
 
 /// The executable tree represents the structure that we actually evaluate at
@@ -28,29 +49,8 @@ enum Tag {
 template <int M, int Depth>
 struct ExecutableTree
 {
-  struct Node
-  {
-    exe::Tag tag;
-    int offset = 0;
-    double   d = 0.0;
-
-    std::string to_string() const {
-      switch (tag) {
-       case exe::SUM:        return "+";
-       case exe::DIFFERENCE: return "-";
-       case exe::PRODUCT:    return "*";
-       case exe::RATIO:      return "/";
-       case exe::IMMEDIATE:  return fmt::format("{}", d);
-       case exe::SCALAR:     return fmt::format("s{}", offset);
-       case exe::CONSTANT:   return fmt::format("c{}", offset);
-       default: assert(false);
-      }
-      __builtin_unreachable();
-    }
-  };
-
   int lhs_offset;
-  Node data[M];
+  exe::Node data[M];
 
   constexpr ExecutableTree(const ScalarTree& tree, auto const& scalars, auto const& constants)
       : lhs_offset(scalars.find(tree.lhs()))
