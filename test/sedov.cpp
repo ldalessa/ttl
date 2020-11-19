@@ -105,7 +105,8 @@ int main(int argc, char* const argv[])
       }
     }
     if (args["-e"].asBool()) {
-      fmt::print("exec rho: {}\n", std::get<sedov3d.scalars(rho)>(sedov3d.executable).to_string());
+      constexpr int M = sedov3d.scalars(rho);
+      fmt::print("exec rho: {}\n", std::get<M>(sedov3d.executable).to_string());
     }
   }
 
@@ -141,7 +142,8 @@ int main(int argc, char* const argv[])
       }
     }
     if (args["-e"].asBool()) {
-      fmt::print("exec e: {}\n", std::get<sedov3d.scalars(e)>(sedov3d.executable).to_string());
+      constexpr int M = sedov3d.scalars(e);
+      fmt::print("exec e: {}\n", std::get<M>(sedov3d.executable).to_string());
     }
   }
 

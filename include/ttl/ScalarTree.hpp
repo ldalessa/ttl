@@ -181,6 +181,23 @@ struct ScalarTree
   {
   }
 
+  constexpr ScalarTree& operator=(const ScalarTree&) = delete;
+  constexpr ScalarTree& operator=(ScalarTree&& b) {
+    delete root_;
+    N = std::exchange(b.N, 0);
+    lhs_ = b.lhs_;
+    root_ = std::exchange(b.root_, nullptr);
+    return *this;
+  }
+
+  constexpr friend void swap(ScalarTree& a, ScalarTree& b) {
+    std::swap(a.N, b.N);
+    Scalar temp = a.lhs_;
+    a.lhs_ = b.lhs_;
+    b.lhs_ = temp;
+    std::swap(a.root_, b.root_);
+  }
+
   constexpr const Scalar& lhs() const {
     return lhs_;
   }

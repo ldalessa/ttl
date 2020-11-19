@@ -47,6 +47,7 @@ struct ScalarManifest
         return i;
       }
     }
+    assert(false);
     return M;
   }
 

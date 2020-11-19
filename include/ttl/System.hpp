@@ -74,6 +74,13 @@ struct System
       int i = 0;
       (scalar_trees(N, TensorTree(lhs[i++], tree, constants), out), ...);
     }, rhs);
+
+    // we need to sort the tensor trees so that they can be found properly
+    std::sort(out.begin(), out.end(),
+              [](const ScalarTree& a, const ScalarTree& b) {
+                return a.lhs() < b.lhs();
+              });
+
     return out;
   }
 

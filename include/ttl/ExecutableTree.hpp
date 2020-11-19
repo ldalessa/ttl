@@ -49,6 +49,7 @@ struct ExecutableTree
   constexpr ExecutableTree(const ScalarTree& tree, auto const& scalars, auto const& constants)
       : lhs_offset(scalars.find(tree.lhs()))
   {
+    assert(scalars[lhs_offset] == tree.lhs());
     auto i = map(M - 1, tree.root(), scalars, constants);
     assert(i == M);
   }
