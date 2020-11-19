@@ -128,7 +128,7 @@ struct ScalarTree
       }
     }
 
-    std::string to_string() const
+    std::string to_string(int N = 0) const
     {
       switch (tag)
       {
@@ -136,7 +136,7 @@ struct ScalarTree
        case DIFFERENCE:
        case PRODUCT:
        case RATIO:
-        return fmt::format("({} {} {})", a_->to_string(), tag, b_->to_string());
+        return fmt::format("({} {} {})", a_->to_string(N), tag, b_->to_string(N));
 
        case RATIONAL:
         return fmt::format("{}", q);
@@ -145,18 +145,21 @@ struct ScalarTree
         return fmt::format("{}", d);
 
        case TENSOR:
+        if (N) {
+          return Scalar(N, tensor, index, constant).to_string();
+        }
         if (index.size()) {
-          return fmt::format("{}({})", tensor, index);
+          return fmt::format("{}({})", tensor.id(), index);
         }
-        else {
-          return fmt::format("{}", tensor);
-        }
+        return fmt::format("{}", tensor.id());
        default: assert(false);
       }
+      __builtin_unreachable();
     }
   };
 
   int N;
+  Scalar lhs_;
   Node* root_;
 
   constexpr ~ScalarTree() {
@@ -165,6 +168,7 @@ struct ScalarTree
 
   constexpr ScalarTree(int N, const TensorTree& tree, const ScalarIndex& outer)
       : N(N)
+      , lhs_(N, tree.lhs(), outer, false)
       , root_(map(tree.root(), outer))
   {
   }
@@ -172,8 +176,13 @@ struct ScalarTree
   constexpr ScalarTree(const ScalarTree&) = delete;
   constexpr ScalarTree(ScalarTree&& b)
       : N(std::exchange(b.N, 0))
+      , lhs_(b.lhs_)
       , root_(std::exchange(b.root_, nullptr))
   {
+  }
+
+  constexpr const Scalar& lhs() const {
+    return lhs_;
   }
 
   constexpr const Node* root() const {
@@ -191,7 +200,7 @@ struct ScalarTree
   }
 
   std::string to_string() const {
-    return root_->to_string();
+    return lhs_.to_string().append(" = ").append(root_->to_string(N));
   }
 
  private:
@@ -209,6 +218,7 @@ struct ScalarTree
      case DOUBLE: return new Node(tree->d);
      default: assert(false);
     }
+    __builtin_unreachable();
   }
 
   constexpr Node*
@@ -316,6 +326,7 @@ struct ScalarTree
      case RATIO:      return reduce_ratio(a, b);
      default: assert(false);
     }
+    __builtin_unreachable();
   }
 
   constexpr Node* reduce_sum(Node* a, Node* b) const {

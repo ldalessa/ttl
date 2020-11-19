@@ -75,42 +75,47 @@ struct Scalar
     if (b.component < a.component) return false;
     return false;
   }
+
+  std::string to_string() const
+  {
+    constexpr static const char ids[] = "xyzw";
+
+    std::string str;
+
+    if (mask != 0) {
+      str.append("d");
+    }
+
+    str.append(tensor.id());
+
+    if (tensor.order()) {
+      str.append(1, ids[component]);
+    }
+
+    if (mask == 0) {
+      return str;
+    }
+
+    str.append("_d");
+
+    for (int n = 0; n < dx.size(); ++n) {
+      for (int i = 0; i < dx[n]; ++i) {
+        str.append(1, ids[n]);
+      }
+    }
+    return str;
+  }
 };
 }
 
 template <>
 struct fmt::formatter<ttl::Scalar> {
-  constexpr static const char ids[] = "xyzw";
-
   constexpr auto parse(format_parse_context& ctx) {
     return ctx.begin();
   }
 
   template <typename FormatContext>
   auto format(const ttl::Scalar& p, FormatContext& ctx) {
-    if (p.mask != 0) {
-      format_to(ctx.out(), "d");
-    }
-
-    if (p.tensor.order()) {
-      format_to(ctx.out(), "{}{}", p.tensor, ids[p.component]);
-    }
-    else {
-      format_to(ctx.out(), "{}", p.tensor);
-    }
-
-    if (p.mask == 0) {
-      return ctx.out();
-    }
-
-    format_to(ctx.out(), "_d");
-
-    for (int n = 0; n < p.dx.size(); ++n) {
-      for (int i = 0; i < p.dx[n]; ++i) {
-        format_to(ctx.out(), "{}", ids[n]);
-      }
-    }
-
-    return ctx.out();
+    return format_to(ctx.out(), "{}", p.to_string());
   }
 };

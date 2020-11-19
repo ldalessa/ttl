@@ -32,6 +32,7 @@ constexpr Index tag_outer(Tag tag, const Index& a, const Index& b) {
 
    default: assert(false);
   }
+  __builtin_unreachable();
 }
 
 template <typename T>
@@ -43,6 +44,7 @@ constexpr auto tag_apply(Tag tag, T&& a, T&& b) {
    case RATIO:      return std::forward<T>(a) / std::forward<T>(b);
    default: assert(false);
   }
+  __builtin_unreachable();
 }
 
 constexpr bool tag_is_binary(Tag tag) {

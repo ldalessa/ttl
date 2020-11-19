@@ -3,7 +3,7 @@ static constexpr const char USAGE[] =
   Usage:
       sedov (-h | --help)
       sedov --version
-      sedov [--constants] [--scalars] [-ptser] [--eqn <rhs>]... [--dot <rhs>]... [N]
+      sedov [--constants] [--scalars] [-ptse] [--eqn <rhs>]... [--dot <rhs>]... [N]
 
   Options:
       -h, --help         Show this screen.
@@ -16,7 +16,6 @@ static constexpr const char USAGE[] =
       -t                 Print tensor treesx
       -s                 Print scalar trees
       -e                 Print executable trees
-      -r                 Print runtime trees
 )";
 
 #include "cm.hpp"
@@ -128,25 +127,21 @@ int main(int argc, char* const argv[])
       fmt::print("parse: rho = {}\n", rho_rhs.to_string());
     }
     if (args["-t"].asBool()) {
-      fmt::print("tensor: rho = {}\n", sedov.simplify(rho_rhs).to_string());
+      fmt::print("tensor: {}\n", sedov.simplify(rho, rho_rhs).to_string());
     }
     if (args["-s"].asBool()) {
-      for (int i = 0; auto&& tree : sedov.scalar_trees(N, sedov.simplify(rho_rhs))) {
-        fmt::print("scalar: rho{} = {}\n", i++, tree.to_string());
+      for (auto&& tree : sedov.scalar_trees(N, sedov.simplify(rho, rho_rhs))) {
+        fmt::print("scalar: {}\n", tree.to_string());
       }
     }
     // if (args["-e"].asBool()) {
     //   fmt::print("executable: rho = {}\n", rho_rhs);
     // }
-    // if (args["-r"].asBool()) {
-    //   fmt::print("runtime: rho = {}\n", rho_rhs);
-    // }
   }
 
   if (args["-e"].asBool()) {
     std::apply([](auto const&... tree) {
-      int i = 0;
-      (fmt::print("executable: {} = {}\n", i++, tree.to_string()), ...);
+      (fmt::print("executable: {}\n", tree.to_string()), ...);
     }, sedov3d.executable);
   }
 
@@ -155,20 +150,17 @@ int main(int argc, char* const argv[])
       fmt::print("parse: v = {}\n", v_rhs.to_string());
     }
     if (args["-t"].asBool()) {
-      fmt::print("tensor: v = {}\n", sedov.simplify(v_rhs).to_string());
+      fmt::print("tensor: {}\n", sedov.simplify(v, v_rhs).to_string());
     }
     if (args["-s"].asBool()) {
-      for (int i = 0; auto&& tree : sedov.scalar_trees(N, sedov.simplify(v_rhs))) {
-        fmt::print("scalar: v{} = {}\n", i++, tree.to_string());
+      for (auto&& tree : sedov.scalar_trees(N, sedov.simplify(v, v_rhs))) {
+        fmt::print("scalar: {}\n", tree.to_string());
       }
     }
     // if (args["-e"].asBool()) {
     //   for (int i = 0; auto&& tree : sedov3d.executable) {
     //     fmt::print("executable: v{} = {}\n", i++, *tree);
     //   }
-    // }
-    // if (args["-r"].asBool()) {
-    //   fmt::print("runtime: v = {}\n", v_rhs);
     // }
   }
 
@@ -177,18 +169,15 @@ int main(int argc, char* const argv[])
       fmt::print("parse: e = {}\n", e_rhs.to_string());
     }
     if (args["-t"].asBool()) {
-      fmt::print("tensor: e = {}\n", sedov.simplify(e_rhs).to_string());
+      fmt::print("tensor: {}\n", sedov.simplify(e, e_rhs).to_string());
     }
     if (args["-s"].asBool()) {
-      for (int i = 0; auto&& tree : sedov.scalar_trees(N, sedov.simplify(e_rhs))) {
-        fmt::print("scalar: e{} = {}\n", i++, tree.to_string());
+      for (auto&& tree : sedov.scalar_trees(N, sedov.simplify(e, e_rhs))) {
+        fmt::print("scalar: {}\n", tree.to_string());
       }
     }
     // if (args["-e"].asBool()) {
     //   fmt::print("executable: e = {}\n", e_rhs);
-    // }
-    // if (args["-r"].asBool()) {
-    //   fmt::print("runtime: e = {}\n", e_rhs);
     // }
   }
 
@@ -198,10 +187,10 @@ int main(int argc, char* const argv[])
       fmt::print("graph rho_parse {{\n{}}}\n", ttl::dot(rho_rhs));
     }
     if (args["-t"].asBool()) {
-      fmt::print("graph rho_tensor {{\n{}}}\n", ttl::dot(sedov.simplify(rho_rhs)));
+      fmt::print("graph rho_tensor {{\n{}}}\n", ttl::dot(sedov.simplify(rho, rho_rhs)));
     }
     if (args["-s"].asBool()) {
-      for (int i = 0; auto&& tree : sedov.scalar_trees(N, sedov.simplify(rho_rhs))) {
+      for (int i = 0; auto&& tree : sedov.scalar_trees(N, sedov.simplify(rho, rho_rhs))) {
         fmt::print("graph rho{} {{\n{}}}\n", i++, ttl::dot(tree));
       }
     }
@@ -212,10 +201,10 @@ int main(int argc, char* const argv[])
       fmt::print("graph v_parse {{\n{}}}\n", ttl::dot(v_rhs));
     }
     if (args["-t"].asBool()) {
-      fmt::print("graph v_tensor {{\n{}}}\n", ttl::dot(sedov.simplify(v_rhs)));
+      fmt::print("graph v_tensor {{\n{}}}\n", ttl::dot(sedov.simplify(v, v_rhs)));
     }
     if (args["-s"].asBool()) {
-      for (int i = 0; auto&& tree : sedov.scalar_trees(N, sedov.simplify(v_rhs))) {
+      for (int i = 0; auto&& tree : sedov.scalar_trees(N, sedov.simplify(v, v_rhs))) {
         fmt::print("graph v{} {{\n{}}}\n", i++, ttl::dot(tree));
       }
     }
@@ -226,10 +215,10 @@ int main(int argc, char* const argv[])
       fmt::print("graph e_parse {{\n{}}}\n", ttl::dot(e_rhs));
     }
     if (args["-t"].asBool()) {
-      fmt::print("graph e_tensor {{\n{}}}\n", ttl::dot(sedov.simplify(e_rhs)));
+      fmt::print("graph e_tensor {{\n{}}}\n", ttl::dot(sedov.simplify(e, e_rhs)));
     }
     if (args["-s"].asBool()) {
-      for (int i = 0; auto&& tree : sedov.scalar_trees(N, sedov.simplify(e_rhs))) {
+      for (int i = 0; auto&& tree : sedov.scalar_trees(N, sedov.simplify(e, e_rhs))) {
         fmt::print("graph e{} {{\n{}}}\n", i++, ttl::dot(tree));
       }
     }
@@ -239,13 +228,13 @@ int main(int argc, char* const argv[])
   std::vector<double> next[sedov3d.n_scalars()];
   double constants[sedov3d.n_constants()];
   sedov3d.evaluate(std::atoi(argv[1]),
-                   [&](int n, int i) {
+                   [&](int n, int i) -> double& {
                      return next[n][i];
                    },
-                   [&](int n, int i) {
+                   [&](int n, int i) -> double {
                      return now[n][i];
                    },
-                   [&](int n) {
+                   [&](int n) -> double {
                      return constants[n];
                    });
 

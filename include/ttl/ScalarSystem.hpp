@@ -65,10 +65,11 @@ struct ScalarSystem
     }(std::make_index_sequence<n_trees()>());
   }();
 
+  [[gnu::noinline]]
   constexpr static void evaluate(int n, auto&& lhs, auto&& scalars, auto&& constants) {
-    // [&]<std::size_t... i>(std::index_sequence<i...>) {
-    //   (std::get<i>(executable).evaluate(n, lhs, scalars, constants), ...);
-    // }(std::make_index_sequence<n_trees()>());
+    [&]<std::size_t... i>(std::index_sequence<i...>) {
+      (std::get<i>(executable).evaluate(n, lhs, scalars, constants), ...);
+    }(std::make_index_sequence<n_trees()>());
   }
 };
 }

@@ -161,9 +161,11 @@ struct TensorTree
         }
        default: assert(false);
       }
+      __builtin_unreachable();
     }
   };
 
+  Tensor lhs_;
   Node* root_;
 
   constexpr ~TensorTree() {
@@ -171,15 +173,22 @@ struct TensorTree
   }
 
   template <int M>
-  constexpr TensorTree(const ParseTree<M>& tree, auto&& constants)
-      : root_(map(tree.root(), constants))
+  constexpr TensorTree(const Tensor& lhs, const ParseTree<M>& tree, auto&& constants)
+      : lhs_(lhs)
+      , root_(map(tree.root(), constants))
   {
   }
 
   constexpr TensorTree(const TensorTree&) = delete;
   constexpr TensorTree(TensorTree&& b)
-      : root_(std::exchange(b.root_, nullptr))
+      : lhs_(b.lhs_)
+      , root_(std::exchange(b.root_, nullptr))
   {
+    assert(lhs_.order() == root_->order());
+  }
+
+  constexpr const Tensor& lhs() const {
+    return lhs_;
   }
 
   constexpr const Node* root() const {
@@ -195,7 +204,7 @@ struct TensorTree
   }
 
   std::string to_string() const {
-    return root_->to_string();
+    return std::string(lhs_.id()).append(" = ").append(root_->to_string());
   }
 
  private:
@@ -226,6 +235,7 @@ struct TensorTree
      case RATIO:      return reduce_ratio(a, b);
      default: assert(false);
     }
+    __builtin_unreachable();
   }
 
   constexpr static Node* reduce_sum(Node* a, Node* b)
@@ -330,6 +340,7 @@ struct TensorTree
      case RATIO:      return dx_quotient(a, b, index);
      default: assert(false);
     }
+    __builtin_unreachable();
   }
 
   constexpr static Node* dx_product(Node* a, Node* b, const Index& index)

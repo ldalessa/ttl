@@ -21,18 +21,18 @@ constexpr ttl::ScalarSystem<burgers, 1> burgers1d;
 
 int main()
 {
-  fmt::print("u1 = {}\n", burgers.scalar_trees(1)[0].to_string());
+  fmt::print("{}\n", burgers.scalar_trees(1)[0].to_string());
 
-  fmt::print("u_rhs = {}\n", u_rhs.to_string());
+  fmt::print("u = {}\n", u_rhs.to_string());
   fmt::print("graph u {{\n{}}}\n", ttl::dot(u_rhs));
 
-  auto&& sp = burgers.simplify(u_rhs);
-  fmt::print("u_rhs = {}\n", sp.to_string());
+  auto&& sp = burgers.simplify(u, u_rhs);
+  fmt::print("{}\n", sp.to_string());
   fmt::print("graph u {{\n{}}}\n", ttl::dot(sp));
 
   for (int i = 0; auto&& tree : burgers.scalar_trees(2))
   {
-    fmt::print("u{} = {}\n", i++, tree.to_string());
+    fmt::print("{}: {}\n", i++, tree.to_string());
   }
   return 0;
 }

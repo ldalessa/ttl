@@ -3,10 +3,12 @@
 #include "Rational.hpp"
 #include "Tag.hpp"
 #include "ScalarTree.hpp"
-#include "Tensor.hpp"
-#include "utils.hpp"
+#include <fmt/core.h>
 
-namespace ttl {
+namespace ttl
+{
+/// The executable tree represents the structure that we actually evaluate at
+/// runtime in order compute the right hand side for a single scalar function.
 template <int M, int Depth>
 struct ExecutableTree
 {
@@ -32,17 +34,20 @@ struct ExecutableTree
        case DIFFERENCE: return "-";
        case PRODUCT:    return "*";
        case RATIO:      return "/";
-       case IMMEDIATE:  return std::to_string(d);
-       case SCALAR:     return std::string("s") += std::to_string(offset) += std::string("");
-       case CONSTANT:   return std::string("c") += std::to_string(offset) += std::string("");
+       case IMMEDIATE:  return fmt::format("{}", d);
+       case SCALAR:     return fmt::format("s{}", offset);
+       case CONSTANT:   return fmt::format("c{}", offset);
        default: assert(false);
       }
+      __builtin_unreachable();
     }
   };
 
+  int lhs_offset;
   Node data[M];
 
   constexpr ExecutableTree(const ScalarTree& tree, auto const& scalars, auto const& constants)
+      : lhs_offset(scalars.find(tree.lhs()))
   {
     auto i = map(M - 1, tree.root(), scalars, constants);
     assert(i == M);
@@ -67,7 +72,7 @@ struct ExecutableTree
        case DIFFERENCE: stack[d - 2] -= stack[d - 1]; --d; break;
        case PRODUCT:    stack[d - 2] *= stack[d - 1]; --d; break;
        case RATIO:      stack[d - 2] /= stack[d - 1]; --d; break;
-       case IMMEDIATE:  stack[d++] = data[j].immediate; break;
+       case IMMEDIATE:  stack[d++] = data[j].d; break;
        case SCALAR:     stack[d++] = scalars(data[j].offset, i); break;
        case CONSTANT:   stack[d++] = constants(data[j].offset); break;
       }
@@ -81,7 +86,7 @@ struct ExecutableTree
   {
     for (int i = 0; i < n; ++i)
     {
-      lhs(i) = eval(i, scalars, constants);
+      lhs(lhs_offset, i) = eval(i, scalars, constants);
     }
   }
 
@@ -99,7 +104,9 @@ struct ExecutableTree
       }
     }
     assert(n == 1);
-    return stack[--n];
+    std::string s("s");
+    std::string eq(" = ");
+    return s += std::to_string(lhs_offset) += eq += stack[--n];
   }
 
  private:
@@ -116,6 +123,7 @@ struct ExecutableTree
      case ttl::DOUBLE:    return map_double(i, tree);
      default: assert(false);
     }
+    __builtin_unreachable();
   }
 
   constexpr int map_binary(int i, const ScalarTree::Node* tree, auto const& scalars, auto const& constants)

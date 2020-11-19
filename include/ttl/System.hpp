@@ -33,18 +33,18 @@ struct System
     return true;
   }
 
-  template <int M>
-  constexpr TensorTree simplify(const ParseTree<M>& tree) const
-  {
-    return TensorTree(tree, [&](const Tensor& t) {
-      return is_constant(t);
-    });
-  }
-
   constexpr int n_scalar_trees(int N) const {
     return std::apply([N](auto const&... tree) {
       return (0 + ... + utils::pow(N, tree.order()));
     }, rhs);
+  }
+
+  template <int M>
+  constexpr TensorTree simplify(const Tensor& lhs, const ParseTree<M>& tree) const
+  {
+    return TensorTree(lhs, tree, [&](const Tensor& t) {
+      return is_constant(t);
+    });
   }
 
   constexpr void
@@ -71,7 +71,8 @@ struct System
     };
     ce::dvector<ScalarTree> out;
     std::apply([&](auto const&... tree) {
-      (scalar_trees(N, TensorTree(tree, constants), out), ...);
+      int i = 0;
+      (scalar_trees(N, TensorTree(lhs[i++], tree, constants), out), ...);
     }, rhs);
     return out;
   }
