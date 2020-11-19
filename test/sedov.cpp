@@ -22,7 +22,6 @@ static constexpr const char USAGE[] =
 #include <ttl/ttl.hpp>
 #include <fmt/core.h>
 #include <docopt.h>
-#include <cmath>
 #include <vector>
 
 namespace {
@@ -70,23 +69,8 @@ int main(int argc, char* const argv[])
 
   int N = args["N"] ? args["N"].asLong() : 3;
 
-  // if (args["--tensors"].asBool()) {
-  //   puts("tensors:");
-  //   for (int i = 0; auto&& c : sedov.tensors()) {
-  //     printf("%d: %s\n", i++, to_string(*c).data());
-  //   }
-  //   puts("");
-  // }
-
-  // if (args["--hessians"].asBool()) {
-  //   puts("hessians:");
-  //   for (int i = 0; auto&& c : sedov3d.hessians) {
-  //     fmt::print("{}: {}\n", i++, c);
-  //   }
-  //   puts("");
-  // }
-
-  if (args["--constants"].asBool()) {
+  if (args["--constants"].asBool())
+  {
     puts("constants:");
     for (int i = 0; auto&& c : sedov3d.constants) {
       fmt::print("{}: {}\n", i++, c);
@@ -94,27 +78,13 @@ int main(int argc, char* const argv[])
     puts("");
   }
 
-  // if (args["--scalars"].asBool()) {
-  //   puts("scalars:");
-  //   for (int n = 0; n < 8; ++n) {
-  //     printf("dx in %d\n", n);
-  //     for (int i = 0; int dx : sedov3d.scalars.dx(n)) {
-  //       fmt::print("({},{}): {}\n", i++, dx, sedov3d.scalars[dx]);
-  //     }
-  //     puts("");
-  //   }
-  //   puts("");
-  // }
-
-  if (args["--scalars"].asBool()) {
+  if (args["--scalars"].asBool())
+  {
     puts("scalars:");
-    // for (int i = 0; auto&& c : sedov.scalars(N)) {
-    //   fmt::print("{}: {}\n", i++, c);
-    // }
-    for (int n = 0; n < std::pow(2, sedov3d.dim()); ++n) {
+    for (int j = 0, n = 0; n < ttl::utils::pow(2, sedov3d.dim()); ++n) {
       printf("dx: %d\n", n);
       for (int i = 0; auto&& c : sedov3d.scalars.dx(n)) {
-        fmt::print("{}: {}\n", i++, c);
+        fmt::print("{} {}: {}\n", j++, i++, c);
       }
       puts("");
     }
@@ -134,15 +104,9 @@ int main(int argc, char* const argv[])
         fmt::print("scalar: {}\n", tree.to_string());
       }
     }
-    // if (args["-e"].asBool()) {
-    //   fmt::print("executable: rho = {}\n", rho_rhs);
-    // }
-  }
-
-  if (args["-e"].asBool()) {
-    std::apply([](auto const&... tree) {
-      (fmt::print("executable: {}\n", tree.to_string()), ...);
-    }, sedov3d.executable);
+    if (args["-e"].asBool()) {
+      fmt::print("exec rho: {}\n", std::get<sedov3d.scalars(rho)>(sedov3d.executable).to_string());
+    }
   }
 
   if (ttl::utils::index_of(eqns, "v")) {
@@ -157,11 +121,11 @@ int main(int argc, char* const argv[])
         fmt::print("scalar: {}\n", tree.to_string());
       }
     }
-    // if (args["-e"].asBool()) {
-    //   for (int i = 0; auto&& tree : sedov3d.executable) {
-    //     fmt::print("executable: v{} = {}\n", i++, *tree);
-    //   }
-    // }
+    if (args["-e"].asBool()) {
+      [&]<std::size_t... n>(std::index_sequence<n...>) {
+        (fmt::print("exec v[{}]: {}\n", n, std::get<sedov3d.scalars(v, n)>(sedov3d.executable).to_string()), ...);
+      }(std::make_index_sequence<sedov3d.dim()>());
+    }
   }
 
   if (ttl::utils::index_of(eqns, "e")) {
@@ -176,9 +140,9 @@ int main(int argc, char* const argv[])
         fmt::print("scalar: {}\n", tree.to_string());
       }
     }
-    // if (args["-e"].asBool()) {
-    //   fmt::print("executable: e = {}\n", e_rhs);
-    // }
+    if (args["-e"].asBool()) {
+      fmt::print("exec e: {}\n", std::get<sedov3d.scalars(e)>(sedov3d.executable).to_string());
+    }
   }
 
   auto dots = args["--dot"].asStringList();
@@ -227,6 +191,16 @@ int main(int argc, char* const argv[])
   std::vector<double> now[sedov3d.n_scalars()];
   std::vector<double> next[sedov3d.n_scalars()];
   double constants[sedov3d.n_constants()];
+
+  constants[sedov3d.constants(gamma)] = 1.4;     // [-]ratio of specific heats
+  constants[sedov3d.constants(cv)] = 717.f;      // [J/kg.K] specific heat at constant volume
+  constants[sedov3d.constants(kappa)] = 0.02545; // [W/m.K] thermal conductivity
+  constants[sedov3d.constants(mu)] = 1.9e-5;     // [Pa.s] dynamic viscosity
+  constants[sedov3d.constants(muVolume)] = 1e-5; // [Pa.s] volume viscosity
+  constants[sedov3d.constants(g, 0)] = 0;        // no gravity
+  constants[sedov3d.constants(g, 1)] = 0;        // no gravity
+  constants[sedov3d.constants(g, 2)] = 0;        // no gravity
+
   sedov3d.evaluate(std::atoi(argv[1]),
                    [&](int n, int i) -> double& {
                      return next[n][i];
@@ -237,13 +211,6 @@ int main(int argc, char* const argv[])
                    [&](int n) -> double {
                      return constants[n];
                    });
-
-  // gamma    = 1.4;       // [-]ratio of specific heats
-  // cv       = 717.5;     // [J/kg.K] specific heat at constant volume
-  // kappa    = 0.02545;   // [W/m.K] thermal conductivity
-  // mu       = 1.9e-5;    // [Pa.s] dynamic viscosity
-  // muVolume = 1e-5;      // [Pa.s] volume viscosity
-  // g        = {0, 0, 0}; //
 
   return 0;
 }

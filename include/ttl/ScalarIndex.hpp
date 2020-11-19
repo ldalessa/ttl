@@ -13,6 +13,12 @@ struct ScalarIndex
  public:
   constexpr ScalarIndex() = default;
   constexpr ScalarIndex(int n) : size_(n) {}
+  constexpr ScalarIndex(std::in_place_t, std::integral auto... is)
+      : size_{ sizeof...(is) }
+      , data_{ int(is)... }
+  {
+    assert(((0 <= is && is < std::numeric_limits<int>::max()) && ...));
+  }
 
   constexpr auto  size() const { return size_; }
   constexpr auto begin() const { return data_; }

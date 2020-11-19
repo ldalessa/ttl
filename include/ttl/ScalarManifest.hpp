@@ -47,11 +47,25 @@ struct ScalarManifest
         return i;
       }
     }
-    assert(false); __builtin_unreachable();
+    return M;
   }
 
   constexpr int find(const ScalarTree::Node* tree) const {
     return find({N, tree});
+  }
+
+  constexpr int find(const Tensor& t, std::integral auto... is) const {
+    assert(t.order() == sizeof...(is));
+    assert(((is < N) && ...));
+    return find({N, t, {std::in_place, is...}, true});
+  }
+
+  constexpr const Scalar& operator[](int i) const { return data[i]; }
+
+  // Makes client code prettier.
+  constexpr int operator()(const Tensor& t, std::integral auto... is) const
+  {
+    return find(t, is...);
   }
 };
 }
