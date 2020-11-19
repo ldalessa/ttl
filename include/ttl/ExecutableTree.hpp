@@ -11,36 +11,38 @@
 
 namespace ttl
 {
+namespace exe {
+enum Tag {
+  SUM,
+  DIFFERENCE,
+  PRODUCT,
+  RATIO,
+  IMMEDIATE,
+  SCALAR,
+  CONSTANT
+};
+}
+
 /// The executable tree represents the structure that we actually evaluate at
 /// runtime in order compute the right hand side for a single scalar function.
 template <int M, int Depth>
 struct ExecutableTree
 {
-  enum Tag {
-    SUM,
-    DIFFERENCE,
-    PRODUCT,
-    RATIO,
-    IMMEDIATE,
-    SCALAR,
-    CONSTANT
-  };
-
   struct Node
   {
-    Tag    tag;
+    exe::Tag tag;
     int offset = 0;
     double   d = 0.0;
 
     std::string to_string() const {
       switch (tag) {
-       case SUM:        return "+";
-       case DIFFERENCE: return "-";
-       case PRODUCT:    return "*";
-       case RATIO:      return "/";
-       case IMMEDIATE:  return fmt::format("{}", d);
-       case SCALAR:     return fmt::format("s{}", offset);
-       case CONSTANT:   return fmt::format("c{}", offset);
+       case exe::SUM:        return "+";
+       case exe::DIFFERENCE: return "-";
+       case exe::PRODUCT:    return "*";
+       case exe::RATIO:      return "/";
+       case exe::IMMEDIATE:  return fmt::format("{}", d);
+       case exe::SCALAR:     return fmt::format("s{}", offset);
+       case exe::CONSTANT:   return fmt::format("c{}", offset);
        default: assert(false);
       }
       __builtin_unreachable();
@@ -58,6 +60,14 @@ struct ExecutableTree
     assert(i == M);
   }
 
+  constexpr static int size() {
+    return M;
+  }
+
+  constexpr static int depth() {
+    return Depth;
+  }
+
   [[gnu::always_inline]]
   eve::wide<double> eval(int i, auto const& scalars, auto const& constants) const
   {
@@ -73,23 +83,25 @@ struct ExecutableTree
     {
       switch (data[j].tag)
       {
-       case SUM:        stack[d - 2] += stack[d - 1]; --d; break;
-       case DIFFERENCE: stack[d - 2] -= stack[d - 1]; --d; break;
-       case PRODUCT:    stack[d - 2] *= stack[d - 1]; --d; break;
-       case RATIO:      stack[d - 2] /= stack[d - 1]; --d; break;
-       case IMMEDIATE:  stack[d++] = data[j].d; break;
-       case SCALAR:     stack[d++] = eve::load(&scalars(data[j].offset, i), eve::as_<eve::wide<double>>{}); break;
-       case CONSTANT:   stack[d++] = constants(data[j].offset); break;
+       case exe::SUM:        stack[d - 2] += stack[d - 1]; --d; break;
+       case exe::DIFFERENCE: stack[d - 2] -= stack[d - 1]; --d; break;
+       case exe::PRODUCT:    stack[d - 2] *= stack[d - 1]; --d; break;
+       case exe::RATIO:      stack[d - 2] /= stack[d - 1]; --d; break;
+       case exe::IMMEDIATE:  stack[d++] = data[j].d; break;
+       case exe::SCALAR:     stack[d++] = eve::load(&scalars(data[j].offset, i), eve::as_<eve::wide<double>>{}); break;
+       case exe::CONSTANT:   stack[d++] = constants(data[j].offset); break;
       }
     }
 
     return stack[0];
   }
 
-  [[gnu::always_inline]]
-  void evaluate(int n, auto const& lhs, auto const& scalars, auto const& constants) const
+  // [[gnu::always_inline]]
+  [[gnu::noinline]]
+  void evaluate(int n, auto&& lhs, auto&& scalars, auto&& constants) const
   {
-    for (int i = 0; i < n; i += eve::wide<double>::static_size)
+    constexpr int N = eve::wide<double>::static_size;
+    for (int i = 0; i < n; i += N)
     {
       eve::store(eval(i, scalars, constants), &lhs(lhs_offset, i));
     }
@@ -99,7 +111,7 @@ struct ExecutableTree
     std::string stack[Depth];
     int n = 0;
     for (auto&& node : data) {
-      if (node.tag < IMMEDIATE) {
+      if (node.tag < exe::IMMEDIATE) {
         std::string b = stack[--n];
         std::string a = stack[--n];
         stack[n++] = fmt::format("({} {} {})", a, node.to_string(), b);
@@ -136,10 +148,10 @@ struct ExecutableTree
     int b = map(i - 1, tree->b(), scalars, constants);
     int a = map(i - (b + 1), tree->a(), scalars, constants);
     switch (tree->tag) {
-     case ttl::SUM:        data[i].tag = SUM; break;
-     case ttl::DIFFERENCE: data[i].tag = DIFFERENCE; break;
-     case ttl::PRODUCT:    data[i].tag = PRODUCT; break;
-     case ttl::RATIO:      data[i].tag = RATIO; break;
+     case ttl::SUM:        data[i].tag = exe::SUM; break;
+     case ttl::DIFFERENCE: data[i].tag = exe::DIFFERENCE; break;
+     case ttl::PRODUCT:    data[i].tag = exe::PRODUCT; break;
+     case ttl::RATIO:      data[i].tag = exe::RATIO; break;
      default: assert(false);
     }
     return a + b + 1;
@@ -148,11 +160,11 @@ struct ExecutableTree
   constexpr int map_tensor(int i, const ScalarTree::Node* tree, auto const& scalars, auto const& constants)
   {
     if (tree->constant) {
-      data[i].tag = CONSTANT;
+      data[i].tag = exe::CONSTANT;
       data[i].offset = constants.find(tree);
     }
     else {
-      data[i].tag = SCALAR;
+      data[i].tag = exe::SCALAR;
       data[i].offset = scalars.find(tree);
     }
     return 1;
@@ -160,14 +172,14 @@ struct ExecutableTree
 
   constexpr int map_rational(int i, const ScalarTree::Node* tree)
   {
-    data[i].tag = IMMEDIATE;
+    data[i].tag = exe::IMMEDIATE;
     data[i].d = to_double(tree->q);
     return 1;
   }
 
   constexpr int map_double(int i, const ScalarTree::Node* tree)
   {
-    data[i].tag = IMMEDIATE;
+    data[i].tag = exe::IMMEDIATE;
     data[i].d = tree->d;
     return 1;
   }

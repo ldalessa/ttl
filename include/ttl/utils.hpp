@@ -51,6 +51,18 @@ constexpr static void expand(int N, int Order, Op&& op) {
   delete [] index;
 }
 
+template <typename Op, std::size_t... is>
+[[gnu::always_inline]]
+constexpr decltype(auto) apply(Op&& op, std::index_sequence<is...>) {
+  return std::forward<Op>(op)(std::integral_constant<std::size_t, is>()...);
+};
+
+template <int M, typename Op>
+[[gnu::always_inline]]
+constexpr decltype(auto) apply(Op&& op) {
+  return apply(std::forward<Op>(op), std::make_index_sequence<M>());
+};
+
 template <typename T>
 struct stack : ce::dvector<T> {
   using ce::dvector<T>::dvector;
@@ -93,4 +105,12 @@ struct set : ce::dvector<T> {
 //     }
   }
 };
+
+template <typename... Ts>
+struct print_types_t;
+
+template <typename... Ts>
+void print_types(Ts...) {
+  print_types_t<Ts...> _;
+}
 }
