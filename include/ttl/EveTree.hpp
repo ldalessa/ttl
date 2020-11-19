@@ -89,8 +89,8 @@ struct Tree
     return stack[0];
   }
 
-  // [[gnu::always_inline]]
-  [[gnu::noinline]]
+  [[gnu::always_inline]]
+  // [[gnu::noinline]]
   void evaluate(int n, auto&& lhs, auto&& scalars, auto&& constants) const
   {
     constexpr static int N = eve::wide<double>::static_size;
