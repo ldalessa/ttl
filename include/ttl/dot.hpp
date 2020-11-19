@@ -1,6 +1,5 @@
 #pragma once
 
-#include "utils.hpp"
 #include <fmt/core.h>
 
 namespace ttl {
