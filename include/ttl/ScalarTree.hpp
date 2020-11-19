@@ -72,7 +72,7 @@ struct ScalarTree
         auto [a_size, a_depth] = a_->size();
         auto [b_size, b_depth] = b_->size();
 
-        return std::array{a_size + b_size + 1, std::max(a_size, b_size) + 1};
+        return std::array{a_size + b_size + 1, std::max(a_depth, b_depth) + 1};
       }
       return std::array{1, 1};
     }
