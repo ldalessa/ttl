@@ -3,6 +3,10 @@
 #include "Rational.hpp"
 #include "Tag.hpp"
 #include "ScalarTree.hpp"
+#define EVE_FORCEINLINE
+#include <eve/function/load.hpp>
+#include <eve/function/store.hpp>
+#include <eve/wide.hpp>
 #include <fmt/core.h>
 
 namespace ttl
@@ -55,9 +59,9 @@ struct ExecutableTree
   }
 
   [[gnu::always_inline]]
-  double eval(int i, auto const& scalars, auto const& constants) const
+  eve::wide<double> eval(int i, auto const& scalars, auto const& constants) const
   {
-    double stack[Depth];
+    eve::wide<double> stack[Depth];
     int d = 0;
 
 #ifdef __clang__
@@ -74,7 +78,7 @@ struct ExecutableTree
        case PRODUCT:    stack[d - 2] *= stack[d - 1]; --d; break;
        case RATIO:      stack[d - 2] /= stack[d - 1]; --d; break;
        case IMMEDIATE:  stack[d++] = data[j].d; break;
-       case SCALAR:     stack[d++] = scalars(data[j].offset, i); break;
+       case SCALAR:     stack[d++] = eve::load(&scalars(data[j].offset, i), eve::as_<eve::wide<double>>{}); break;
        case CONSTANT:   stack[d++] = constants(data[j].offset); break;
       }
     }
@@ -85,9 +89,9 @@ struct ExecutableTree
   [[gnu::always_inline]]
   void evaluate(int n, auto const& lhs, auto const& scalars, auto const& constants) const
   {
-    for (int i = 0; i < n; ++i)
+    for (int i = 0; i < n; i += eve::wide<double>::static_size)
     {
-      lhs(lhs_offset, i) = eval(i, scalars, constants);
+      eve::store(eval(i, scalars, constants), &lhs(lhs_offset, i));
     }
   }
 
