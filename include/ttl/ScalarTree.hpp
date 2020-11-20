@@ -209,6 +209,7 @@ struct ScalarTree
   constexpr void scalars(set<Scalar>& out) const {
     assert(N != 0);
     assert(root_ != nullptr);
+    out.emplace(lhs_);
     return root_->scalars(N, out);
   }
 
