@@ -1,7 +1,6 @@
 #pragma once
 
 #include "ExecutableTree.hpp"
-#define EVE_FORCEINLINE
 #include <eve/function/load.hpp>
 #include <eve/function/store.hpp>
 #include <eve/wide.hpp>

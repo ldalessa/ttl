@@ -3,7 +3,6 @@
 #include "Rational.hpp"
 #include "Tag.hpp"
 #include "ScalarTree.hpp"
-#define EVE_FORCEINLINE
 #include <eve/function/load.hpp>
 #include <eve/function/store.hpp>
 #include <eve/wide.hpp>
