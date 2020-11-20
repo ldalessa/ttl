@@ -80,7 +80,7 @@ struct ScalarSystem
           [&]<std::size_t... js>(std::index_sequence<js...>) {
             constexpr auto&& tree = std::get<is>(executable);
             constexpr int Depth = tree.depth();
-            return eve::Tree<Depth, tree.data[js].tag...>(tree);
+            return EveTree<Depth, tree.data[js].tag...>(tree);
           }(std::make_index_sequence<std::get<is>(executable).size()>())
           ...);
     }(std::make_index_sequence<M>());
