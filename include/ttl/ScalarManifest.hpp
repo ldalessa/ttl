@@ -10,7 +10,7 @@ template <int N, int M>
 struct ScalarManifest
 {
   Scalar data[M];
-  int bounds[pow(2, N) + 1];
+  int bounds[pow(2, N) + 1] = {};
 
   constexpr ScalarManifest(set<Scalar>&& scalars, bool constant)
   {
@@ -23,15 +23,15 @@ struct ScalarManifest
     std::sort(data, data + M);
 
     int i = 0;
-    bounds[i] = 0;
     for (int m = 0; m < M; ++m) {
       if (data[m].mask != i) {
         bounds[++i] = m;
       }
     }
 
-    for (; i < std::size(bounds); ++i) {
-      bounds[i] = M;
+    // fill the tail of the bounds array
+    for (int j = i + 1; j < std::size(bounds); ++j) {
+      bounds[j] = M;
     }
   }
 

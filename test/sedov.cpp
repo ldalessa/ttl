@@ -20,6 +20,7 @@ static constexpr const char USAGE[] =
 
 #include "cm.hpp"
 #include <ttl/ttl.hpp>
+#include <ttl/SIMDAllocator.hpp>
 #include <fmt/core.h>
 #include <docopt.h>
 #include <vector>
@@ -205,8 +206,8 @@ int main(int argc, char* const argv[])
 
   int n = (argc > 16) ? std::stoi(argv[1]) : 128; // args["N_POINTS"].asLong() : 0;
 
-  std::vector<double> now[sedov3d.n_scalars()];
-  std::vector<double> next[sedov3d.n_scalars()];
+  std::vector<double, ttl::SIMDAllocator<double>> now[sedov3d.n_scalars()];
+  std::vector<double, ttl::SIMDAllocator<double>> next[sedov3d.n_scalars()];
   for (auto& v : now) {
     v.resize(n);
   }
@@ -228,16 +229,16 @@ int main(int argc, char* const argv[])
   //                  });
 
   // MANUAL SIMD evaluation
-  sedov3d.evaluate_eve(n,
-                       [&](int n, int i) -> double& {
-                         return next[n][i];
-                       },
-                       [&](int n, int i) -> const double& {
-                         return now[n][i];
-                       },
-                       [&](int n) -> double {
-                         return constants[n];
-                       });
+  sedov3d.evaluate_simd(n,
+                        [&](int n, int i) -> double& {
+                          return next[n][i];
+                        },
+                        [&](int n, int i) -> const double& {
+                          return now[n][i];
+                        },
+                        [&](int n) -> double {
+                          return constants[n];
+                        });
 
   return 0;
 }

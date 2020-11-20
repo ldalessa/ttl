@@ -1,7 +1,7 @@
 #pragma once
 
 #include "ExecutableTree.hpp"
-#include "EveTree.hpp"
+#include "SIMDTree.hpp"
 #include "ScalarManifest.hpp"
 #include <array>
 
@@ -66,7 +66,7 @@ struct ScalarSystem
     }(std::make_index_sequence<n_trees()>());
   }();
 
-  constexpr static auto eve = [] {
+  constexpr static auto simd = [] {
     constexpr int M = std::tuple_size_v<decltype(executable)>;
 
     // for each tree in the executable tuple
@@ -80,7 +80,7 @@ struct ScalarSystem
           [&]<std::size_t... js>(std::index_sequence<js...>) {
             constexpr auto&& tree = std::get<is>(executable);
             constexpr int Depth = tree.depth();
-            return EveTree<Depth, tree.data[js].tag...>(tree);
+            return SIMDTree<Depth, tree.data[js].tag...>(tree);
           }(std::make_index_sequence<std::get<is>(executable).size()>())
           ...);
     }(std::make_index_sequence<M>());
@@ -96,10 +96,10 @@ struct ScalarSystem
 
   template <typename L, typename S, typename C>
   [[gnu::noinline]]
-  constexpr static void evaluate_eve(int n, L&& lhs, S&& scalars, C&& constants) {
+  constexpr static void evaluate_simd(int n, L&& lhs, S&& scalars, C&& constants) {
     return std::apply([&](auto const&... e) {
       (e.evaluate(n, std::forward<L>(lhs), std::forward<S>(scalars), std::forward<C>(constants)), ...);
-    }, eve);
+    }, simd);
   }
 };
 }

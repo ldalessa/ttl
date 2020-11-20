@@ -24,7 +24,7 @@ namespace ttl
 ///                 the kernel's stack machine.
 /// @tparam   ts... The RPN tree tag types.
 template <int Depth, exe::Tag... ts>
-struct EveTree
+struct SIMDTree
 {
   // Capture the tags into a constexpr array (they're hard to use otherwise).
   constexpr static int M = sizeof...(ts);
@@ -44,7 +44,7 @@ struct EveTree
 
   /// Construct an eve tree from an executable tree.
   template <int N>
-  constexpr EveTree(const ExecutableTree<N, Depth>& tree)
+  constexpr SIMDTree(const ExecutableTree<N, Depth>& tree)
       : lhs_offset(tree.lhs_offset)
   {
     assert(N == M);
@@ -150,10 +150,11 @@ struct EveTree
   /// @param     constants The functor map for non-immediate tree constants.
   ///
   /// @returns The wide result of executing the kernel on index i.
-  [[gnu::always_inline]]
+  // [[gnu::always_inline]]
+  [[gnu::noinline]]
   eve::wide<double> eval_wide(long i, auto const& scalars, auto const& constants) const
   {
-    static eve::wide<double> stack[Depth];
+    eve::wide<double> stack[Depth];
     return eval_kernel(i, scalars, constants, stack);
   }
 
@@ -169,7 +170,7 @@ struct EveTree
   [[gnu::noinline]]
   double eval_scalar(long i, auto const& scalars, auto const& constants) const
   {
-    static double stack[Depth];
+    double stack[Depth];
     return eval_kernel(i, scalars, constants, stack);
   }
 
@@ -180,7 +181,8 @@ struct EveTree
   /// @param             n The length of the vector data.
   /// @param       scalars The struct-of-array scalar storage functor.
   /// @param     constants The functor map for non-immediate tree constants.
-  [[gnu::always_inline]]
+  // [[gnu::always_inline]]
+  [[gnu::noinline]]
   void evaluate(long n, auto&& lhs, auto&& scalars, auto&& constants) const
   {
     constexpr long A = eve::wide<double>::static_alignment;
