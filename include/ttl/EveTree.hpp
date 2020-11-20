@@ -68,7 +68,9 @@ struct Tree
       stack[d++] = data[j].d;
     }
     else if constexpr (tags[j] == exe::SCALAR) {
-      stack[d++] = eve::load(&scalars(data[j].offset, i), eve::as_<eve::wide<double>>{});
+      auto* s = &scalars(data[j].offset, i);
+      auto aligned = eve::as_aligned<alignof(wide<double>)>(s);
+      stack[d++] = eve::load(aligned, eve::as_<eve::wide<double>>{});
     }
     else {
       static_assert(tags[j] == exe::CONSTANT);
@@ -96,7 +98,9 @@ struct Tree
     constexpr static int N = eve::wide<double>::static_size;
     for (int i = 0; i < n; i += N)
     {
-      eve::store(eval(i, scalars, constants), &lhs(lhs_offset, i));
+      auto* s = &lhs(lhs_offset, i);
+      auto aligned = eve::as_aligned<alignof(wide<double>)>(s);
+      eve::store(eval(i, scalars, constants), aligned);
     }
   }
 };
