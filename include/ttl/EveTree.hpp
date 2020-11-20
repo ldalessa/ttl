@@ -81,9 +81,9 @@ struct EveTree
   /// @param     constants The functor map for non-immediate tree constants.
   /// @param[in/out] stack The kernel's stack machine storage.
   /// @param[in/out]     d The current top of the stack.
-  template <int j>
+  template <long j>
   [[gnu::always_inline]]
-  void eval_kernel_step(int i, auto const& scalars, auto const& constants, auto& stack, int& d) const
+  void eval_kernel_step(long i, auto const& scalars, auto const& constants, auto& stack, int& d) const
   {
     if constexpr (tags[j] == exe::SUM) {
       stack[d - 2] += stack[d - 1];
@@ -130,13 +130,13 @@ struct EveTree
   ///
   /// @returns The result of executing the kernel on index i.
   [[gnu::always_inline]]
-  auto eval_kernel(int i, auto const& scalars, auto const& constants, auto& stack) const
+  auto eval_kernel(long i, auto const& scalars, auto const& constants, auto& stack) const
   {
     int d = 0;
 
-    [&]<std::size_t... j>(std::index_sequence<j...>) {
+    [&]<long... j>(std::integer_sequence<long, j...>) {
       (eval_kernel_step<j>(i, scalars, constants, stack, d), ...);
-    }(std::make_index_sequence<M>());
+    }(std::make_integer_sequence<long, M>());
 
     return stack[--d];
   }
@@ -151,9 +151,9 @@ struct EveTree
   ///
   /// @returns The wide result of executing the kernel on index i.
   [[gnu::always_inline]]
-  eve::wide<double> eval_wide(int i, auto const& scalars, auto const& constants) const
+  eve::wide<double> eval_wide(long i, auto const& scalars, auto const& constants) const
   {
-    eve::wide<double> stack[Depth];
+    static eve::wide<double> stack[Depth];
     return eval_kernel(i, scalars, constants, stack);
   }
 
@@ -167,9 +167,9 @@ struct EveTree
   ///
   /// @returns The scalar result of executing the kernel on index i.
   [[gnu::noinline]]
-  double eval_scalar(int i, auto const& scalars, auto const& constants) const
+  double eval_scalar(long i, auto const& scalars, auto const& constants) const
   {
-    double stack[Depth];
+    static double stack[Depth];
     return eval_kernel(i, scalars, constants, stack);
   }
 
@@ -181,27 +181,32 @@ struct EveTree
   /// @param       scalars The struct-of-array scalar storage functor.
   /// @param     constants The functor map for non-immediate tree constants.
   [[gnu::always_inline]]
-  void evaluate(int n, auto&& lhs, auto&& scalars, auto&& constants) const
+  void evaluate(long n, auto&& lhs, auto&& scalars, auto&& constants) const
   {
-    constexpr int A = eve::wide<double>::static_alignment;
-    constexpr int N = eve::wide<double>::static_size;
-
-    // loop induction variable
-    int i = 0;
+    constexpr long A = eve::wide<double>::static_alignment;
+    constexpr long N = eve::wide<double>::static_size;
 
     // process the potentially unaligned prefix of the vector
-    std::intptr_t base = reinterpret_cast<std::intptr_t>(&lhs(lhs_offset, 0));
-    for (int e = base % A; i < e; ++i) {
+    auto begin = reinterpret_cast<std::uintptr_t>(&lhs(lhs_offset, 0));
+    auto prefix_bytes = pad_bytes(A, begin);
+
+    // loop end bounds for the three regions
+    long prefix = prefix_bytes / sizeof(double);
+    long   body = ((n - prefix) / N) * N;
+    long suffix = n;
+
+    // loop induction variable
+    long i = 0;
+
+    for (; i < prefix; ++i) {
       store(&lhs(lhs_offset, i), eval_scalar(i, scalars, constants));
     }
 
-    // process the body of the vector in eve::wide<double> chunks
-    for (int e = n / N; i < e; i += N) {
+    for (; i < body; i += N) {
       store(&lhs(lhs_offset, i), eval_wide(i, scalars, constants));
     }
 
-    // process any remaining scalars
-    for (; i < n; ++i) {
+    for (; i < suffix; ++i) {
       store(&lhs(lhs_offset, i), eval_scalar(i, scalars, constants));
     }
   }
@@ -214,7 +219,7 @@ struct EveTree
 
   /// Load a wide vector into a stack slot (for the kernel's stack machine).
   static void load(eve::wide<double>& slot, const double* addr) {
-    constexpr int A = eve::wide<double>::static_alignment;
+    constexpr long A = eve::wide<double>::static_alignment;
     auto aligned = eve::as_aligned<A>(addr);
     slot = eve::load(aligned, eve::as_<eve::wide<double>>{});
   }
@@ -226,9 +231,19 @@ struct EveTree
 
   /// Store a wide vector.
   static void store(double* addr, eve::wide<double>&& value) {
-    constexpr int A = eve::wide<double>::static_alignment;
+    constexpr long A = eve::wide<double>::static_alignment;
     auto aligned = eve::as_aligned<A>(addr);
     eve::store(std::move(value), aligned);
+  }
+
+  // Pad a value to the next aligned value.
+  static constexpr long pad_to(long alignment, long value) {
+    return ((value + alignment - 1) / alignment) * alignment;
+  }
+
+  // Get the number of bytes required to pad a value.
+  static constexpr long pad_bytes(long alignment, long value) {
+    return pad_to(alignment, value) - value;
   }
 };
 }
