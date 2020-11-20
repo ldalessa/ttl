@@ -87,7 +87,7 @@ int main(int argc, char* const argv[])
     for (int j = 0, n = 0; n < ttl::pow(2, sedov3d.dim()); ++n) {
       printf("dx: %d\n", n);
       for (int i = 0; auto&& c : sedov3d.scalars.dx(n)) {
-        fmt::print("{} {}: {}\n", j++, i++, c);
+        fmt::print("{} {}: {} {}\n", j++, i++, c, c.mask);
       }
       puts("");
     }
@@ -215,6 +215,7 @@ int main(int argc, char* const argv[])
     v.resize(n);
   }
 
+  // AUTOVECTORIZED SIMD
   // sedov3d.evaluate(n,
   //                  [&](int n, int i) -> double& {
   //                    return next[n][i];
@@ -226,44 +227,17 @@ int main(int argc, char* const argv[])
   //                    return constants[n];
   //                  });
 
-  // sedov3d.evaluate_eve(n,
-  //                      [&](int n, int i) -> double& {
-  //                        return next[n][i];
-  //                      },
-  //                      [&](int n, int i) -> const double& {
-  //                        return now[n][i];
-  //                      },
-  //                      [&](int n) -> double {
-  //                        return constants[n];
-  //                      });
+  // MANUAL SIMD evaluation
+  sedov3d.evaluate_eve(n,
+                       [&](int n, int i) -> double& {
+                         return next[n][i];
+                       },
+                       [&](int n, int i) -> const double& {
+                         return now[n][i];
+                       },
+                       [&](int n) -> double {
+                         return constants[n];
+                       });
 
-  struct ScalarMap {
-    std::vector<double> (&soa)[sedov3d.n_scalars()];
-
-    [[gnu::always_inline]]
-    constexpr const double& operator()(int n, int i) const {
-      return soa[n][i];
-    }
-
-    [[gnu::always_inline]]
-    constexpr double& operator()(int n, int i) {
-      return soa[n][i];
-    }
-  };
-
-  struct ConstantMap {
-    double (&constants)[sedov3d.n_constants()];
-
-    [[gnu::always_inline]]
-    constexpr const double& operator()(int i) const {
-      return constants[i];
-    }
-  };
-
-  // AUTOVECTORIZED
-  sedov3d.evaluate(n, ScalarMap{next}, ScalarMap{now}, ConstantMap{constants});
-
-  // TYPE-ENCODED MANUAL if constexpr FOLD
-  sedov3d.evaluate_eve(n, ScalarMap{next}, ScalarMap{now}, ConstantMap{constants});
   return 0;
 }
