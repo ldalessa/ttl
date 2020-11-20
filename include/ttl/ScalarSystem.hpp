@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ExecutableTree.hpp"
+#include "EveTree.hpp"
 #include "ScalarManifest.hpp"
 #include <array>
 
@@ -65,11 +66,40 @@ struct ScalarSystem
     }(std::make_index_sequence<n_trees()>());
   }();
 
+  constexpr static auto eve = [] {
+    constexpr int M = std::tuple_size_v<decltype(executable)>;
+
+    // for each tree in the executable tuple
+    //   generate a fully-typed eve tree by unpacking its tag geometry
+    //
+    // can't really do this cleanly because we need to maintain constexpr
+    // context in the inner lambda
+
+    return [&]<std::size_t... is>(std::index_sequence<is...>) {
+      return std::tuple(
+          [&]<std::size_t... js>(std::index_sequence<js...>) {
+            constexpr auto&& tree = std::get<is>(executable);
+            constexpr int Depth = tree.depth();
+            return EveTree<Depth, tree.data[js].tag...>(tree);
+          }(std::make_index_sequence<std::get<is>(executable).size()>())
+          ...);
+    }(std::make_index_sequence<M>());
+  }();
+
+  template <typename L, typename S, typename C>
   [[gnu::noinline]]
-  constexpr static void evaluate(int n, auto&& lhs, auto&& scalars, auto&& constants) {
-    [&]<std::size_t... i>(std::index_sequence<i...>) {
-      (std::get<i>(executable).evaluate(n, lhs, scalars, constants), ...);
-    }(std::make_index_sequence<n_trees()>());
+  constexpr static void evaluate(int n, L&& lhs, S&& scalars, C&& constants) {
+    return std::apply([&](auto const&... e) {
+      (e.evaluate(n, std::forward<L>(lhs), std::forward<S>(scalars), std::forward<C>(constants)), ...);
+    }, executable);
+  }
+
+  template <typename L, typename S, typename C>
+  [[gnu::noinline]]
+  constexpr static void evaluate_eve(int n, L&& lhs, S&& scalars, C&& constants) {
+    return std::apply([&](auto const&... e) {
+      (e.evaluate(n, std::forward<L>(lhs), std::forward<S>(scalars), std::forward<C>(constants)), ...);
+    }, eve);
   }
 };
 }

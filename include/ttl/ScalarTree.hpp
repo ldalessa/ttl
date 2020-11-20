@@ -4,7 +4,7 @@
 #include "ScalarIndex.hpp"
 #include "Tag.hpp"
 #include "TensorTree.hpp"
-#include "utils.hpp"
+#include "set.hpp"
 #include <memory>
 
 namespace ttl
@@ -97,7 +97,7 @@ struct ScalarTree
       return (tag == RATIONAL && q == Rational(1)) || (tag == DOUBLE && d == 1.0);
     }
 
-    constexpr void scalars(int N, utils::set<Scalar>& out) const
+    constexpr void scalars(int N, set<Scalar>& out) const
     {
       if (tag_is_binary(tag)) {
         a_->scalars(N, out);
@@ -206,9 +206,10 @@ struct ScalarTree
     return root_;
   }
 
-  constexpr void scalars(utils::set<Scalar>& out) const {
+  constexpr void scalars(set<Scalar>& out) const {
     assert(N != 0);
     assert(root_ != nullptr);
+    out.emplace(lhs_);
     return root_->scalars(N, out);
   }
 
@@ -292,7 +293,7 @@ struct ScalarTree
       Node*  r = map(b, index.select(inner, b->outer()));
       Node* lr = reduce(tree->tag, l, r);
       out = reduce(SUM, out, lr);
-    } while (utils::carry_sum_inc(N, n, order, index));
+    } while (index.carry_sum_inc(N, n));
     return out;
   }
 
@@ -315,7 +316,7 @@ struct ScalarTree
     do {
       Node* t = new Node(tree, index.select(inner, tree->index));
       out = reduce(SUM, out, t);
-    } while (utils::carry_sum_inc(N, n, order, index));
+    } while (index.carry_sum_inc(N, n));
     return out;
   }
 
@@ -476,7 +477,7 @@ struct ScalarTreeBuilder
     ScalarIndex index(order);
     do {
       out.emplace_back(N, tree, index);
-    } while (utils::carry_sum_inc(N, 0, order, index));
+    } while (index.carry_sum_inc(N, 0));
   }
 };
 }
