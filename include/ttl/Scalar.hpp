@@ -2,7 +2,7 @@
 
 #include "ScalarIndex.hpp"
 #include "Tensor.hpp"
-#include "utils.hpp"
+#include "pow.hpp"
 #include <cassert>
 #include <fmt/core.h>
 
@@ -35,7 +35,7 @@ struct Scalar
     // base on the order of the tensor
     int i = 0;
     for (int e = t.order(); i < e; ++i) {
-      component += utils::pow(N, i) * index[i];
+      component += pow(N, i) * index[i];
     }
 
     // the rest of the indices select which components of the higher order
@@ -47,7 +47,7 @@ struct Scalar
     // build the partial mask
     for (int n = 0, e = dx.size(); n < e; ++n) {
       if (dx[n]) {
-        mask += utils::pow(2, n);
+        mask += pow(2, n);
       }
     }
 

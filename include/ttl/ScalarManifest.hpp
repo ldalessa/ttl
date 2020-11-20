@@ -1,7 +1,8 @@
 #pragma once
 
 #include "Scalar.hpp"
-#include "utils.hpp"
+#include "pow.hpp"
+#include "set.hpp"
 #include <span>
 
 namespace ttl {
@@ -9,9 +10,9 @@ template <int N, int M>
 struct ScalarManifest
 {
   Scalar data[M];
-  int bounds[utils::pow(2, N) + 1];
+  int bounds[pow(2, N) + 1];
 
-  constexpr ScalarManifest(utils::set<Scalar>&& scalars, bool constant)
+  constexpr ScalarManifest(set<Scalar>&& scalars, bool constant)
   {
     for (int i = 0; const Scalar& s : scalars) {
       if (s.constant == constant) {

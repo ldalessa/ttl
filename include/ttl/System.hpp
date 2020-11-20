@@ -6,7 +6,8 @@
 #include "Scalar.hpp"
 #include "ScalarTree.hpp"
 #include "TensorTree.hpp"
-#include "utils.hpp"
+#include "pow.hpp"
+#include "set.hpp"
 #include <tuple>
 
 namespace ttl {
@@ -35,7 +36,7 @@ struct System
 
   constexpr int n_scalar_trees(int N) const {
     return std::apply([N](auto const&... tree) {
-      return (0 + ... + utils::pow(N, tree.order()));
+      return (0 + ... + pow(N, tree.order()));
     }, rhs);
   }
 
@@ -84,10 +85,10 @@ struct System
     return out;
   }
 
-  constexpr utils::set<Scalar>
+  constexpr set<Scalar>
   scalars(int N) const
   {
-    utils::set<Scalar> out;
+    set<Scalar> out;
     for (auto&& tree : scalar_trees(N)) {
       tree.scalars(out);
     }

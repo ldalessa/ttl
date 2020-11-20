@@ -84,7 +84,7 @@ int main(int argc, char* const argv[])
   if (args["--scalars"].asBool())
   {
     puts("scalars:");
-    for (int j = 0, n = 0; n < ttl::utils::pow(2, sedov3d.dim()); ++n) {
+    for (int j = 0, n = 0; n < ttl::pow(2, sedov3d.dim()); ++n) {
       printf("dx: %d\n", n);
       for (int i = 0; auto&& c : sedov3d.scalars.dx(n)) {
         fmt::print("{} {}: {}\n", j++, i++, c);
@@ -95,7 +95,7 @@ int main(int argc, char* const argv[])
   }
 
   auto eqns = args["--eqn"].asStringList();
-  if (ttl::utils::index_of(eqns, "rho")) {
+  if (std::find(eqns.begin(), eqns.end(), "rho") != eqns.end()) {
     if (args["-p"].asBool()) {
       fmt::print("parse: {} = {}\n", v, rho_rhs.to_string());
     }
@@ -113,7 +113,7 @@ int main(int argc, char* const argv[])
     }
   }
 
-  if (ttl::utils::index_of(eqns, "v")) {
+  if (std::find(eqns.begin(), eqns.end(), "v") != eqns.end()) {
     if (args["-p"].asBool()) {
       fmt::print("parse: {} = {}\n", v, v_rhs.to_string());
     }
@@ -132,7 +132,7 @@ int main(int argc, char* const argv[])
     }
   }
 
-  if (ttl::utils::index_of(eqns, "e")) {
+  if (std::find(eqns.begin(), eqns.end(), "e") != eqns.end()) {
     if (args["-p"].asBool()) {
       fmt::print("parse: {} = {}\n", e, e_rhs.to_string());
     }
@@ -151,7 +151,7 @@ int main(int argc, char* const argv[])
   }
 
   auto dots = args["--dot"].asStringList();
-  if (ttl::utils::contains(dots, "rho")) {
+  if (std::find(dots.begin(), dots.end(), "rho") != dots.end()) {
     if (args["-p"].asBool()) {
       fmt::print("graph rho_parse {{\n{}}}\n", ttl::dot(rho_rhs));
     }
@@ -165,7 +165,7 @@ int main(int argc, char* const argv[])
     }
   }
 
-  if (ttl::utils::contains(dots, "v")) {
+  if (std::find(dots.begin(), dots.end(), "v") != dots.end()) {
     if (args["-p"].asBool()) {
       fmt::print("graph v_parse {{\n{}}}\n", ttl::dot(v_rhs));
     }
@@ -179,7 +179,7 @@ int main(int argc, char* const argv[])
     }
   }
 
-  if (ttl::utils::contains(dots, "e")) {
+  if (std::find(dots.begin(), dots.end(), "rho") != dots.end()) {
     if (args["-p"].asBool()) {
       fmt::print("graph e_parse {{\n{}}}\n", ttl::dot(e_rhs));
     }

@@ -2,6 +2,7 @@
 
 #include "Index.hpp"
 #include <fmt/core.h>
+#include <concepts>
 
 namespace ttl {
 struct ScalarIndex
@@ -65,6 +66,15 @@ struct ScalarIndex
     for (int i = 0, e = a.size(); i < e; ++i) {
       if (a[i] < b[i]) return true;
       if (b[i] < a[i]) return false;
+    }
+    return false;
+  }
+
+  constexpr bool carry_sum_inc(int N, int n) {
+    for (; n < size_; data_[n++] = 0) {
+      if (++data_[n] < N) {
+        return true; // no carry
+      }
     }
     return false;
   }

@@ -68,18 +68,22 @@ struct ScalarSystem
 
   constexpr static auto eve = [] {
     constexpr int M = std::tuple_size_v<decltype(executable)>;
-    auto to_tree = [](auto i, auto... js) {
-      constexpr auto&& tree = std::get<i>(executable);
-      constexpr int Depth = tree.depth();
-      return eve::Tree<Depth, tree.data[js].tag...>(tree);
-    };
 
-    return utils::apply<M>([&](auto... is) {
+    // for each tree in the executable tuple
+    //   generate a fully-typed eve tree by unpacking its tag geometry
+    //
+    // can't really do this cleanly because we need to maintain constexpr
+    // context in the inner lambda
+
+    return [&]<std::size_t... is>(std::index_sequence<is...>) {
       return std::tuple(
-          utils::apply<std::get<is>(executable).size()>([&](auto... js) {
-            return to_tree(is, js...);
-          })...);
-    });
+          [&]<std::size_t... js>(std::index_sequence<js...>) {
+            constexpr auto&& tree = std::get<is>(executable);
+            constexpr int Depth = tree.depth();
+            return eve::Tree<Depth, tree.data[js].tag...>(tree);
+          }(std::make_index_sequence<std::get<is>(executable).size()>())
+          ...);
+    }(std::make_index_sequence<M>());
   }();
 
   template <typename L, typename S, typename C>
