@@ -20,7 +20,6 @@ static constexpr const char USAGE[] =
 
 #include "cm.hpp"
 #include <ttl/ttl.hpp>
-#include <ttl/SIMDAllocator.hpp>
 #include <fmt/core.h>
 #include <docopt.h>
 #include <vector>

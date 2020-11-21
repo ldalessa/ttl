@@ -3,10 +3,15 @@
 #include "ExecutableTree.hpp"
 #include <eve/function/load.hpp>
 #include <eve/function/store.hpp>
+#include <eve/memory/aligned_allocator.hpp>
 #include <eve/wide.hpp>
 
 namespace ttl
 {
+/// Provide an allocator for SIMD-able vectors.
+template <class T>
+using SIMDAllocator = eve::aligned_allocator<T, eve::wide<T>::static_alignment>;
+
 /// Executable tree that encodes tree tag geometry in its type.
 ///
 /// This Tree allows us to implement the kernel stack machine, i.e., the
@@ -185,30 +190,17 @@ struct SIMDTree
   [[gnu::noinline]]
   void evaluate(long n, auto&& lhs, auto&& scalars, auto&& constants) const
   {
-    constexpr long A = eve::wide<double>::static_alignment;
-    constexpr long N = eve::wide<double>::static_size;
-
-    // process the potentially unaligned prefix of the vector
-    auto begin = reinterpret_cast<std::uintptr_t>(&lhs(lhs_offset, 0));
-    auto prefix_bytes = pad_bytes(A, begin);
-
-    // loop end bounds for the three regions
-    long prefix = prefix_bytes / sizeof(double);
-    long   body = ((n - prefix) / N) * N;
-    long suffix = n;
-
     // loop induction variable
     long i = 0;
 
-    for (; i < prefix; ++i) {
-      store(&lhs(lhs_offset, i), eval_scalar(i, scalars, constants));
-    }
-
-    for (; i < body; i += N) {
+    // process the aligned body
+    constexpr long N = eve::wide<double>::static_size;
+    for (long e = n - (n % N); i < e; i += N) {
       store(&lhs(lhs_offset, i), eval_wide(i, scalars, constants));
     }
 
-    for (; i < suffix; ++i) {
+    // process any remaining unaligned tail.
+    for (; i < n; ++i) {
       store(&lhs(lhs_offset, i), eval_scalar(i, scalars, constants));
     }
   }
