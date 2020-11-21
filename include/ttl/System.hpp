@@ -6,23 +6,21 @@
 #include "Scalar.hpp"
 #include "ScalarTree.hpp"
 #include "TensorTree.hpp"
+#include "chuple.hpp"
 #include "pow.hpp"
 #include "set.hpp"
-#include <tuple>
 
 namespace ttl {
-template <typename... Trees>
-requires(is_tree<Trees> && ...)
+template <int M, typename Trees>
 struct System
 {
-  constexpr static int M = sizeof...(Trees);
-
   Tensor lhs[M];
-  std::tuple<Trees...> rhs;
+  Trees  rhs;
 
-  constexpr System(Equation<Trees>&&... eqns)
+  template <typename... Ts>
+  constexpr System(Equation<Ts>&&... eqns)
       : lhs { eqns.lhs... }
-      , rhs { eqns.rhs... }
+      , rhs { chuple(eqns.rhs...) }
   {
   }
 
@@ -35,13 +33,13 @@ struct System
   }
 
   constexpr int n_scalar_trees(int N) const {
-    return std::apply([N](auto const&... tree) {
+    return rhs([N](auto const&... tree) {
       return (0 + ... + pow(N, tree.order()));
-    }, rhs);
+    });
   }
 
-  template <int M>
-  constexpr TensorTree simplify(const Tensor& lhs, const ParseTree<M>& tree) const
+  template <int N>
+  constexpr TensorTree simplify(const Tensor& lhs, const ParseTree<N>& tree) const
   {
     return TensorTree(lhs, tree, [&](const Tensor& t) {
       return is_constant(t);
@@ -71,10 +69,11 @@ struct System
       return is_constant(t);
     };
     ce::dvector<ScalarTree> out;
-    std::apply([&](auto const&... tree) {
+
+    rhs([&](auto const&... tree) {
       int i = 0;
       (scalar_trees(N, TensorTree(lhs[i++], tree, constants), out), ...);
-    }, rhs);
+    });
 
     // we need to sort the tensor trees so that they can be found properly
     std::sort(out.begin(), out.end(),
@@ -96,6 +95,7 @@ struct System
   }
 };
 
-template <typename... Trees>
-System(Equation<Trees>...) -> System<Trees...>;
+template <typename... Ts>
+System(Equation<Ts>&&... eqns)
+  -> System<sizeof...(Ts), decltype(chuple(eqns.rhs...))>;
 }

@@ -109,7 +109,7 @@ int main(int argc, char* const argv[])
     }
     if (args["-e"].asBool()) {
       constexpr int M = sedov3d.scalars(rho);
-      fmt::print("exec rho: {}\n", std::get<M>(sedov3d.executable).to_string());
+      fmt::print("exec rho: {}\n", get<M>(sedov3d.executable).to_string());
     }
   }
 
@@ -127,7 +127,7 @@ int main(int argc, char* const argv[])
     }
     if (args["-e"].asBool()) {
       [&]<std::size_t... n>(std::index_sequence<n...>) {
-        (fmt::print("exec v[{}]: {}\n", n, std::get<sedov3d.scalars(v, n)>(sedov3d.executable).to_string()), ...);
+        (fmt::print("exec v[{}]: {}\n", n, get<sedov3d.scalars(v, n)>(sedov3d.executable).to_string()), ...);
       }(std::make_index_sequence<sedov3d.dim()>());
     }
   }
@@ -146,7 +146,7 @@ int main(int argc, char* const argv[])
     }
     if (args["-e"].asBool()) {
       constexpr int M = sedov3d.scalars(e);
-      fmt::print("exec e: {}\n", std::get<M>(sedov3d.executable).to_string());
+      fmt::print("exec e: {}\n", get<M>(sedov3d.executable).to_string());
     }
   }
 
@@ -226,6 +226,7 @@ int main(int argc, char* const argv[])
   //                  [&](int n) -> double {
   //                    return constants[n];
   //                  });
+
 
   // MANUAL SIMD evaluation
   sedov3d.evaluate_simd(n,

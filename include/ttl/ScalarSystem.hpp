@@ -3,6 +3,7 @@
 #include "ExecutableTree.hpp"
 #include "SIMDTree.hpp"
 #include "ScalarManifest.hpp"
+#include "chuple.hpp"
 #include <array>
 
 namespace ttl {
@@ -62,44 +63,37 @@ struct ScalarSystem
 
     auto&& trees = system.scalar_trees(N);
     return [&]<std::size_t... is>(std::index_sequence<is...>) {
-      return std::tuple(ExecutableTree<tree_sizes[is][0], tree_sizes[is][1]>(trees[is], scalars, constants)...);
+      return chuple(ExecutableTree<tree_sizes[is][0], tree_sizes[is][1]>(trees[is], scalars, constants)...);
     }(std::make_index_sequence<n_trees()>());
   }();
 
   constexpr static auto simd = [] {
-    constexpr int M = std::tuple_size_v<decltype(executable)>;
-
-    // for each tree in the executable tuple
-    //   generate a fully-typed eve tree by unpacking its tag geometry
-    //
     // can't really do this cleanly because we need to maintain constexpr
     // context in the inner lambda
 
     return [&]<std::size_t... is>(std::index_sequence<is...>) {
-      return std::tuple(
-          [&]<std::size_t... js>(std::index_sequence<js...>) {
-            constexpr auto&& tree = std::get<is>(executable);
-            constexpr int Depth = tree.depth();
-            return SIMDTree<Depth, tree.data[js].tag...>(tree);
-          }(std::make_index_sequence<std::get<is>(executable).size()>())
-          ...);
-    }(std::make_index_sequence<M>());
+      return chuple([&]<std::size_t... js>(std::index_sequence<js...>) {
+          constexpr auto&& tree = get<is>(executable);
+          constexpr int Depth = tree.depth();
+          return SIMDTree<Depth, tree.data[js].tag...>(tree);
+        }(std::make_index_sequence<get<is>(executable).size()>())...);
+    }(std::make_index_sequence<size(executable)>());
   }();
 
   template <typename L, typename S, typename C>
   [[gnu::noinline]]
   constexpr static void evaluate(int n, L&& lhs, S&& scalars, C&& constants) {
-    return std::apply([&](auto const&... e) {
+    return executable([&](auto const&... e) {
       (e.evaluate(n, std::forward<L>(lhs), std::forward<S>(scalars), std::forward<C>(constants)), ...);
-    }, executable);
+    });
   }
 
   template <typename L, typename S, typename C>
   [[gnu::noinline]]
   constexpr static void evaluate_simd(int n, L&& lhs, S&& scalars, C&& constants) {
-    return std::apply([&](auto const&... e) {
+    return simd([&](auto const&... e) {
       (e.evaluate(n, std::forward<L>(lhs), std::forward<S>(scalars), std::forward<C>(constants)), ...);
-    }, simd);
+    });
   }
 };
 }
