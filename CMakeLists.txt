@@ -33,4 +33,4 @@ target_link_libraries(ttl_lib INTERFACE ce::ce eve::eve fmt::fmt)
 target_compile_features(ttl_lib INTERFACE cxx_std_20)
 add_library(ttl::ttl ALIAS ttl_lib)
 
-add_subdirectory(test)
+add_subdirectory(examples)

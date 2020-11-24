@@ -67,12 +67,12 @@ struct SIMDTree
     }
   }
 
-  /// Evaluate one step for the kernel.
+  /// Evaluate one instruction for the kernel.
   ///
   /// This leverages the fact that the tree tag geometry is known as constexpr
   /// here, allowing us to use the `if constexpr` switch structure and forcing
-  /// the compiler into "seeing through" the switch. Externally this is
-  /// evaluated as the function in a fold operation across the whole
+  /// the compiler into "seeing through" the stack machine's program. Externally
+  /// this is evaluated as the function in a fold operation across the whole
   /// expression.
   ///
   /// The reference to the external stack defines the type of operation we're
