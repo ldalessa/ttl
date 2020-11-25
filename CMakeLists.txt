@@ -34,3 +34,4 @@ target_compile_features(ttl_lib INTERFACE cxx_std_20)
 add_library(ttl::ttl ALIAS ttl_lib)
 
 add_subdirectory(examples)
+add_subdirectory(tests)

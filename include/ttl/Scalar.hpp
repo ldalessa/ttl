@@ -76,7 +76,7 @@ struct Scalar
     return false;
   }
 
-  std::string to_string() const
+  std::string to_string(int N = 0) const
   {
     constexpr static const char ids[] = "xyzw";
 
@@ -89,7 +89,17 @@ struct Scalar
     str.append(tensor.id());
 
     if (tensor.order()) {
-      str.append(1, ids[component]);
+      if (N != 0) {
+        assert(N < sizeof(ids));
+        int c = component;
+        for (int n = 0; n < tensor.order(); ++n) {
+          str.append(1, ids[c % N]);
+          c /= N;
+        }
+      }
+      else {
+        str.append(std::to_string(component));
+      }
     }
 
     if (mask == 0) {

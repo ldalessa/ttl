@@ -121,9 +121,9 @@ struct ScalarTree
        case DIFFERENCE:
        case PRODUCT:
        case RATIO: return (is_equivalent(a->a(), b->a()) && is_equivalent(a->b(), b->b()));
-       case DOUBLE:   return (a->d != b->d);
-       case RATIONAL: return (a->q != b->q);
-       case TENSOR:   return (a->tensor != b->tensor);
+       case DOUBLE:   return (a->d == b->d);
+       case RATIONAL: return (a->q == b->q);
+       case TENSOR:   return (a->tensor == b->tensor);
        default: return true;
       }
     }
@@ -146,7 +146,7 @@ struct ScalarTree
 
        case TENSOR:
         if (N) {
-          return Scalar(N, tensor, index, constant).to_string();
+          return Scalar(N, tensor, index, constant).to_string(N);
         }
         if (index.size()) {
           return fmt::format("{}({})", tensor.id(), index);
@@ -218,7 +218,7 @@ struct ScalarTree
   }
 
   std::string to_string() const {
-    return lhs_.to_string().append(" = ").append(root_->to_string(N));
+    return lhs_.to_string(N).append(" = ").append(root_->to_string(N));
   }
 
  private:

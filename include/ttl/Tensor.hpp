@@ -30,10 +30,12 @@ struct Tensor
   constexpr auto operator()(std::same_as<Index> auto... is) const;
 
   constexpr bool operator==(const Tensor& b) const {
+    assert(id_ != b.id_ || order_ == b.order_);
     return id_ == b.id_;
   }
 
   constexpr auto operator<=>(const Tensor& b) const {
+    assert(id_ != b.id_ || order_ == b.order_);
     return id_ <=> b.id_;
   }
 
@@ -51,6 +53,10 @@ constexpr ttl::Tensor scalar(std::string_view id) {
 
 constexpr ttl::Tensor vector(std::string_view id) {
   return { id, 1 };
+}
+
+constexpr ttl::Tensor matrix(std::string_view id) {
+  return { id, 2 };
 }
 }
 

@@ -131,10 +131,11 @@ struct TensorTree
        case SUM:
        case DIFFERENCE:
        case PRODUCT:
-       case RATIO: return (is_equivalent(a->a(), b->a()) && is_equivalent(a->b(), b->b()));
-       case DOUBLE:   return (a->d != b->d);
-       case RATIONAL: return (a->q != b->q);
-       case TENSOR:   return (a->tensor != b->tensor);
+       case RATIO:
+        return (is_equivalent(a->a(), b->a()) && is_equivalent(a->b(), b->b()));
+       case DOUBLE:   return (a->d == b->d);
+       case RATIONAL: return (a->q == b->q);
+       case TENSOR:   return (a->tensor == b->tensor);
        default: return true;
       }
     }

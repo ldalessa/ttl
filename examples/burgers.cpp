@@ -1,5 +1,4 @@
 #include <ttl/ttl.hpp>
-#include <iostream>
 
 namespace {
 /// Model parameters
