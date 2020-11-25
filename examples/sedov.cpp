@@ -97,7 +97,7 @@ int main(int argc, char* const argv[])
   auto eqns = args["--eqn"].asStringList();
   if (std::find(eqns.begin(), eqns.end(), "rho") != eqns.end()) {
     if (args["-p"].asBool()) {
-      fmt::print("parse: {} = {}\n", v, rho_rhs.to_string());
+      fmt::print("parse: {} = {}\n", rho, rho_rhs.to_string());
     }
     if (args["-t"].asBool()) {
       fmt::print("tensor: {}\n", sedov.simplify(rho, rho_rhs).to_string());
