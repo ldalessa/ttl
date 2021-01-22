@@ -215,7 +215,7 @@ struct SIMDTree
   static void load(eve::wide<double>& slot, const double* addr) {
     constexpr long A = eve::wide<double>::static_alignment;
     auto aligned = eve::as_aligned<A>(addr);
-    slot = eve::load(aligned, eve::as_<eve::wide<double>>{});
+    slot = eve::load(aligned);
   }
 
   /// Store a scalar.
