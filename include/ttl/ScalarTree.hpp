@@ -65,6 +65,8 @@ struct ScalarTree
         , constant(a->constant && b->constant)
     {
       assert(tag_is_binary(tag));
+      assert(a != this);
+      assert(b != this);
     }
 
     constexpr std::array<int, 2> size() const {
@@ -413,16 +415,21 @@ struct ScalarTree
         a->a_ = nullptr;
         a->b_ = nullptr;
         delete a;
+        assert(b != ab);
+        assert(b != bb);
         b->a_ = ab;
         b->b_ = bb;
         a = reduce(PRODUCT, aa, ba);
         return reduce(PRODUCT, a, b);
       }
       if (ba->tag == RATIONAL) {
+        assert(b != a);
         std::swap(b->a_, a);
         return reduce(PRODUCT, a, b);
       }
       if (aa->tag == RATIONAL) {
+        assert(a != ab);
+        assert(a != b);
         a->a_ = ab;
         a->b_ = b;
         a = aa;
