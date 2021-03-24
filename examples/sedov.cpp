@@ -62,7 +62,8 @@ constexpr ttl::System sedov = {
   e = e_rhs
 };
 
-constexpr int N = 3;
+// constexpr int N = 3;
+constexpr int N = 2;
 
 constexpr ttl::ScalarSystem<sedov, N> sedov3d;
 }
@@ -179,7 +180,7 @@ int main(int argc, char* const argv[])
     }
   }
 
-  if (std::find(dots.begin(), dots.end(), "rho") != dots.end()) {
+  if (std::find(dots.begin(), dots.end(), "e") != dots.end()) {
     if (args["-p"].asBool()) {
       fmt::print("graph e_parse {{\n{}}}\n", ttl::dot(e_rhs));
     }
@@ -192,6 +193,8 @@ int main(int argc, char* const argv[])
       }
     }
   }
+
+  return 0;
 
   double constants[sedov3d.n_constants()];
   constants[sedov3d.constants(model::gamma)] = 1.4;     // [-]ratio of specific heats
