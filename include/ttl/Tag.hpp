@@ -60,7 +60,7 @@ struct fmt::formatter<ttl::Tag>
     "-",                                        // DIFFERENCE
     "*",                                        // PRODUCT
     "/",                                        // RATIO
-    "dx",                                       // PARTIAL
+    "∂",                                        // PARTIAL
     "",                                         // INDEX
     "",                                         // TENSOR
     "",                                         // RATIONAL

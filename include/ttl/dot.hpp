@@ -27,7 +27,12 @@ struct fmt::formatter<ttl::dot<T>>
       if (tag_is_binary(tree->tag)) {
         int a = self(tree->a(), self);
         int b = self(tree->b(), self);
-        format_to(out, "\tnode{}[label=\"{}({})\"]\n", i, tree->tag, tree->outer());
+        if (tree->outer().size()) {
+          format_to(out, "\tnode{}[label=\"{} ↑{}\"]\n", i, tree->tag, tree->outer());
+        }
+        else {
+          format_to(out, "\tnode{}[label=\"{}\"]\n", i, tree->tag);
+        }
         format_to(out, "\tnode{} -- node{}\n", i, a);
         format_to(out, "\tnode{} -- node{}\n", i, b);
       }
