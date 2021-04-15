@@ -63,10 +63,16 @@ namespace ttl {
       });
     }
 
+    /// Returns a tuple of shapes for the trees.
+    ///
+    /// The passed dimensionality allows us to know how large the stack depth of
+    /// tensor data is going to be.
     constexpr auto shapes(int N) const
     {
       auto trees = simplify_trees();
-      return true;
+      return trees([N](is_tree auto const& ... trees) {
+        return kumi::make_tuple(trees.shape(N)...);
+      });
     }
 
     constexpr void

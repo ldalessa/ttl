@@ -5,70 +5,91 @@
 #include <utility>
 #include <fmt/core.h>
 
-namespace ttl {
-struct Rational
+namespace ttl
 {
-  std::ptrdiff_t p = 0;
-  std::ptrdiff_t q = 1;
+  struct Rational
+  {
+    std::ptrdiff_t p = 0;
+    std::ptrdiff_t q = 1;
 
-  constexpr Rational() = default;
-  constexpr Rational(std::ptrdiff_t p) : p(p) {}
-  constexpr Rational(std::ptrdiff_t p, std::ptrdiff_t q) : p(p), q(q) {
-    assert(q != 0);
-    auto d = std::gcd(p, q);
-    p /= d;
-    q /= d;
-  }
+    constexpr Rational() = default;
 
-  constexpr Rational inverse() const {
-    return { q, p };
-  }
+    constexpr Rational(std::ptrdiff_t p)
+        : p(p)
+    {
+    }
 
-  constexpr friend Rational operator+(const Rational& a) {
-    return a;
-  }
+    constexpr Rational(std::ptrdiff_t p, std::ptrdiff_t q)
+        : p(p)
+        , q(q)
+    {
+      assert(q != 0);
+      auto d = std::gcd(p, q);
+      p /= d;
+      q /= d;
+    }
 
-  constexpr friend Rational operator-(const Rational& a) {
-    return { -a.p, a.q };
-  }
+    constexpr auto inverse() const -> Rational
+    {
+      return { q, p };
+    }
 
-  constexpr friend Rational operator+(const Rational& a, const Rational& b) {
-    auto d = std::gcd(a.q, b.q);
-    auto l = (a.q / d);
-    auto r = (b.q / d);
-    return { a.p * r + b.p * l, l * r };
-  }
+    constexpr friend auto operator+(Rational const& a) -> Rational
+    {
+      return a;
+    }
 
-  constexpr friend Rational operator-(const Rational& a, const Rational& b) {
-    auto d = std::gcd(a.q, b.q);
-    auto l = (a.q / d);
-    auto r = (b.q / d);
-    return { a.p * r - b.p * l, l * r };
-  }
+    constexpr friend auto operator-(Rational const& a) -> Rational
+    {
+      return { -a.p, a.q };
+    }
 
-  constexpr friend Rational operator*(const Rational& a, const Rational& b) {
-    auto l = std::gcd(a.p, b.q);
-    auto r = std::gcd(b.p, a.q);
-    return { (a.p / l) * (b.p / r),
-             (a.q / r) * (b.q / l) };
-  }
+    constexpr friend auto operator+(Rational const& a, Rational const& b)
+      -> Rational
+    {
+      auto d = std::gcd(a.q, b.q);
+      auto l = (a.q / d);
+      auto r = (b.q / d);
+      return { a.p * r + b.p * l, l * r };
+    }
 
-  constexpr friend Rational& operator*=(Rational& a, const Rational& b) {
-    return a = a * b;
-  }
+    constexpr friend auto operator-(Rational const& a, Rational const& b)
+      -> Rational
+    {
+      auto d = std::gcd(a.q, b.q);
+      auto l = (a.q / d);
+      auto r = (b.q / d);
+      return { a.p * r - b.p * l, l * r };
+    }
 
-  constexpr friend Rational operator/(const Rational& a, const Rational& b) {
-    return a * b.inverse();
-  }
+    constexpr friend auto operator*(Rational const& a, Rational const& b)
+      -> Rational
+    {
+      auto l = std::gcd(a.p, b.q);
+      auto r = std::gcd(b.p, a.q);
+      return { (a.p / l) * (b.p / r),
+        (a.q / r) * (b.q / l) };
+    }
 
-  constexpr friend bool operator==(const Rational& a, const Rational& b) {
-    return a.p == b.p && a.q == b.q;
-  }
+    constexpr friend auto operator*=(Rational& a, Rational const& b)
+      -> Rational&
+    {
+      return a = a * b;
+    }
 
-  constexpr friend double to_double(const Rational& a) {
-    return double(a.p) / double(a.q);
-  }
-};
+    constexpr friend auto operator/(Rational const& a, Rational const& b)
+      -> Rational
+    {
+      return a * b.inverse();
+    }
+
+    constexpr friend bool operator==(Rational const&, Rational const&) = default;
+
+    constexpr friend auto to_double(Rational const& a) -> double
+    {
+      return double(a.p) / double(a.q);
+    }
+  };
 }
 
 template <>

@@ -33,5 +33,14 @@ int main()
   {
     fmt::print("{}: {}\n", i++, tree.to_string());
   }
+
+  constexpr auto shapes = burgers.shapes(3);
+  shapes([](auto const&... shape) {
+    (fmt::print("node_depth:{} node_count:{} index_size:{} stack_depth:{}\n",
+                shape.node_depth,
+                shape.node_count,
+                shape.index_size,
+                shape.stack_depth), ...);
+  });
   return 0;
 }

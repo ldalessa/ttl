@@ -5,69 +5,72 @@
 #include <string_view>
 #include <fmt/core.h>
 
-namespace ttl {
-struct Tensor
+namespace ttl
 {
- private:
-  std::string_view id_;
-  int order_;
+  struct Tensor
+  {
+    std::string_view id_ = "";
+    int order_ = -1;
 
- public:
-  constexpr Tensor() = default;
+    constexpr Tensor() = default;
 
-  constexpr Tensor(std::string_view id, int order) : id_(id), order_(order) {
+    constexpr Tensor(std::string_view id, int order)
+        : id_(id)
+        , order_(order)
+    {
+    }
+
+    constexpr friend bool operator==(Tensor const&, Tensor const&) = default;
+    constexpr friend auto operator<=>(Tensor const&, Tensor const&) = default;
+
+    constexpr auto order() const -> int
+    {
+      return order_;
+    }
+
+    constexpr auto id() const -> std::string_view
+    {
+      return id_;
+    }
+
+    // Implemented in Tree.hpp to avoid circular include.
+    constexpr auto operator()(std::same_as<Index> auto... is) const;
+
+    // Implemented in Equation to avoid circular include.
+    constexpr auto operator=(is_tree auto&&) const;
+  };
+
+  constexpr auto to_string(const Tensor& t) -> std::string_view
+  {
+    return t.id();
   }
 
-  constexpr int order() const {
-    return order_;
+  constexpr auto scalar(std::string_view id) -> ttl::Tensor
+  {
+    return { id, 0 };
   }
 
-  constexpr std::string_view id() const {
-    return id_;
+  constexpr auto vector(std::string_view id) -> ttl::Tensor
+  {
+    return { id, 1 };
   }
 
-  // Implemented in Tree.hpp to avoid circular include.
-  constexpr auto operator()(std::same_as<Index> auto... is) const;
-
-  constexpr bool operator==(const Tensor& b) const {
-    assert(id_ != b.id_ || order_ == b.order_);
-    return id_ == b.id_;
+  constexpr auto matrix(std::string_view id) -> ttl::Tensor
+  {
+    return { id, 2 };
   }
-
-  constexpr auto operator<=>(const Tensor& b) const {
-    assert(id_ != b.id_ || order_ == b.order_);
-    return id_ <=> b.id_;
-  }
-
-  // Implemented in Equation to avoid circular include.
-  constexpr auto operator=(is_tree auto&&) const;
-};
-
-constexpr std::string_view to_string(const Tensor& t) {
-  return t.id();
-}
-
-constexpr ttl::Tensor scalar(std::string_view id) {
-  return { id, 0 };
-}
-
-constexpr ttl::Tensor vector(std::string_view id) {
-  return { id, 1 };
-}
-
-constexpr ttl::Tensor matrix(std::string_view id) {
-  return { id, 2 };
-}
 }
 
 template <>
-struct fmt::formatter<ttl::Tensor> {
-  constexpr auto parse(format_parse_context& ctx) {
+struct fmt::formatter<ttl::Tensor>
+{
+  constexpr auto parse(format_parse_context& ctx)
+  {
     return ctx.begin();
   }
 
-  template <typename FormatContext>
-  constexpr auto format(const ttl::Tensor& tensor, FormatContext& ctx) {
+  constexpr auto format(const ttl::Tensor& tensor, auto& ctx)
+  {
     return format_to(ctx.out(), "{}", to_string(tensor));
   }
 };

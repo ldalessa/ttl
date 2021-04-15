@@ -194,6 +194,15 @@ int main(int argc, char* const argv[])
     }
   }
 
+  constexpr auto shapes = sedov.shapes(3);
+  shapes([](auto const&... shape) {
+    (fmt::print("node_depth:{} node_count:{} index_size:{} stack_depth:{}\n",
+                shape.node_depth,
+                shape.node_count,
+                shape.index_size,
+                shape.stack_depth), ...);
+  });
+
   return 0;
 
   double constants[sedov3d.n_constants()];
