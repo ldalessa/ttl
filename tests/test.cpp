@@ -1,18 +1,18 @@
 #include <ttl/ttl.hpp>
 
 namespace {
-constexpr ttl::Tensor A = ttl::matrix("A");
-constexpr ttl::Tensor B = ttl::matrix("B");
-constexpr ttl::Tensor C = ttl::matrix("C");
+  constexpr ttl::Tensor A = ttl::matrix("A");
+  constexpr ttl::Tensor B = ttl::matrix("B");
+  constexpr ttl::Tensor C = ttl::matrix("C");
 
-constexpr ttl::Index i = 'i';
-constexpr ttl::Index j = 'j';
+  constexpr ttl::Index i = 'i';
+  constexpr ttl::Index j = 'j';
 
-constexpr ttl::System test = {
-  C = A(i,j) + B(i,j)
-};
+  constexpr ttl::System test = {
+    C = A(i,j) + B(i,j)
+  };
 
-constexpr ttl::ScalarSystem<test, 3> test3d;
+  constexpr ttl::ScalarSystem<test, 3> test3d;
 }
 
 int main()
@@ -28,15 +28,13 @@ int main()
   }
 
   puts("parse trees");
-  test.rhs([](auto const&... tree) {
-    int i = 0;
-    (fmt::print("\t{} = {}\n", test.lhs[i++], tree.to_string()), ...);
+  test.equations([](ttl::is_equation auto const&... eqns) {
+    (fmt::print("\t{} = {}\n", eqns.lhs, eqns.rhs.to_string()), ...);
   });
 
   puts("tensor trees");
-  test.rhs([](auto const&... tree) {
-    int i = 0;
-    (fmt::print("\t{}\n", test.simplify(test.lhs[i++], tree).to_string()), ...);
+  test.equations([](ttl::is_equation auto const&... eqns) {
+    (fmt::print("\t{}\n", test.simplify(eqns.lhs, eqns.rhs).to_string()), ...);
   });
 
   puts("scalar trees");
