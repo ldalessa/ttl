@@ -7,18 +7,18 @@
 #include "ScalarTree.hpp"
 #include "TensorTree.hpp"
 #include "concepts.hpp"
-#include "lambda_tuple.hpp"
+#include "kumi.hpp"
 #include "pow.hpp"
 #include "set.hpp"
 
 namespace ttl {
-  template <is_tuple Equations>
+  template <kumi::product_type Equations>
   struct System
   {
     Equations equations;
 
     constexpr System(is_equation auto... eqns)
-        : equations(tuple(std::move(eqns)...))
+        : equations { std::move(eqns)... }
     {
     }
 
@@ -49,12 +49,24 @@ namespace ttl {
       });
     }
 
-    template <int N>
-    constexpr TensorTree simplify(const Tensor& lhs, const ParseTree<N>& tree) const
+    constexpr TensorTree simplify(const Tensor& lhs, is_tree auto const& tree) const
     {
       return TensorTree(lhs, tree, [&](const Tensor& t) {
         return is_constant(t);
       });
+    }
+
+    constexpr auto simplify_trees() const
+    {
+      return equations([&](is_equation auto const&... eqns) {
+        return kumi::tuple{simplify(eqns.lhs, eqns.rhs)...};
+      });
+    }
+
+    constexpr auto shapes(int N) const
+    {
+      auto trees = simplify_trees();
+      return true;
     }
 
     constexpr void
@@ -106,5 +118,5 @@ namespace ttl {
   };
 
   System(is_equation auto... eqns)
-    -> System<decltype(tuple(std::move(eqns)...))>;
+    -> System<decltype(kumi::tuple{std::move(eqns)...})>;
 }

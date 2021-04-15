@@ -3,10 +3,11 @@
 #include "ExecutableTree.hpp"
 #include "SIMDTree.hpp"
 #include "ScalarManifest.hpp"
-#include "lambda_tuple.hpp"
+#include <kumi.hpp>
 #include <array>
 
-namespace ttl {
+namespace ttl
+{
 template <auto const& system, int N>
 struct ScalarSystem
 {
@@ -63,7 +64,7 @@ struct ScalarSystem
 
     auto&& trees = system.scalar_trees(N);
     return [&]<std::size_t... is>(std::index_sequence<is...>) {
-      return tuple(ExecutableTree<tree_sizes[is][0], tree_sizes[is][1]>(trees[is], scalars, constants)...);
+      return kumi::make_tuple(ExecutableTree<tree_sizes[is][0], tree_sizes[is][1]>(trees[is], scalars, constants)...);
     }(std::make_index_sequence<n_trees()>());
   }();
 
@@ -72,12 +73,14 @@ struct ScalarSystem
     // context in the inner lambda
 
     return [&]<std::size_t... is>(std::index_sequence<is...>) {
-      return tuple([&]<std::size_t... js>(std::index_sequence<js...>) {
-          constexpr auto&& tree = get<is>(executable);
+      return kumi::tuple {
+        [&]<std::size_t... js>(std::index_sequence<js...>) {
+          constexpr auto&& tree = kumi::get<is>(executable);
           constexpr int Depth = tree.depth();
           return SIMDTree<Depth, tree.data[js].tag...>(tree);
-        }(std::make_index_sequence<get<is>(executable).size()>())...);
-    }(std::make_index_sequence<size(executable)>());
+        }(std::make_index_sequence<kumi::get<is>(executable).size()>())...
+      };
+    }(std::make_index_sequence<executable.size()>());
   }();
 
   template <typename L, typename S, typename C>

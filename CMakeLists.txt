@@ -22,6 +22,12 @@ FetchContent_Declare(ce
   GIT_TAG            main)
 FetchContent_MakeAvailable(ce)
 
+FetchContent_Declare(ofw
+  GIT_REPOSITORY     https://github.com/ldalessa/ofw.git
+  GIT_TAG            main)
+set(OFW_BUILD_TEST OFF)
+FetchContent_MakeAvailable(ofw)
+
 FetchContent_Declare(eve
   GIT_REPOSITORY     https://github.com/jfalcou/eve.git
   GIT_TAG            develop)
@@ -29,7 +35,7 @@ FetchContent_MakeAvailable(eve)
 
 add_library(ttl_lib INTERFACE)
 target_include_directories(ttl_lib INTERFACE $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>)
-target_link_libraries(ttl_lib INTERFACE ce::ce eve::eve fmt::fmt)
+target_link_libraries(ttl_lib INTERFACE ce::ce eve::eve fmt::fmt ofw::ofw)
 target_compile_features(ttl_lib INTERFACE cxx_std_20)
 add_library(ttl::ttl ALIAS ttl_lib)
 

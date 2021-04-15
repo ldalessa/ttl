@@ -180,7 +180,8 @@ struct TensorTree
   {
   }
 
-  constexpr TensorTree(const TensorTree&) = delete;
+  constexpr TensorTree(const TensorTree& b) = delete;
+
   constexpr TensorTree(TensorTree&& b)
       : lhs_(b.lhs_)
       , root_(std::exchange(b.root_, nullptr))
