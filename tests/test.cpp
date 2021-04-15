@@ -33,13 +33,16 @@ int main()
   });
 
   puts("tensor trees");
-  test.equations([](ttl::is_equation auto const&... eqns) {
-    (fmt::print("\t{}\n", test.simplify(eqns.lhs, eqns.rhs).to_string()), ...);
-  });
+  // auto trees = test.simplify_trees();
+  // trees([](auto const&... tree) {
+  //   (fmt::print("\t{}\n", tree.to_string()), ...);
+  // });
 
   puts("scalar trees");
   for (auto&& tree : test.scalar_trees(3)) {
     fmt::print("\t{}\n", tree.to_string());
   }
+
+  constexpr auto shapes = test.shapes(3);
   return 0;
 }
