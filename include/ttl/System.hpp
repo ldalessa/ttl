@@ -6,7 +6,7 @@
 #include "Scalar.hpp"
 #include "ScalarTree.hpp"
 #include "TensorTree.hpp"
-#include "chuple.hpp"
+#include "lambda_tuple.hpp"
 #include "pow.hpp"
 #include "set.hpp"
 
@@ -20,7 +20,7 @@ struct System
   template <typename... Ts>
   constexpr System(Equation<Ts>&&... eqns)
       : lhs { eqns.lhs... }
-      , rhs { chuple(eqns.rhs...) }
+      , rhs { tuple(eqns.rhs...) }
   {
   }
 
@@ -97,5 +97,5 @@ struct System
 
 template <typename... Ts>
 System(Equation<Ts>&&... eqns)
-  -> System<sizeof...(Ts), decltype(chuple(eqns.rhs...))>;
+  -> System<sizeof...(Ts), decltype(tuple(eqns.rhs...))>;
 }
