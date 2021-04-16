@@ -194,7 +194,8 @@ int main(int argc, char* const argv[])
     }
   }
 
-  constexpr auto shapes = sedov.shapes(3);
+  //constexpr
+  auto shapes = sedov.shapes(3);
   shapes([](auto const&... shape) {
     (fmt::print("node_depth:{} node_count:{} index_size:{} stack_depth:{}\n",
                 shape.node_depth,

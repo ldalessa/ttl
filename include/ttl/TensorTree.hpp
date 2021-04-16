@@ -162,22 +162,23 @@ namespace ttl
         return ttl::pow(dim, order());
       }
 
-      constexpr auto shape(int dim, int& stack) const -> TreeShape
+      constexpr auto shape(int dim, int stack) const -> TreeShape
       {
+        if (!std::is_constant_evaluated()) {
+          fmt::print("{} ", stack);
+        }
+
         switch (tag) {
          case SUM:
          case DIFFERENCE:
          case PRODUCT:
          case RATIO: {
+           // reserve space for return values and call a, then b
+           stack += a_->tensor_size(dim);
            TreeShape a = a_->shape(dim, stack);
+
+           stack += b_->tensor_size(dim);
            TreeShape b = b_->shape(dim, stack);
-
-           stack -= b_->tensor_size(dim);       // pop right
-           stack -= a_->tensor_size(dim);       // pop left
-           stack += tensor_size(dim);           // push my output
-
-           // stack should not have increased in size
-           assert(stack <= std::max(a.stack_depth, b.stack_depth));
 
            return TreeShape(order(), a, b);
          }
@@ -186,7 +187,6 @@ namespace ttl
          case DOUBLE:
          case RATIONAL:
          case TENSOR: {
-           stack += tensor_size(dim);
            return TreeShape(index.size(), stack);
          }
 
@@ -267,8 +267,13 @@ namespace ttl
 
     constexpr auto shape(int dim) const -> TreeShape
     {
-      int stack = 0;
-      return root_->shape(dim, stack);
+      // allocate space on the stack for the returned tensor
+      int stack = root_->tensor_size(dim);
+      auto tree = root_->shape(dim, stack);
+      if (!std::is_constant_evaluated()) {
+        fmt::print("{} \n", stack);
+      }
+      return tree;
     }
 
     auto to_string() const -> std::string
