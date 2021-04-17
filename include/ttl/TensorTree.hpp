@@ -210,9 +210,7 @@ namespace ttl
          }
 
          case INDEX:
-          // explicitly storing δ functions for now, should just implement this
-          // as writes directly to the return value slot, but oh well
-          return TreeShape(index.size(), stack, kw::n_immediates = tensor_size(dim));
+          return TreeShape(index.size(), stack, kw::n_immediates = 0);
 
          case DOUBLE:
          case RATIONAL:

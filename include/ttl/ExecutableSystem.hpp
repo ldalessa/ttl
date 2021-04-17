@@ -14,7 +14,7 @@ namespace ttl
   {
     constexpr static auto shapes = system.shapes(N);
 
-    constexpr static auto make_executable_trees()
+    constexpr static auto serialize_tensor_trees()
     {
       return []<std::size_t... i>(std::index_sequence<i...>)
       {
@@ -45,12 +45,39 @@ namespace ttl
           constexpr int Indices = shape.n_indices;
           constexpr int Scalars = shape.n_scalars;
           constexpr int Immediates = shape.n_immediates;
-          using Tree = ExecutableTensorTree<T, N, Nodes, Indices, Scalars, Immediates>;
-          return Tree(kumi::get<i>(tensor_trees), scalars, constant_coefficients);
+          constexpr int Stack = shape.stack_depth;
+          using Tree = SerializedTensorTree<T, N, Nodes, Indices, Scalars, Immediates, Stack>;
+          return Tree(shape, kumi::get<i>(tensor_trees), scalars, constant_coefficients);
         }()...);
       }(std::make_index_sequence<shapes.size()>());
     }
 
-    constexpr static auto executable_trees = make_executable_trees();
+    constexpr static auto serialized_tensor_trees = serialize_tensor_trees();
+
+    constexpr static auto make_executable_tensor_trees()
+    {
+      return []<std::size_t... i>(std::index_sequence<i...>)
+      {
+        return kumi::make_tuple([]
+        {
+          constexpr auto   shape = kumi::get<i>(shapes);
+          constexpr auto&&  tree = kumi::get<i>(serialized_tensor_trees);
+
+          constexpr auto    tags = [&]<std::size_t... j>(std::index_sequence<j...>) {
+            return std::integer_sequence<exec::Tag, tree.tags[j]...>();
+          }(std::make_index_sequence<shape.n_nodes>());
+
+          constexpr auto indices = [&]<std::size_t... j>(std::index_sequence<j...>) {
+            return std::integer_sequence<char, tree.indices[j]...>();
+          }(std::make_index_sequence<shape.n_indices>());
+
+          constexpr auto scalar_ids = [&]<std::size_t... j>(std::index_sequence<j...>) {
+            return std::integer_sequence<int, tree.scalar_ids[j]...>();
+          }(std::make_index_sequence<shape.n_scalars>());
+
+          return ExecutableTensorTree(tree, tags, indices, scalar_ids);
+        }()...);
+      }(std::make_index_sequence<shapes.size()>());
+    }
   };
 }

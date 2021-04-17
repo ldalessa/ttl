@@ -20,12 +20,12 @@ namespace ttl
     int    n_indices;
     int  stack_depth;
 
-    constexpr TreeShape(int n_indices, int stack_depth, rbr::keyword_parameter auto... params)
-      requires(sizeof...(params) <= 1)
+    constexpr TreeShape(int n_indices, int stack_depth, rbr::keyword_parameter auto param)
+      requires(rbr::match<decltype(param)>::with(kw::n_immediates | kw::n_scalars))
       : n_indices(n_indices)
       , stack_depth(stack_depth)
     {
-      rbr::settings args = { params... };
+      rbr::settings args = { param };
       n_scalars = args[kw::n_scalars | 0];
       n_immediates = args[kw::n_immediates | 0];
     }

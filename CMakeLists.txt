@@ -24,7 +24,7 @@ FetchContent_MakeAvailable(ce)
 
 FetchContent_Declare(ofw
   GIT_REPOSITORY     https://github.com/jfalcou/ofw.git
-  GIT_TAG            main)
+  GIT_TAG            feat/raberu-expect)
 set(OFW_BUILD_TEST OFF CACHE INTERNAL "OFF")
 FetchContent_MakeAvailable(ofw)
 
