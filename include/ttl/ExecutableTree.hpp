@@ -166,7 +166,7 @@ struct ExecutableTree
   constexpr int map_rational(int i, const ScalarTree::Node* tree)
   {
     data[i].tag = exe::IMMEDIATE;
-    data[i].d = to_double(tree->q);
+    data[i].d = as<double>(tree->q);
     return 1;
   }
 

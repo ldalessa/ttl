@@ -150,7 +150,7 @@ struct ScalarTree
 
        case TENSOR:
         if (N) {
-          return Scalar(N, tensor, index, constant).to_string(N);
+          return Scalar(N, tensor, index, constant).to_string();
         }
         if (index.size()) {
           return fmt::format("{}({})", tensor.id(), index);
@@ -222,7 +222,7 @@ struct ScalarTree
   }
 
   std::string to_string() const {
-    return lhs_.to_string(N).append(" = ").append(root_->to_string(N));
+    return lhs_.to_string().append(" = ").append(root_->to_string(N));
   }
 
  private:

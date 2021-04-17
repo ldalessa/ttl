@@ -19,12 +19,12 @@ int main()
 {
   puts("scalars");
   for (auto&& s : test3d.scalars) {
-    fmt::print("\t{}\n", s.to_string(3));
+    fmt::print("\t{}\n", s.to_string());
   }
 
   puts("constants");
   for (auto&& s : test3d.constants) {
-    fmt::print("\t{}\n", s.to_string(3));
+    fmt::print("\t{}\n", s.to_string());
   }
 
   puts("parse trees");
@@ -45,11 +45,7 @@ int main()
 
   constexpr auto shapes = test.shapes(3);
   shapes([](auto const&... shape) {
-    (fmt::print("node_depth:{} node_count:{} index_size:{} stack_depth:{}\n",
-                shape.node_depth,
-                shape.node_count,
-                shape.index_size,
-                shape.stack_depth), ...);
+    (fmt::print("{}\n", shape), ...);
   });
   return 0;
 }

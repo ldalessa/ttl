@@ -59,7 +59,7 @@ namespace ttl {
     constexpr auto simplify_trees() const
     {
       return equations([&](is_equation auto const&... eqns) {
-        return kumi::tuple{simplify(eqns.lhs, eqns.rhs)...};
+        return kumi::make_tuple(simplify(eqns.lhs, eqns.rhs)...);
       });
     }
 
@@ -75,15 +75,19 @@ namespace ttl {
       });
     }
 
-    constexpr void
-    scalar_trees(int N, const TensorTree& tree, ce::dvector<ScalarTree>& out) const
+    constexpr auto simplify_trees(int N) const
+    {
+      return kumi::zip(shapes(N), simplify_trees());
+    }
+
+    constexpr void scalar_trees(int N, const TensorTree& tree, ce::dvector<ScalarTree>& out) const
     {
       ScalarTreeBuilder builder(N);
       builder(tree, out);
     }
 
-    constexpr ce::dvector<ScalarTree>
-    scalar_trees(int N, const TensorTree& tree) const
+    constexpr auto scalar_trees(int N, const TensorTree& tree) const
+      -> ce::dvector<ScalarTree>
     {
       ce::dvector<ScalarTree> out;
       ScalarTreeBuilder builder(N);
@@ -91,8 +95,7 @@ namespace ttl {
       return out;
     }
 
-    constexpr auto
-    scalar_trees(int N) const
+    constexpr auto scalar_trees(int N) const
     {
       auto constants = [&](const Tensor& t) {
         return is_constant(t);
@@ -112,8 +115,7 @@ namespace ttl {
       return out;
     }
 
-    constexpr set<Scalar>
-    scalars(int N) const
+    constexpr auto scalars(int N) const -> set<Scalar>
     {
       set<Scalar> out;
       for (auto&& tree : scalar_trees(N)) {

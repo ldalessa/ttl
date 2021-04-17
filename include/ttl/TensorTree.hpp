@@ -3,8 +3,10 @@
 #include "Index.hpp"
 #include "Rational.hpp"
 #include "ParseTree.hpp"
+#include "Scalar.hpp"
 #include "TreeShape.hpp"
 #include "pow.hpp"
+#include "set.hpp"
 #include <memory>
 
 namespace ttl
@@ -122,6 +124,17 @@ namespace ttl
         return (tag == TENSOR) ? exclusive(index) : index;
       }
 
+      constexpr auto all() const -> Index
+      {
+        if (tag == TENSOR) {
+          return unique(index) + repeated(index);
+        }
+        if (tag == PRODUCT || tag == RATIO) {
+          return index + a_->outer() & b_->outer();
+        }
+        return index;
+      }
+
       constexpr auto order() const -> int
       {
         return outer().size();
@@ -156,6 +169,19 @@ namespace ttl
         }
       }
 
+      constexpr auto tensors(set<Node const*>& out) const -> int
+      {
+        if (tag == TENSOR) {
+          return (out.emplace(this));
+        }
+
+        if (tag_is_binary(tag)) {
+          return a_->tensors(out) + b_->tensors(out);
+        }
+
+        return 0;
+      }
+
       /// How many elements are in the runtime tensor for this node.
       constexpr auto tensor_size(int dim) const -> int
       {
@@ -184,16 +210,37 @@ namespace ttl
          }
 
          case INDEX:
+          // explicitly storing δ functions for now, should just implement this
+          // as writes directly to the return value slot, but oh well
+          return TreeShape(index.size(), stack, kw::n_immediates = tensor_size(dim));
+
          case DOUBLE:
          case RATIONAL:
+          return TreeShape(index.size(), stack, kw::n_immediates = 1);
+
          case TENSOR: {
-           return TreeShape(index.size(), stack);
+           int order = all().size();
+           int n = ttl::pow(dim, order);
+           return TreeShape(index.size(), stack, kw::n_scalars = n);
          }
 
          case PARTIAL:
           assert(false);
         }
         __builtin_unreachable();
+      }
+
+      /// Use contract to evaluate op(Scalar) for this node.
+      constexpr auto scalars(int N, auto&& op) const
+      {
+        assert(tag == TENSOR);
+        Index space = all();
+        Index inner = index;
+
+        ScalarIndex i(space.size());
+        do {
+          op(Scalar(N, tensor, i.select(space, inner), constant));
+        } while (i.carry_sum_inc(N));
       }
 
       auto to_string() const -> std::string
@@ -263,6 +310,31 @@ namespace ttl
     constexpr auto order() const -> int
     {
       return outer().size();
+    }
+
+    constexpr auto tensors() const -> set<Node const*>
+    {
+      set<Node const*> t;
+      root()->tensors(t);
+      return t;
+    }
+
+    constexpr auto scalars(int N, set<Scalar>& out) const -> decltype(auto)
+    {
+      for (Node const* node : tensors())
+      {
+        assert(node->tag == TENSOR);
+        node->scalars(N, [&](Scalar scalar) {
+          out.emplace(std::move(scalar));
+        });
+      }
+
+      ScalarIndex index(order());
+      do {
+        out.emplace(N, lhs_, index, false);
+      } while (index.carry_sum_inc(N));
+
+      return out;
     }
 
     constexpr auto shape(int dim) const -> TreeShape

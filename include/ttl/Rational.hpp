@@ -85,9 +85,10 @@ namespace ttl
 
     constexpr friend bool operator==(Rational const&, Rational const&) = default;
 
-    constexpr friend auto to_double(Rational const& a) -> double
+    template <class T>
+    constexpr friend auto as(Rational const& a) -> T
     {
-      return double(a.p) / double(a.q);
+      return T(a.p) / T(a.q);
     }
   };
 }

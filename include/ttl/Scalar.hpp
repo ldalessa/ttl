@@ -1,131 +1,135 @@
 #pragma once
 
 #include "ScalarIndex.hpp"
+#include "Tag.hpp"
 #include "Tensor.hpp"
 #include "pow.hpp"
 #include <cassert>
-#include <fmt/core.h>
+#include <bit>
 
 namespace ttl
 {
-struct Scalar
-{
-  Tensor  tensor;
-  int  component = 0;
-  int       mask = 0;
-  bool constant = false;
-  ScalarIndex dx = {};
-
-  constexpr Scalar() = default;
-
-  constexpr Scalar(int N, const auto* node)
-      : Scalar(N, node->tensor, node->index, node->constant)
+  struct Scalar
   {
-    assert(node->tag == TENSOR);
-  }
+    bool     constant;                      //
+    int         order;                      //!< the number of non-zero α
+    int     direction;                      //!< the non-zero α
+    ScalarIndex     α;                      //!< the ∂x_{i}^{α[i]} order values
+    Tensor     tensor;                      //!< the underlying tensor
+    int     component;                      //!< the linearized scalar component
+    ScalarIndex index;                      //!< the actual component
 
-  constexpr Scalar(int N, const Tensor& t, const ScalarIndex& index, bool constant)
-      : tensor(t)
-      , dx(N)
-      , constant(constant)
-  {
-    assert(t.order() <= index.size());
+    constexpr Scalar() = default;
 
-    // first couple of indices select which component we're interacting with
-    // base on the order of the tensor
-    int i = 0;
-    for (int e = t.order(); i < e; ++i) {
-      component += pow(N, i) * index[i];
+    constexpr Scalar(int N, auto const* node)
+        : Scalar(N, node->tensor, node->index, node->constant)
+    {
+      assert(node->tag == TENSOR);
     }
 
-    // the rest of the indices select which components of the higher order
-    // hessian we're interacting with
-    for (int e = index.size(); i < e; ++i) {
-      ++dx[index[i]];
-    }
+    /// Manifest a scalar for a particular tensor index.
+    ///
+    /// Tensors can be indexed by arrays of integers. When this happens, the
+    /// user (or tree) is trying to refer to a specific scalar in a tensor
+    /// derived from the underlying tensor. The first `t.order()` indices refer
+    /// to the actual scalar in the tensor, and the rest produce a specific
+    /// partial derivative.
+    ///
+    ///    Tensor t = vector(v);
+    ///    Scalar s = t(2, 0, 0, 1, 1) // ∂v_{z}/∂x^2y^2
+    ///
+    /// @param N        The dimensionality (we need to know this independently).
+    /// @param t        The underlying tensor.
+    /// @param incoming The specified index.
+    /// @param constant True if the tensor is a constant.
+    constexpr Scalar(int N, Tensor const& t, ScalarIndex const& incoming, bool constant)
+        : constant(constant)
+        , order(0)
+        , direction(0)
+        , α(N)
+        , tensor(t)
+        , component(0)
+        , index(t.order())
+    {
+      assert(t.order() <= incoming.size());
 
-    // build the partial mask
-    for (int n = 0, e = dx.size(); n < e; ++n) {
-      if (dx[n]) {
-        mask += pow(2, n);
-      }
-    }
-
-    assert(!constant || mask == 0);
-  }
-
-  constexpr friend bool operator==(const Scalar& a, const Scalar& b) {
-    if (a.component != b.component) return false;
-    if (a.tensor != b.tensor) return false;
-    if (a.dx != b.dx) return false;
-    return true;
-  }
-
-  // this ordering is important for the partial manifest
-  constexpr friend bool operator<(const Scalar& a, const Scalar& b) {
-    if (a.mask < b.mask) return true;
-    if (b.mask < a.mask) return false;
-    if (a.constant && !b.constant) return true;
-    if (!b.constant && a.constant) return false;
-    if (a.dx < b.dx) return true;
-    if (b.dx < a.dx) return false;
-    if (a.tensor.id() < b.tensor.id()) return true;
-    if (b.tensor.id() < a.tensor.id()) return false;
-    if (a.component < b.component) return true;
-    if (b.component < a.component) return false;
-    return false;
-  }
-
-  std::string to_string(int N = 0) const
-  {
-    constexpr static const char ids[] = "xyzw";
-
-    std::string str;
-
-    if (mask != 0) {
-      str.append("d");
-    }
-
-    str.append(tensor.id());
-
-    if (tensor.order()) {
-      if (N != 0) {
-        assert(N < sizeof(ids));
-        int c = component;
-        for (int n = 0; n < tensor.order(); ++n) {
-          str.append(1, ids[c % N]);
-          c /= N;
+      // Runtime constant coefficients may be provided for scalars that are
+      // impossible for the problem dimensionality. Just set some "impossible"
+      // value for the component if we see one of those.
+      for (int i : incoming) {
+        if (N <= i) {
+          component = -1;
+          return;
         }
       }
-      else {
-        str.append(std::to_string(component));
+
+      int i = 0;
+      for (; i < t.order(); ++i) {
+        index[i] = incoming[i];
+        component += ttl::pow(N, i) * incoming[i];
       }
+
+      for (; i < incoming.size(); ++i) {
+        α[incoming[i]] += 1;
+        direction |= ttl::pow(2, incoming[i]);
+      }
+
+      order = std::popcount(unsigned(direction));
+
+      assert(!constant || direction == 0);
     }
 
-    if (mask == 0) {
+    constexpr friend bool operator==(Scalar const&, Scalar const&) = default;
+    constexpr friend auto operator<=>(Scalar const&, Scalar const&) = default;
+
+    auto to_string() const -> std::string
+    {
+      constexpr static const char ids[] = { 'x', 'y', 'z', 'w' };
+
+      int N = α.size();
+
+      std::string str;
+
+      if (order != 0) {
+        str.append("∂");
+      }
+
+      str.append(tensor.id());
+
+      for (int i : index) {
+        assert(i < std::size(ids));
+        str.append(1, ids[i]);
+      }
+
+      if (direction == 0) {
+        return str;
+      }
+
+      str.append("_∂");
+
+      for (int n = 0; n < α.size(); ++n) {
+        for (int i = 0; i < α[n]; ++i) {
+          assert(i < std::size(ids));
+          str.append(1, ids[n]);
+        }
+      }
       return str;
     }
-
-    str.append("_d");
-
-    for (int n = 0; n < dx.size(); ++n) {
-      for (int i = 0; i < dx[n]; ++i) {
-        str.append(1, ids[n]);
-      }
-    }
-    return str;
-  }
-};
+  };
 }
 
+#include <fmt/format.h>
+
 template <>
-struct fmt::formatter<ttl::Scalar> {
-  constexpr auto parse(format_parse_context& ctx) {
+struct fmt::formatter<ttl::Scalar>
+{
+  constexpr auto parse(format_parse_context& ctx)
+  {
     return ctx.begin();
   }
 
-  template <typename FormatContext>
-  auto format(const ttl::Scalar& p, FormatContext& ctx) {
+  auto format(ttl::Scalar const& p, auto& ctx)
+  {
     return format_to(ctx.out(), "{}", p.to_string());
   }
 };

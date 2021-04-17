@@ -71,8 +71,7 @@ struct fmt::formatter<ttl::Tag>
     return ctx.begin();
   }
 
-  template <typename FormatContext>
-  constexpr auto format(ttl::Tag tag, FormatContext& ctx) {
+  constexpr auto format(ttl::Tag tag, auto& ctx) {
     return format_to(ctx.out(), "{}", tag_strings[tag]);
   }
 };
