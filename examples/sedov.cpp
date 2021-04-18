@@ -74,7 +74,13 @@ int main(int argc, char* const argv[])
 {
   std::map args = docopt::docopt(USAGE, {argv + 1, argv + argc});
 
-  constexpr auto shapes = sedov3d.shapes;
+  // auto trees = sedov.simplify_trees();
+  // trees([](auto const&... tree) {
+  //   (fmt::print("\t{}\n", tree.to_string()), ...);
+  //   (fmt::print("graph rho {{\n{}}}\n", ttl::dot(tree)), ...);
+  // });
+
+  constexpr auto shapes = sedov.shapes(N);
   shapes([](auto const&... shape) {
     (fmt::print("{}\n", shape), ...);
   });

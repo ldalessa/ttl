@@ -201,10 +201,13 @@ namespace ttl
       /// The shape is a set of aggregate statistics about the tree, including
       /// information like the number of nodes, the tree depth, the indices,
       /// etc.
-      constexpr auto shape(int dim, int stack) const -> TreeShape
+      constexpr auto shape(int dim, ce::dvector<int>& stack) const -> TreeShape
       {
+        int top_of_stack = stack.back();
+        stack.push_back(top_of_stack + tensor_size(dim));
+
         if (!std::is_constant_evaluated()) {
-          fmt::print("{} ", stack);
+          fmt::print("tree shape stack:{} ({} + {})\n", stack.back(), top_of_stack, tensor_size(dim));
         }
 
         switch (tag) {
@@ -212,12 +215,10 @@ namespace ttl
          case DIFFERENCE:
          case PRODUCT:
          case RATIO: {
-           // reserve space for return values and call a, then b
-           stack += a_->tensor_size(dim);
            TreeShape a = a_->shape(dim, stack);
-
-           stack += b_->tensor_size(dim);
            TreeShape b = b_->shape(dim, stack);
+           stack.pop_back();
+           stack.pop_back();
 
            // Merge the children tree shape data and append the indiex counts
            // from this node.
@@ -230,7 +231,7 @@ namespace ttl
            assert(index.size() == 2);
            assert(order() == 2);
            return TreeShape(kw::dims = dim,
-                            kw::stack_depth = stack,
+                            kw::stack_depth = stack.back(),
                             kw::n_indices = 2);
          }
 
@@ -239,7 +240,7 @@ namespace ttl
            assert(index.size() == 0);
            assert(order() == 0);
            return TreeShape(kw::dims = dim,
-                            kw::stack_depth = stack,
+                            kw::stack_depth = stack.back(),
                             kw::n_immediates = 1,
                             kw::n_indices = 0);
          }
@@ -248,7 +249,7 @@ namespace ttl
            int m = all().size();
            int n = ttl::pow(dim, m);
            return TreeShape(kw::dims = dim,
-                            kw::stack_depth = stack,
+                            kw::stack_depth = stack.back(),
                             kw::n_scalars = n,
                             kw::n_indices = order(),
                             kw::n_tensor_indices = index.size(),
@@ -370,12 +371,11 @@ namespace ttl
     constexpr auto shape(int dim) const -> TreeShape
     {
       // allocate space on the stack for the returned tensor
-      int stack = root_->tensor_size(dim);
-      auto tree = root_->shape(dim, stack);
-      if (!std::is_constant_evaluated()) {
-        fmt::print("{} \n", stack);
-      }
-      return tree;
+      ce::dvector<int> stack { std::in_place, 0 };
+      TreeShape out = root_->shape(dim, stack);
+      assert(stack.size() == 2);
+      assert(stack.back() == root_->tensor_size(dim));
+      return out;
     }
 
     auto to_string() const -> std::string

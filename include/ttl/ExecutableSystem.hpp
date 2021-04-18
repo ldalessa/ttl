@@ -55,58 +55,7 @@ namespace ttl
         return kumi::make_tuple([]
         {
           constexpr auto&&  tree = kumi::get<i>(serialized_tensor_trees);
-
-          constexpr auto    tags = [&]<std::size_t... j>(std::index_sequence<j...>) {
-            return std::integer_sequence<exec::Tag, tree.tags[j]...>();
-          }(std::make_index_sequence<std::size(tree.tags)>());
-
-          constexpr auto indices = [&]<std::size_t... j>(std::index_sequence<j...>) {
-            return std::integer_sequence<char, tree.indices[j]...>();
-          }(std::make_index_sequence<std::size(tree.indices)>());
-
-          constexpr auto index_offsets = [&]<std::size_t... j>(std::index_sequence<j...>) {
-            return std::integer_sequence<int, tree.index[j]...>();
-          }(std::make_index_sequence<std::size(tree.index)>());
-
-          constexpr auto inner_indices = [&]<std::size_t... j>(std::index_sequence<j...>) {
-            return std::integer_sequence<char, tree.inner_indices[j]...>();
-          }(std::make_index_sequence<std::size(tree.inner_indices)>());
-
-          constexpr auto inner_index_offsets = [&]<std::size_t... j>(std::index_sequence<j...>) {
-            return std::integer_sequence<int, tree.inner_index[j]...>();
-          }(std::make_index_sequence<std::size(tree.inner_index)>());
-
-          constexpr auto tensor_indices = [&]<std::size_t... j>(std::index_sequence<j...>) {
-            return std::integer_sequence<char, tree.tensor_indices[j]...>();
-          }(std::make_index_sequence<std::size(tree.tensor_indices)>());
-
-          constexpr auto tensor_index_offsets = [&]<std::size_t... j>(std::index_sequence<j...>) {
-            return std::integer_sequence<int, tree.tensor_index[j]...>();
-          }(std::make_index_sequence<std::size(tree.tensor_index)>());
-
-          constexpr auto scalar_ids = [&]<std::size_t... j>(std::index_sequence<j...>) {
-            return std::integer_sequence<int, tree.scalar_ids[j]...>();
-          }(std::make_index_sequence<std::size(tree.scalar_ids)>());
-
-          constexpr auto scalar_ids_offsets = [&]<std::size_t... j>(std::index_sequence<j...>) {
-            return std::integer_sequence<int, tree.scalar[j]...>();
-          }(std::make_index_sequence<std::size(tree.scalar)>());
-
-          constexpr auto left = [&]<std::size_t... j>(std::index_sequence<j...>) {
-            return std::integer_sequence<int, tree.left[j]...>();
-          }(std::make_index_sequence<std::size(tree.left)>());
-
-          return ExecutableTensorTree(tree,
-                                      tags,
-                                      indices,
-                                      index_offsets,
-                                      inner_indices,
-                                      inner_index_offsets,
-                                      tensor_indices,
-                                      tensor_index_offsets,
-                                      scalar_ids,
-                                      scalar_ids_offsets,
-                                      left);
+          return ExecutableTensorTree<tree>();
         }()...);
       }(std::make_index_sequence<shapes.size()>());
     }

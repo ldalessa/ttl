@@ -110,23 +110,26 @@ namespace ttl
     using Node = TensorTree::Node;
     using scalar_type = T;
 
+    // for debugging
+    decltype(shape) debug_shape = shape;
+
     // Arrays of data.
     char        indices[shape.n_indices]{};
     char  inner_indices[shape.n_inner_indices]{};
     char tensor_indices[shape.n_tensor_indices]{};
     int      scalar_ids[shape.n_scalars]{};
-    T        immediates[shape.n_immediates]{};
+    // T        immediates[shape.n_immediates]{};
 
     exec::Tag tags[shape.n_nodes]{};
     int        rvo[shape.n_nodes]{};
     int       left[shape.n_nodes]{};
     int      right[shape.n_nodes]{};
 
-    int        index[shape.n_nodes + 1]{};
-    int  inner_index[shape.n_nodes + 1]{};
-    int tensor_index[shape.n_nodes + 1]{};
-    int       scalar[shape.n_nodes + 1]{};
-    int    immediate[shape.n_nodes + 1]{};
+    int        index_offsets[shape.n_nodes + 1]{};
+    int  inner_index_offsets[shape.n_nodes + 1]{};
+    int tensor_index_offsets[shape.n_nodes + 1]{};
+    int   scalar_ids_offsets[shape.n_nodes + 1]{};
+    int    immediate_offsets[shape.n_nodes + 1]{};
 
     constexpr SerializedTensorTree(TensorTree const& tree, set<Scalar> const& scalars, set<Scalar> const& constants)
     {
@@ -173,18 +176,18 @@ namespace ttl
       {
         // The maps are all size+1, so that we can compute the size of each
         // extent for the root. This is standard compressed-sparse-row design.
-        tree.index[i]        = std::size(tree.indices);
-        tree.inner_index[i]  = std::size(tree.inner_indices);
-        tree.tensor_index[i] = std::size(tree.tensor_indices);
-        tree.scalar[i]       = std::size(tree.scalar_ids);
-        tree.immediate[i]    = std::size(tree.immediates);
+        tree.index_offsets[i]        = std::size(tree.indices);
+        tree.inner_index_offsets[i]  = std::size(tree.inner_indices);
+        tree.tensor_index_offsets[i] = std::size(tree.tensor_indices);
+        tree.scalar_ids_offsets[i]   = std::size(tree.scalar_ids);
+        // tree.immediate[i]    = std::size(tree.immediates);
 
         assert(i == shape.n_nodes);
         assert(scalar == shape.n_scalars);
         assert(index == shape.n_indices);
         assert(inner_index == shape.n_inner_indices);
         assert(tensor_index == shape.n_tensor_indices);
-        assert(immediate == shape.n_immediates);
+        // assert(immediate == shape.n_immediates);
         assert(stack.size() == 2);
       }
 
@@ -207,17 +210,18 @@ namespace ttl
       }
 
       /// Record the information associated with a leaf node
-      constexpr void record(Node const* node, int tos)
+      constexpr void record(Node const* node, int top_of_stack)
       {
-        tree.tags[i]         = to_tag(node);
-        tree.rvo[i]          = tos;
-        tree.index[i]        = index;
-        tree.inner_index[i]  = inner_index;
-        tree.tensor_index[i] = tensor_index;
-        tree.scalar[i]       = scalar;
-        tree.immediate[i]    = immediate;
-        tree.left[i]         = -1;            // overwritten in map() for binary
-        tree.right[i]        = -1;            // overwritten in map() for binary
+        assert(top_of_stack + node->tensor_size(shape.dims) <= shape.stack_depth);
+        tree.tags[i]                 = to_tag(node);
+        tree.rvo[i]                  = top_of_stack;
+        tree.index_offsets[i]        = index;
+        tree.inner_index_offsets[i]  = inner_index;
+        tree.tensor_index_offsets[i] = tensor_index;
+        tree.scalar_ids_offsets[i]   = scalar;
+        tree.immediate_offsets[i]    = immediate;
+        tree.left[i]                 = -1;            // overwritten in map() for binary
+        tree.right[i]                = -1;            // overwritten in map() for binary
 
         // Store my outer index to the right offset.
         for (char c : node->outer()) {
@@ -227,15 +231,6 @@ namespace ttl
         // Store the all index to the right offset.
         for (char c : node->all()) {
           tree.inner_indices[inner_index++] = c;
-        }
-
-        if (!std::is_constant_evaluated()) {
-          const char* fmt = "{:<10}{:<10}{:<10}\n";
-          if (i == 0) {
-            fmt::print(fmt, "i", "index", "index_size");
-          }
-          int index_size = index - tree.index[i];
-          fmt::print(fmt, i, tree.index[i], index_size);
         }
       }
 
@@ -263,8 +258,12 @@ namespace ttl
 
       constexpr int map(Node const* node, set<Scalar> const& scalars, set<Scalar> const& constants)
       {
-        int tos = stack.back();
-        stack.push_back(tos + node->tensor_size(shape.dims));
+        int top_of_stack = stack.back();
+        stack.push_back(top_of_stack + node->tensor_size(shape.dims));
+
+        if (!std::is_constant_evaluated()) {
+          fmt::print("serialize stack:{}\n", stack.back());
+        }
 
         switch (node->tag)
         {
@@ -277,7 +276,7 @@ namespace ttl
              int r = map(node->b(), scalars, constants);
              stack.pop_back();
              stack.pop_back();
-             record(node, tos);
+             record(node, top_of_stack);
              tree.left[i]  = l;
              tree.right[i] = r;
 
@@ -289,22 +288,22 @@ namespace ttl
 
          case ttl::INDEX:
           assert(node->index.size() == 2);
-          record(node, tos);
+          record(node, top_of_stack);
           break;
 
          case ttl::TENSOR:
-          record(node, tos);
+          record(node, top_of_stack);
           map_tensor(node, scalars, constants);
           break;
 
          case ttl::RATIONAL:
-          record(node, tos);
-          tree.immediates[immediate++] = as<T>(node->q);
+          record(node, top_of_stack);
+          // tree.immediates[immediate++] = as<T>(node->q);
           break;
 
          case ttl::DOUBLE:
-          record(node, tos);
-          tree.immediates[immediate++] = node->d;
+          record(node, top_of_stack);
+          // tree.immediates[immediate++] = node->d;
           break;
 
          default:
@@ -316,92 +315,40 @@ namespace ttl
     };
   };
 
-  template <class Tree,
-            class Tags,
-            class Indices,
-            class IndexOffsets,
-            class InnerIndices,
-            class InnerIndexOffsets,
-            class TensorIndices,
-            class TensorIndexOffsets,
-            class ScalarIds,
-            class ScalarIdsOffsets,
-            class Left>
+  template <auto tree>
   struct ExecutableTensorTree
   {
-    using T = typename Tree::scalar_type;
-    using Stack = T[Tree::stack_size()];
+    using T = typename decltype(tree)::scalar_type;
+    using Stack = T[tree.stack_size()];
+    constexpr static int N = tree.dims();
 
-    constexpr static int N = Tree::dims();
-
-    constexpr static std::array tags = []<auto... tags>(std::integer_sequence<exec::Tag, tags...>) {
-      return std::array{tags...};
-    }(Tags{});
-
-    constexpr static std::array indices = []<char... is>(std::integer_sequence<char, is...>) {
-      return std::array{is...};
-    }(Indices{});
-
-    constexpr static std::array index_offsets = []<int... is>(std::integer_sequence<int, is...>) {
-      return std::array{is...};
-    }(IndexOffsets{});
-
-    constexpr static std::array inner_indices = []<char... is>(std::integer_sequence<char, is...>) {
-      return std::array{is...};
-    }(InnerIndices{});
-
-    constexpr static std::array inner_index_offsets = []<int... is>(std::integer_sequence<int, is...>) {
-      return std::array{is...};
-    }(InnerIndexOffsets{});
-
-    constexpr static std::array tensor_indices = []<char... is>(std::integer_sequence<char, is...>) {
-      return std::array{is...};
-    }(TensorIndices{});
-
-    constexpr static std::array tensor_index_offsets = []<int... is>(std::integer_sequence<int, is...>) {
-      return std::array{is...};
-    }(TensorIndexOffsets{});
-
-    constexpr static std::array scalar_ids = []<int... ids>(std::integer_sequence<int, ids...>) {
-      return std::array{ids...};
-    }(ScalarIds{});
-
-    constexpr static std::array scalar_ids_offsets = []<int... ids>(std::integer_sequence<int, ids...>) {
-      return std::array{ids...};
-    }(ScalarIdsOffsets{});
-
-    constexpr static std::array left = []<int... ids>(std::integer_sequence<int, ids...>) {
-      return std::array{ids...};
-    }(Left{});
-
-    constexpr static std::array right = []<int... ids>(std::integer_sequence<int, ids...>) {
-      return std::array{(is_binary(tags[ids]) ? ids - 1 : -1)...};
-    }(std::make_integer_sequence<int, std::size(tags)>());
-
-    Tree tree;
-
-    constexpr ExecutableTensorTree(Tree const& serialized_tree,
-                                   Tags,
-                                   Indices,
-                                   IndexOffsets,
-                                   InnerIndices,
-                                   InnerIndexOffsets,
-                                   TensorIndices,
-                                   TensorIndexOffsets,
-                                   ScalarIds,
-                                   ScalarIdsOffsets,
-                                   Left)
-        : tree(serialized_tree)
-    {
-    }
-
-    template <int k, auto const& index = indices, auto const& offsets = index_offsets>
+    template <int k>
     constexpr static auto make_index() -> exec::Index
     {
-      static_assert(offsets[k] <= offsets[k+1]);
+      static_assert(tree.index_offsets[k] <= tree.index_offsets[k+1]);
       return exec::Index {
-        .i = &index[offsets[k]],
-        .e = &index[offsets[k+1]]
+        .i = &tree.indices[tree.index_offsets[k]],
+        .e = &tree.indices[tree.index_offsets[k+1]]
+      };
+    }
+
+    template <int k>
+    constexpr static auto make_inner_index() -> exec::Index
+    {
+      static_assert(tree.inner_index_offsets[k] <= tree.inner_index_offsets[k+1]);
+      return exec::Index {
+        .i = &tree.inner_indices[tree.inner_index_offsets[k]],
+        .e = &tree.inner_indices[tree.inner_index_offsets[k+1]]
+      };
+    }
+
+    template <int k>
+    constexpr static auto make_tensor_index() -> exec::Index
+    {
+      static_assert(tree.tensor_index_offsets[k] <= tree.tensor_index_offsets[k+1]);
+      return exec::Index {
+        .i = &tree.tensor_indices[tree.tensor_index_offsets[k]],
+        .e = &tree.tensor_indices[tree.tensor_index_offsets[k+1]]
       };
     }
 
@@ -409,8 +356,8 @@ namespace ttl
     void eval_sum(Stack& stack) const
     {
       // c = a + b
-      constexpr static int l = left[k];
-      constexpr static int r = right[k];
+      constexpr static int l = tree.left[k];
+      constexpr static int r = tree.right[k];
 
       static_assert(l < r);
       static_assert(r == k - 1);
@@ -423,11 +370,20 @@ namespace ttl
 
       constexpr static exec::IndexMapper<ci, bi> bmap{};
 
-      constexpr static std::size_t M = ci.size();
+      constexpr static int M = ci.size();
 
-      T* __restrict c = &stack[tree.rvo[k]];
-      T* __restrict a = &stack[tree.rvo[l]];
-      T* __restrict b = &stack[tree.rvo[r]];
+      constexpr static int rk = tree.rvo[k];
+      constexpr static int rl = tree.rvo[l];
+      constexpr static int rr = tree.rvo[r];
+
+      static_assert(0 <= rk);
+      static_assert(rk < rl);
+      static_assert(rl < rr);
+      static_assert(rr + ttl::pow(N, M) <= tree.stack_size());
+
+      T* const __restrict c = stack + rk;
+      T* const __restrict a = stack + rl;
+      T* const __restrict b = stack + rr;
 
       exec::eval<N, M>([&](std::array<int, M> outer) {
         int i = exec::row_major<N>(outer);
@@ -440,8 +396,8 @@ namespace ttl
     void eval_difference(Stack& stack) const
     {
       // c = a - b
-      constexpr static int l = left[k];
-      constexpr static int r = right[k];
+      constexpr static int l = tree.left[k];
+      constexpr static int r = tree.right[k];
 
       constexpr static exec::Index ci = make_index<k>();
       constexpr static exec::Index ai = make_index<l>();
@@ -450,11 +406,20 @@ namespace ttl
 
       constexpr static exec::IndexMapper<ci, bi> bmap{};
 
-      constexpr static std::size_t M = ci.size();
+      constexpr static int M = ci.size();
 
-      T* __restrict c = &stack[tree.rvo[k]];
-      T* __restrict a = &stack[tree.rvo[l]];
-      T* __restrict b = &stack[tree.rvo[r]];
+      constexpr static int rk = tree.rvo[k];
+      constexpr static int rl = tree.rvo[l];
+      constexpr static int rr = tree.rvo[r];
+
+      static_assert(0 <= rk);
+      static_assert(rk < rl);
+      static_assert(rl < rr);
+      static_assert(rr + ttl::pow(N, M) <= tree.stack_size());
+
+      T* const __restrict c = stack + rk;
+      T* const __restrict a = stack + rl;
+      T* const __restrict b = stack + rr;
 
       exec::eval<N, M>([&](std::array<int, M> outer) {
         int i = exec::row_major<N>(outer);
@@ -467,11 +432,14 @@ namespace ttl
     void eval_product(Stack& stack) const
     {
       // c = a * b
-      constexpr static int l = left[k];
-      constexpr static int r = right[k];
+      constexpr static int l = tree.left[k];
+      constexpr static int r = tree.right[k];
+
+      static_assert(l < r);
+      static_assert(r == k - 1);
 
       constexpr static exec::Index  ci = make_index<k>();
-      constexpr static exec::Index all = make_index<k, inner_indices, inner_index_offsets>();
+      constexpr static exec::Index all = make_inner_index<k>();
       constexpr static exec::Index  ai = make_index<l>();
       constexpr static exec::Index  bi = make_index<r>();
 
@@ -479,18 +447,27 @@ namespace ttl
       constexpr static exec::IndexMapper<all, ai> amap{};
       constexpr static exec::IndexMapper<all, bi> bmap{};
 
-      constexpr static int M = all.size();
+      constexpr static int rk = tree.rvo[k];
+      constexpr static int rl = tree.rvo[l];
+      constexpr static int rr = tree.rvo[r];
 
-      T* __restrict c = &stack[tree.rvo[k]];
-      T* __restrict a = &stack[tree.rvo[l]];
-      T* __restrict b = &stack[tree.rvo[r]];
+      static_assert(0 <= rk);
+      static_assert(rk < rl);
+      static_assert(rl < rr);
+      static_assert(rr + ttl::pow(N, ci.size()) <= tree.stack_size());
+
+      T* const __restrict c = stack + rk;
+      T* const __restrict a = stack + rl;
+      T* const __restrict b = stack + rr;
 
       // Don't know the state of the stack but we're going to need to accumulate
-      // there so we need to zero it first.
-      for (int ii = 0; ii < ttl::pow(N, M); ++ii) {
+      // there so we need to zero it first (it's nearly certainly dirty, either
+      // from previous frame or from previous evaluation)
+      for (int ii = 0; ii < ttl::pow(N, ci.size()); ++ii) {
         c[ii] = T();
       }
 
+      constexpr static int M = all.size();
       exec::eval<N, M>([&](std::array<int, M> outer)
       {
         int ii = exec::row_major<N>(cmap(outer));
@@ -504,12 +481,12 @@ namespace ttl
     void eval_ratio(Stack& stack) const
     {
       // c = a / b
-      constexpr static int l = left[k];
-      constexpr static int r = right[k];
+      constexpr static int l = tree.left[k];
+      constexpr static int r = tree.right[k];
 
       // right now we're expecting `b` to be a scalar.
       constexpr static exec::Index  ci = make_index<k>();
-      constexpr static exec::Index all = make_index<k, inner_indices, inner_index_offsets>();
+      constexpr static exec::Index all = make_inner_index<k>();
       constexpr static exec::Index  ai = make_index<l>();
       constexpr static exec::Index  bi = make_index<r>();
 
@@ -519,9 +496,18 @@ namespace ttl
 
       constexpr static int M = ttl::pow(N, ci.size());
 
-      T* __restrict c = &stack[tree.rvo[k]];
-      T* __restrict a = &stack[tree.rvo[l]];
-      T* __restrict b = &stack[tree.rvo[r]];
+      constexpr static int rk = tree.rvo[k];
+      constexpr static int rl = tree.rvo[l];
+      constexpr static int rr = tree.rvo[r];
+
+      static_assert(0 <= rk);
+      static_assert(rk < rl);
+      static_assert(rl < rr);
+      static_assert(rr + M <= tree.stack_size());
+
+      T* const __restrict c = stack + rk;
+      T* const __restrict a = stack + rl;
+      T* const __restrict b = stack + rr;
 
       auto rb = T(1)/b[0];
       for (int i = 0; i < M; ++i) {
@@ -532,30 +518,36 @@ namespace ttl
     template <int k>
     void eval_immediate(Stack& stack) const
     {
-      stack[tree.rvo[k]] = tree.immediates[tree.immediate[k]];
+      // stack[tree.rvo[k]] = tree.immediates[tree.immediate[k]];
     }
 
     template <int k>
     void eval_scalar(int i, Stack& stack, auto const& scalars) const
     {
       constexpr static exec::Index outer = make_index<k>();
-      constexpr static exec::Index   all = make_index<k, inner_indices, inner_index_offsets>();
-      constexpr static exec::Index index = make_index<k, tensor_indices, tensor_index_offsets>();
+      constexpr static exec::Index   all = make_inner_index<k>();
+      constexpr static exec::Index index = make_tensor_index<k>();
 
       constexpr static exec::IndexMapper<all, outer> outer_map{};
       constexpr static exec::IndexMapper<all, index> index_map{};
 
-      constexpr static int M = all.size();
-      constexpr static int const *ids = &scalar_ids[scalar_ids_offsets[k]];
+      constexpr static int rk = tree.rvo[k];
 
-      T* __restrict c = &stack[tree.rvo[k]];
+      static_assert(0 <= rk);
+      static_assert(rk + ttl::pow(N, outer.size()) <= tree.stack_size());
+
+      constexpr static int const *ids = &tree.scalar_ids[tree.scalar_ids_offsets[k]];
+
+      T* const __restrict c = stack + rk;
 
       // Don't know the state of the stack but we're going to need to accumulate
-      // there so we need to zero it first.
-      for (int ii = 0; ii < ttl::pow(N, M); ++ii) {
+      // there so we need to zero it first (it's nearly certainly dirty, either
+      // from previous frame or from previous evaluation).
+      for (int ii = 0; ii < ttl::pow(N, outer.size()); ++ii) {
         c[ii] = T();
       }
 
+      constexpr static int M = all.size();
       exec::eval<N, M>([&](std::array<int, M> outer)
       {
         int ii = exec::row_major<N>(outer_map(outer));
@@ -567,8 +559,8 @@ namespace ttl
     template <int k>
     void eval_constant(Stack& stack, auto const& constants) const
     {
-      constexpr static int const *ids = &scalar_ids[scalar_ids_offsets[k]];
-      constexpr static int M = &scalar_ids[scalar_ids_offsets[k + 1]] - ids;
+      constexpr static int const *ids = &tree.scalar_ids[tree.scalar_ids_offsets[k]];
+      constexpr static int M = &tree.scalar_ids[tree.scalar_ids_offsets[k + 1]] - ids;
 
       T* __restrict c = &stack[tree.rvo[k]];
 
@@ -592,28 +584,28 @@ namespace ttl
     template <int k>
     void eval_kernel_step(int i, Stack& stack, auto const& scalars, auto const& constants) const
     {
-      if constexpr (tags[k] == exec::SUM) {
+      if constexpr (tree.tags[k] == exec::SUM) {
         eval_sum<k>(stack);
       }
-      if constexpr (tags[k] == exec::DIFFERENCE) {
+      if constexpr (tree.tags[k] == exec::DIFFERENCE) {
         eval_difference<k>(stack);
       }
-      if constexpr (tags[k] == exec::PRODUCT) {
+      if constexpr (tree.tags[k] == exec::PRODUCT) {
         eval_product<k>(stack);
       }
-      if constexpr (tags[k] == exec::RATIO) {
+      if constexpr (tree.tags[k] == exec::RATIO) {
         eval_ratio<k>(stack);
       }
-      if constexpr (tags[k] == exec::IMMEDIATE) {
+      if constexpr (tree.tags[k] == exec::IMMEDIATE) {
         eval_immediate<k>(stack);
       }
-      if constexpr (tags[k] == exec::CONSTANT) {
+      if constexpr (tree.tags[k] == exec::CONSTANT) {
         eval_constant<k>(stack, constants);
       }
-      if constexpr (tags[k] == exec::SCALAR) {
+      if constexpr (tree.tags[k] == exec::SCALAR) {
         eval_scalar<k>(i, stack, scalars);
       }
-      if constexpr (tags[k] == exec::DELTA) {
+      if constexpr (tree.tags[k] == exec::DELTA) {
         eval_delta<k>(stack);
       }
     }
@@ -623,7 +615,7 @@ namespace ttl
       Stack stack{};
       [&]<std::size_t... i>(std::index_sequence<i...>) {
         (eval_kernel_step<i>(0, stack, scalars, constants), ...);
-      }(std::make_index_sequence<Tree::n_nodes()>());
+      }(std::make_index_sequence<tree.n_nodes()>());
     }
   };
 }
