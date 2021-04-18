@@ -104,34 +104,31 @@ namespace ttl
     }
   }
 
-  template <class T, int N, int Nodes, int Indices, int InnerIndices, int TensorIndices, int Scalars, int Immediates, int Stack>
+  template <class T, auto shape>
   struct SerializedTensorTree
   {
     using Node = TensorTree::Node;
     using scalar_type = T;
 
-    TreeShape const& shape;
-
     // Arrays of data.
-    char        indices[Indices]{};
-    char  inner_indices[InnerIndices]{};
-    char tensor_indices[TensorIndices]{};
-    int      scalar_ids[Scalars]{};
-    T        immediates[Immediates]{};
+    char        indices[shape.n_indices]{};
+    char  inner_indices[shape.n_inner_indices]{};
+    char tensor_indices[shape.n_tensor_indices]{};
+    int      scalar_ids[shape.n_scalars]{};
+    T        immediates[shape.n_immediates]{};
 
-    exec::Tag tags[Nodes]{};
-    int        rvo[Nodes]{};
-    int       left[Nodes]{};
-    int      right[Nodes]{};
+    exec::Tag tags[shape.n_nodes]{};
+    int        rvo[shape.n_nodes]{};
+    int       left[shape.n_nodes]{};
+    int      right[shape.n_nodes]{};
 
-    int        index[Nodes + 1]{};
-    int  inner_index[Nodes + 1]{};
-    int tensor_index[Nodes + 1]{};
-    int       scalar[Nodes + 1]{};
-    int    immediate[Nodes + 1]{};
+    int        index[shape.n_nodes + 1]{};
+    int  inner_index[shape.n_nodes + 1]{};
+    int tensor_index[shape.n_nodes + 1]{};
+    int       scalar[shape.n_nodes + 1]{};
+    int    immediate[shape.n_nodes + 1]{};
 
-    constexpr SerializedTensorTree(TreeShape const& shape, TensorTree const& tree, set<Scalar> const& scalars, set<Scalar> const& constants)
-        : shape { shape }
+    constexpr SerializedTensorTree(TensorTree const& tree, set<Scalar> const& scalars, set<Scalar> const& constants)
     {
       Builder_ builder(*this);
       builder.map(tree.root(), scalars, constants);
@@ -139,17 +136,17 @@ namespace ttl
 
     static constexpr int dims()
     {
-      return N;
+      return shape.dims;
     }
 
     static constexpr int n_nodes()
     {
-      return Nodes;
+      return shape.n_nodes;
     }
 
     static constexpr int stack_size()
     {
-      return Stack;
+      return shape.stack_depth;
     }
 
         // Variables used during the initialization process.
@@ -168,7 +165,7 @@ namespace ttl
       constexpr Builder_(SerializedTensorTree& tree)
           : tree(tree)
       {
-        stack.reserve(Stack + 1);
+        stack.reserve(shape.stack_depth + 1);
         stack.push_back(0);
       }
 
@@ -182,12 +179,12 @@ namespace ttl
         tree.scalar[i]       = std::size(tree.scalar_ids);
         tree.immediate[i]    = std::size(tree.immediates);
 
-        assert(i == Nodes);
-        assert(scalar == Scalars);
-        assert(index == Indices);
-        assert(inner_index == InnerIndices);
-        assert(tensor_index == TensorIndices);
-        assert(immediate == Immediates);
+        assert(i == shape.n_nodes);
+        assert(scalar == shape.n_scalars);
+        assert(index == shape.n_indices);
+        assert(inner_index == shape.n_inner_indices);
+        assert(tensor_index == shape.n_tensor_indices);
+        assert(immediate == shape.n_immediates);
         assert(stack.size() == 2);
       }
 
@@ -245,7 +242,7 @@ namespace ttl
       constexpr void map_tensor(Node const* node, set<Scalar> const& scalars, set<Scalar> const& constants)
       {
         // Store my scalar offsets to the scalar_ids array.
-        node->scalars(N, [&](Scalar const& s) {
+        node->scalars(shape.dims, [&](Scalar const& s) {
           if (s.constant) {
             auto i = constants.find(s);
             assert(i);
@@ -267,7 +264,7 @@ namespace ttl
       constexpr int map(Node const* node, set<Scalar> const& scalars, set<Scalar> const& constants)
       {
         int tos = stack.back();
-        stack.push_back(tos + node->tensor_size(N));
+        stack.push_back(tos + node->tensor_size(shape.dims));
 
         switch (node->tag)
         {

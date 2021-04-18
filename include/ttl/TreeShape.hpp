@@ -7,6 +7,7 @@ namespace ttl
 {
   namespace kw {
     using namespace rbr::literals;
+    inline constexpr auto dims = "dims"_kw;
     inline constexpr auto n_immediates = "n_immediates"_kw;
     inline constexpr auto n_scalars = "n_scalars"_kw;
     inline constexpr auto n_indices = "n_indices"_kw;
@@ -23,11 +24,13 @@ namespace ttl
     int     n_immediates = 0;
     int  n_inner_indices = 0;
     int n_tensor_indices = 0;
+    int             dims;
     int        n_indices;
     int      stack_depth;
 
     constexpr TreeShape(rbr::keyword_parameter auto... params)
-      requires(rbr::match<decltype(params)...>::with(kw::n_immediates |
+      requires(rbr::match<decltype(params)...>::with(kw::dims |
+                                                     kw::n_immediates |
                                                      kw::n_scalars |
                                                      kw::n_indices |
                                                      kw::n_inner_indices |
@@ -39,6 +42,7 @@ namespace ttl
       n_immediates     = args[kw::n_immediates     | 0]; // default: 0
       n_inner_indices  = args[kw::n_inner_indices  | 0]; // default: 0
       n_tensor_indices = args[kw::n_tensor_indices | 0]; // default: 0
+      dims             = args[kw::dims];                 // required
       n_indices        = args[kw::n_indices];            // required
       stack_depth      = args[kw::stack_depth];          // required
     }
@@ -52,9 +56,11 @@ namespace ttl
         , n_immediates(a.n_immediates + b.n_immediates)
         , n_inner_indices(a.n_inner_indices + b.n_inner_indices)
         , n_tensor_indices(a.n_tensor_indices + b.n_tensor_indices)
+        , dims(a.dims)
         , n_indices(a.n_indices + b.n_indices)
         , stack_depth(std::max(a.stack_depth, b.stack_depth))
     {
+      assert(a.dims == b.dims);
       rbr::settings args = { params... };
       n_inner_indices += args[kw::n_inner_indices | 0]; // default: 0
       n_indices       += args[kw::n_indices];           // required

@@ -39,17 +39,9 @@ namespace ttl
 
         return kumi::make_tuple([&]
         {
-          // NB: would just use shape as a CNTTP once clang supports
           constexpr auto const& shape = kumi::get<i>(shapes);
-          constexpr int Nodes = shape.n_nodes;
-          constexpr int Indices = shape.n_indices;
-          constexpr int InnerIndices = shape.n_inner_indices;
-          constexpr int TensorIndices = shape.n_tensor_indices;
-          constexpr int Scalars = shape.n_scalars;
-          constexpr int Immediates = shape.n_immediates;
-          constexpr int Stack = shape.stack_depth;
-          using Tree = SerializedTensorTree<T, N, Nodes, Indices, InnerIndices, TensorIndices, Scalars, Immediates, Stack>;
-          return Tree(shape, kumi::get<i>(tensor_trees), scalars, constant_coefficients);
+          auto const& tree = kumi::get<i>(tensor_trees);
+          return SerializedTensorTree<T, shape>(tree, scalars, constant_coefficients);
         }()...);
       }(std::make_index_sequence<shapes.size()>());
     }

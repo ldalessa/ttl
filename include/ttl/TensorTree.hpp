@@ -229,14 +229,17 @@ namespace ttl
          case INDEX: {
            assert(index.size() == 2);
            assert(order() == 2);
-           return TreeShape(kw::stack_depth = stack, kw::n_indices = 2);
+           return TreeShape(kw::dims = dim,
+                            kw::stack_depth = stack,
+                            kw::n_indices = 2);
          }
 
          case DOUBLE:
          case RATIONAL: {
            assert(index.size() == 0);
            assert(order() == 0);
-           return TreeShape(kw::stack_depth = stack,
+           return TreeShape(kw::dims = dim,
+                            kw::stack_depth = stack,
                             kw::n_immediates = 1,
                             kw::n_indices = 0);
          }
@@ -244,7 +247,8 @@ namespace ttl
          case TENSOR: {
            int m = all().size();
            int n = ttl::pow(dim, m);
-           return TreeShape(kw::stack_depth = stack,
+           return TreeShape(kw::dims = dim,
+                            kw::stack_depth = stack,
                             kw::n_scalars = n,
                             kw::n_indices = order(),
                             kw::n_tensor_indices = index.size(),
