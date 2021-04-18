@@ -80,12 +80,8 @@ int main(int argc, char* const argv[])
   });
 
   // constexpr auto trees = sedov3d.serialized_tensor_trees;
-
-  constexpr auto trees = sedov3d.make_executable_tensor_trees();
-  trees([](auto const&... tree) {
-    (tree.evaluate(), ...);
-  });
-  // auto trees = sedov3d.make_executable_trees();
+  // auto ser = sedov3d.serialize_tensor_trees();
+  // auto trees = sedov3d.make_executable_tensor_trees();
 
   // if (args["--constants"].asBool())
   // {
@@ -210,15 +206,25 @@ int main(int argc, char* const argv[])
 
   // return 0;
 
-  // double constants[sedov3dscalar.n_constants()];
-  // constants[sedov3dscalar.constants(model::gamma)] = 1.4;     // [-]ratio of specific heats
-  // constants[sedov3dscalar.constants(cv)]       = 717.f;   // [J/kg.K] specific heat at constant volume
-  // constants[sedov3dscalar.constants(kappa)]    = 0.02545; // [W/m.K] thermal conductivity
-  // constants[sedov3dscalar.constants(mu)]       = 1.9e-5;  // [Pa.s] dynamic viscosity
-  // constants[sedov3dscalar.constants(muVolume)] = 1e-5;    // [Pa.s] volume viscosity
-  // constants[sedov3dscalar.constants(g, 0)]     = 0;       // no gravity
-  // constants[sedov3dscalar.constants(g, 1)]     = 0;       // no gravity
-  // constants[sedov3dscalar.constants(g, 2)]     = 0;       // no gravity
+    // auto trees = sedov3d.make_executable_tensor_trees();
+    // trees([](auto const&... tree) {
+    //   (tree.evaluate([](int id, int i) { return 0; },
+    //                  [](int id)        { return 0; }), ...);
+    // });
+
+
+  sedov3d.evaluate([](int id, int i) { return 0; },
+                   [](int id) { return 0; });
+
+  // double constants[sedov3d.n_constants()];
+  // constants[sedov3d.constants(model::gamma)] = 1.4;     // [-]ratio of specific heats
+  // constants[sedov3d.constants(cv)]       = 717.f;   // [J/kg.K] specific heat at constant volume
+  // constants[sedov3d.constants(kappa)]    = 0.02545; // [W/m.K] thermal conductivity
+  // constants[sedov3d.constants(mu)]       = 1.9e-5;  // [Pa.s] dynamic viscosity
+  // constants[sedov3d.constants(muVolume)] = 1e-5;    // [Pa.s] volume viscosity
+  // constants[sedov3d.constants(g, 0)]     = 0;       // no gravity
+  // constants[sedov3d.constants(g, 1)]     = 0;       // no gravity
+  // constants[sedov3d.constants(g, 2)]     = 0;       // no gravity
 
   // int n = (argc > 16) ? std::stoi(argv[1]) : 128; // args["N_POINTS"].asLong() : 0;
 

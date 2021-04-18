@@ -119,22 +119,29 @@ namespace ttl
         return b_;
       }
 
+      /// Product the index that this not exposes upwards.
       constexpr auto outer() const -> Index
       {
         return (tag == TENSOR) ? exclusive(index) : index;
       }
 
+      /// Produces the index space we need to enumerate for contractions.
+      ///
+      /// Tensor nodes can represent self-contractions, while product and ratio
+      /// nodes naturally contract. All other nodes do not represent
+      /// contractions.
       constexpr auto all() const -> Index
       {
         if (tag == TENSOR) {
           return unique(index) + repeated(index);
         }
         if (tag == PRODUCT || tag == RATIO) {
-          return index + a_->outer() & b_->outer();
+          return index + (a_->outer() & b_->outer());
         }
-        return index;
+        return {};
       }
 
+      /// Produce the order of the subtree from the perspective of callers.
       constexpr auto order() const -> int
       {
         return outer().size();
@@ -169,6 +176,7 @@ namespace ttl
         }
       }
 
+      /// Collect the set of tensor nodes in this subtree.
       constexpr auto tensors(set<Node const*>& out) const -> int
       {
         if (tag == TENSOR) {
@@ -188,6 +196,11 @@ namespace ttl
         return ttl::pow(dim, order());
       }
 
+      /// Collect the shape of the tree.
+      ///
+      /// The shape is a set of aggregate statistics about the tree, including
+      /// information like the number of nodes, the tree depth, the indices,
+      /// etc.
       constexpr auto shape(int dim, int stack) const -> TreeShape
       {
         if (!std::is_constant_evaluated()) {
@@ -206,24 +219,39 @@ namespace ttl
            stack += b_->tensor_size(dim);
            TreeShape b = b_->shape(dim, stack);
 
-           return TreeShape(order(), a, b);
+           // Merge the children tree shape data and append the indiex counts
+           // from this node.
+           return TreeShape(a, b,
+                            kw::n_indices = order(),
+                            kw::n_inner_indices = all().size());
          }
 
-         case INDEX:
-          return TreeShape(index.size(), stack, kw::n_immediates = 0);
+         case INDEX: {
+           assert(index.size() == 2);
+           assert(order() == 2);
+           return TreeShape(kw::stack_depth = stack, kw::n_indices = 2);
+         }
 
          case DOUBLE:
-         case RATIONAL:
-          return TreeShape(index.size(), stack, kw::n_immediates = 1);
-
-         case TENSOR: {
-           int order = all().size();
-           int n = ttl::pow(dim, order);
-           return TreeShape(index.size(), stack, kw::n_scalars = n);
+         case RATIONAL: {
+           assert(index.size() == 0);
+           assert(order() == 0);
+           return TreeShape(kw::stack_depth = stack,
+                            kw::n_immediates = 1,
+                            kw::n_indices = 0);
          }
 
-         case PARTIAL:
-          assert(false);
+         case TENSOR: {
+           int m = all().size();
+           int n = ttl::pow(dim, m);
+           return TreeShape(kw::stack_depth = stack,
+                            kw::n_scalars = n,
+                            kw::n_indices = order(),
+                            kw::n_tensor_indices = index.size(),
+                            kw::n_inner_indices = m);
+         }
+
+          default: assert(false);
         }
         __builtin_unreachable();
       }
