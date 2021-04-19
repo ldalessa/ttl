@@ -12,7 +12,7 @@ namespace {
     C = A(i,j) + B(i,j)
   };
 
-  constexpr ttl::ExecutableSystem<test, double, 3> test3d;
+  constexpr ttl::ExecutableSystem<double, 3, test> test3d;
 }
 
 int main()

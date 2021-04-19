@@ -64,7 +64,7 @@ namespace {
 template <int N>
 int run_ns(auto const& args)
 {
-  constexpr ttl::ExecutableSystem<navier_stokes, double, N> navier_stokes_Nd;
+  constexpr ttl::ExecutableSystem<double, N, navier_stokes> navier_stokes_Nd;
 
   // auto trees = sedov.simplify_trees();
   // trees([](auto const&... tree) {
