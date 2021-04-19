@@ -104,32 +104,31 @@ namespace ttl
     }
   }
 
-  template <class T, auto shape>
+  template <auto shape>
   struct SerializedTensorTree
   {
     using Node = TensorTree::Node;
-    using scalar_type = T;
 
     // for debugging
     decltype(shape) debug_shape = shape;
 
     // Arrays of data.
-    char        indices[shape.n_indices]{};
-    char  inner_indices[shape.n_inner_indices]{};
-    char tensor_indices[shape.n_tensor_indices]{};
-    int      scalar_ids[shape.n_scalars]{};
-    // T        immediates[shape.n_immediates]{};
+    char        indices[shape.n_indices];
+    char  inner_indices[shape.n_inner_indices];
+    char tensor_indices[shape.n_tensor_indices];
+    int      scalar_ids[shape.n_scalars];
+    // T        immediates[shape.n_immediates];
 
-    exec::Tag tags[shape.n_nodes]{};
-    int        rvo[shape.n_nodes]{};
-    int       left[shape.n_nodes]{};
-    int      right[shape.n_nodes]{};
+    exec::Tag tags[shape.n_nodes];
+    int        rvo[shape.n_nodes];
+    int       left[shape.n_nodes];
+    int      right[shape.n_nodes];
 
-    int        index_offsets[shape.n_nodes + 1]{};
-    int  inner_index_offsets[shape.n_nodes + 1]{};
-    int tensor_index_offsets[shape.n_nodes + 1]{};
-    int   scalar_ids_offsets[shape.n_nodes + 1]{};
-    int    immediate_offsets[shape.n_nodes + 1]{};
+    int        index_offsets[shape.n_nodes + 1];
+    int  inner_index_offsets[shape.n_nodes + 1];
+    int tensor_index_offsets[shape.n_nodes + 1];
+    int   scalar_ids_offsets[shape.n_nodes + 1];
+    int    immediate_offsets[shape.n_nodes + 1];
 
     constexpr SerializedTensorTree(TensorTree const& tree, set<Scalar> const& scalars, set<Scalar> const& constants)
     {
@@ -137,22 +136,7 @@ namespace ttl
       builder.map(tree.root(), scalars, constants);
     }
 
-    static constexpr int dims()
-    {
-      return shape.dims;
-    }
-
-    static constexpr int n_nodes()
-    {
-      return shape.n_nodes;
-    }
-
-    static constexpr int stack_size()
-    {
-      return shape.stack_depth;
-    }
-
-        // Variables used during the initialization process.
+    // Variables used during the initialization process.
     struct Builder_
     {
       SerializedTensorTree& tree;
@@ -180,14 +164,14 @@ namespace ttl
         tree.inner_index_offsets[i]  = std::size(tree.inner_indices);
         tree.tensor_index_offsets[i] = std::size(tree.tensor_indices);
         tree.scalar_ids_offsets[i]   = std::size(tree.scalar_ids);
-        // tree.immediate[i]    = std::size(tree.immediates);
+        tree.immediate_offsets[i]    = shape.n_immediates; // std::size(tree.immediates);
 
         assert(i == shape.n_nodes);
         assert(scalar == shape.n_scalars);
         assert(index == shape.n_indices);
         assert(inner_index == shape.n_inner_indices);
         assert(tensor_index == shape.n_tensor_indices);
-        // assert(immediate == shape.n_immediates);
+        assert(immediate == shape.n_immediates);
         assert(stack.size() == 2);
       }
 
@@ -298,11 +282,13 @@ namespace ttl
 
          case ttl::RATIONAL:
           record(node, top_of_stack);
+          immediate++;
           // tree.immediates[immediate++] = as<T>(node->q);
           break;
 
          case ttl::DOUBLE:
           record(node, top_of_stack);
+          immediate++;
           // tree.immediates[immediate++] = node->d;
           break;
 
@@ -315,12 +301,32 @@ namespace ttl
     };
   };
 
-  template <auto tree>
+  template <class T, auto shape, auto tree>
   struct ExecutableTensorTree
   {
-    using T = typename decltype(tree)::scalar_type;
-    using Stack = T[tree.stack_size()];
-    constexpr static int N = tree.dims();
+    using Stack = T[shape.stack_depth];
+    constexpr static int N = shape.dims;
+
+    T immediates[shape.n_immediates];
+
+    constexpr ExecutableTensorTree(TensorTree const& t)
+    {
+      collect_immediates(0, t.root());
+    }
+
+    constexpr void collect_immediates(int i, TensorTree::Node const* node)
+    {
+      if (tag_is_binary(node->tag)) {
+        collect_immediates(i, node->a());
+        collect_immediates(i, node->b());
+      }
+      else if (node->tag == ttl::RATIONAL) {
+        immediates[i++] = as<T>(node->q);
+      }
+      else if (node->tag == ttl::DOUBLE) {
+        immediates[i++] = node->d;
+      }
+    }
 
     template <int k>
     constexpr static auto make_index() -> exec::Index
@@ -379,7 +385,7 @@ namespace ttl
       static_assert(0 <= rk);
       static_assert(rk < rl);
       static_assert(rl < rr);
-      static_assert(rr + ttl::pow(N, M) <= tree.stack_size());
+      static_assert(rr + ttl::pow(N, M) <= shape.stack_depth);
 
       T* const __restrict c = stack + rk;
       T* const __restrict a = stack + rl;
@@ -415,7 +421,7 @@ namespace ttl
       static_assert(0 <= rk);
       static_assert(rk < rl);
       static_assert(rl < rr);
-      static_assert(rr + ttl::pow(N, M) <= tree.stack_size());
+      static_assert(rr + ttl::pow(N, M) <= shape.stack_depth);
 
       T* const __restrict c = stack + rk;
       T* const __restrict a = stack + rl;
@@ -454,7 +460,7 @@ namespace ttl
       static_assert(0 <= rk);
       static_assert(rk < rl);
       static_assert(rl < rr);
-      static_assert(rr + ttl::pow(N, ci.size()) <= tree.stack_size());
+      static_assert(rr + ttl::pow(N, ci.size()) <= shape.stack_depth);
 
       T* const __restrict c = stack + rk;
       T* const __restrict a = stack + rl;
@@ -503,7 +509,7 @@ namespace ttl
       static_assert(0 <= rk);
       static_assert(rk < rl);
       static_assert(rl < rr);
-      static_assert(rr + M <= tree.stack_size());
+      static_assert(rr + M <= shape.stack_depth);
 
       T* const __restrict c = stack + rk;
       T* const __restrict a = stack + rl;
@@ -518,7 +524,7 @@ namespace ttl
     template <int k>
     void eval_immediate(Stack& stack) const
     {
-      // stack[tree.rvo[k]] = tree.immediates[tree.immediate[k]];
+      stack[tree.rvo[k]] = immediates[tree.immediate_offsets[k]];
     }
 
     template <int k>
@@ -534,7 +540,7 @@ namespace ttl
       constexpr static int rk = tree.rvo[k];
 
       static_assert(0 <= rk);
-      static_assert(rk + ttl::pow(N, outer.size()) <= tree.stack_size());
+      static_assert(rk + ttl::pow(N, outer.size()) <= shape.stack_depth);
 
       constexpr static int const *ids = &tree.scalar_ids[tree.scalar_ids_offsets[k]];
 
@@ -615,7 +621,7 @@ namespace ttl
       Stack stack{};
       [&]<std::size_t... i>(std::index_sequence<i...>) {
         (eval_kernel_step<i>(0, stack, scalars, constants), ...);
-      }(std::make_index_sequence<tree.n_nodes()>());
+      }(std::make_index_sequence<shape.n_nodes>());
     }
   };
 }
