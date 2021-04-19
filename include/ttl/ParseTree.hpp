@@ -104,6 +104,7 @@ namespace ttl
 
        default: assert(false);
       }
+      __builtin_unreachable();
     }
   };
 
