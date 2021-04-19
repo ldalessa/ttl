@@ -104,7 +104,7 @@ namespace ttl
     }
   }
 
-  template <auto shape>
+  template <class T, auto shape>
   struct SerializedTensorTree
   {
     using Node = TensorTree::Node;
@@ -130,9 +130,12 @@ namespace ttl
     int   scalar_ids_offsets[shape.n_nodes + 1];
     int    immediate_offsets[shape.n_nodes + 1];
 
-    constexpr SerializedTensorTree(TensorTree const& tree, set<Scalar> const& scalars, set<Scalar> const& constants)
+    constexpr SerializedTensorTree(TensorTree const& tree,
+                                   std::array<T, shape.n_immediates>& immediates,
+                                   set<Scalar> const& scalars,
+                                   set<Scalar> const& constants)
     {
-      Builder_ builder(*this);
+      Builder_ builder(*this, immediates);
       builder.map(tree.root(), scalars, constants);
     }
 
@@ -140,6 +143,7 @@ namespace ttl
     struct Builder_
     {
       SerializedTensorTree& tree;
+      std::array<T, shape.n_immediates>& immediates;
 
       int i = 0;
       int index = 0;
@@ -149,8 +153,9 @@ namespace ttl
       int immediate = 0;
       ce::dvector<int> stack;
 
-      constexpr Builder_(SerializedTensorTree& tree)
+      constexpr Builder_(SerializedTensorTree& tree, std::array<T, shape.n_immediates>& immediates)
           : tree(tree)
+          , immediates(immediates)
       {
         stack.reserve(shape.stack_depth + 1);
         stack.push_back(0);
@@ -281,15 +286,13 @@ namespace ttl
           break;
 
          case ttl::RATIONAL:
-          record(node, top_of_stack);
-          immediate++;
-          // tree.immediates[immediate++] = as<T>(node->q);
+          record(node, top_of_stack);;
+          immediates[immediate++] = as<T>(node->q);
           break;
 
          case ttl::DOUBLE:
           record(node, top_of_stack);
-          immediate++;
-          // tree.immediates[immediate++] = node->d;
+          immediates[immediate++] = node->d;
           break;
 
          default:
@@ -307,25 +310,11 @@ namespace ttl
     using Stack = T[shape.stack_depth];
     constexpr static int N = shape.dims;
 
-    T immediates[shape.n_immediates];
+    std::array<T, shape.n_immediates> immediates;
 
-    constexpr ExecutableTensorTree(TensorTree const& t)
+    constexpr ExecutableTensorTree(std::array<T, shape.n_immediates> immediates)
+        : immediates(std::move(immediates))
     {
-      collect_immediates(0, t.root());
-    }
-
-    constexpr void collect_immediates(int i, TensorTree::Node const* node)
-    {
-      if (tag_is_binary(node->tag)) {
-        collect_immediates(i, node->a());
-        collect_immediates(i, node->b());
-      }
-      else if (node->tag == ttl::RATIONAL) {
-        immediates[i++] = as<T>(node->q);
-      }
-      else if (node->tag == ttl::DOUBLE) {
-        immediates[i++] = node->d;
-      }
     }
 
     template <int k>
