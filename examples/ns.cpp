@@ -3,7 +3,7 @@ static constexpr const char USAGE[] =
   Usage:
       sedov (-h | --help)
       sedov --version
-      sedov [--constants] [--scalars] [-ptse] [--eqn <rhs>]... [--dot <rhs>]...
+      sedov N [--constants] [--scalars] [-ptse] [--eqn <rhs>]... [--dot <rhs>]...
 
   Options:
       -h, --help         Show this screen.
@@ -25,54 +25,46 @@ static constexpr const char USAGE[] =
 #include <vector>
 
 namespace {
-  inline
-  namespace model {
-    /// Model parameters
-    constexpr ttl::Tensor    gamma = ttl::scalar("gamma");
-    constexpr ttl::Tensor       mu = ttl::scalar("mu");
-    constexpr ttl::Tensor muVolume = ttl::scalar("muVolume");
-    constexpr ttl::Tensor       cv = ttl::scalar("cv");
-    constexpr ttl::Tensor    kappa = ttl::scalar("kappa");
-    constexpr ttl::Tensor        g = ttl::vector("g");
+  /// Model parameters
+  constexpr ttl::Tensor    gamma = ttl::scalar("gamma");
+  constexpr ttl::Tensor       mu = ttl::scalar("mu");
+  constexpr ttl::Tensor muVolume = ttl::scalar("muVolume");
+  constexpr ttl::Tensor       cv = ttl::scalar("cv");
+  constexpr ttl::Tensor    kappa = ttl::scalar("kappa");
+  constexpr ttl::Tensor        g = ttl::vector("g");
 
-    /// Dependent variables
-    constexpr ttl::Tensor rho = ttl::scalar("rho");
-    constexpr ttl::Tensor   e = ttl::scalar("e");
-    constexpr ttl::Tensor   v = ttl::vector("v");
+  /// Dependent variables
+  constexpr ttl::Tensor rho = ttl::scalar("rho");
+  constexpr ttl::Tensor   e = ttl::scalar("e");
+  constexpr ttl::Tensor   v = ttl::vector("v");
 
-    /// Tensor indices
-    constexpr ttl::Index i = 'i';
-    constexpr ttl::Index j = 'j';
+  /// Tensor indices
+  constexpr ttl::Index i = 'i';
+  constexpr ttl::Index j = 'j';
 
-    /// Constitutive model terms
-    constexpr auto     d = symmetrize(D(v(i),j));
-    constexpr auto     p = cm::ideal_gas(rho, e,  gamma);
-    constexpr auto sigma = cm::newtonian_fluid(p, v, mu, muVolume);
-    constexpr auto theta = cm::calorically_perfect(e, cv);
-    constexpr auto     q = cm::fouriers_law(theta, kappa);
+  /// Constitutive model terms
+  constexpr auto     d = symmetrize(D(v(i),j));
+  constexpr auto     p = cm::ideal_gas(rho, e,  gamma);
+  constexpr auto sigma = cm::newtonian_fluid(p, v, mu, muVolume);
+  constexpr auto theta = cm::calorically_perfect(e, cv);
+  constexpr auto     q = cm::fouriers_law(theta, kappa);
 
-    /// System of equations.
-    constexpr auto rho_rhs = - D(rho,i) * v(i) - rho * D(v(i),i);
-    constexpr auto   v_rhs = - D(v(i),j) * v(j) + D(sigma(i,j),j) / rho + g(i);
-    constexpr auto   e_rhs = - v(i) * D(e,i) + sigma(i,j) * d(i,j) / rho - D(q(i),i) / rho;
+  /// System of equations.
+  constexpr auto rho_rhs = - D(rho,i) * v(i) - rho * D(v(i),i);
+  constexpr auto   v_rhs = - D(v(i),j) * v(j) + D(sigma(i,j),j) / rho + g(i);
+  constexpr auto   e_rhs = - v(i) * D(e,i) + sigma(i,j) * d(i,j) / rho - D(q(i),i) / rho;
 
-    constexpr ttl::System sedov = {
-      rho = rho_rhs,
-      v = v_rhs,
-      e = e_rhs
-    };
-
-    constexpr int N = 3;
-    // constexpr int N = 2;
-
-    // constexpr ttl::ScalarSystem<sedov, N> sedov3dscalar;
-    constexpr ttl::ExecutableSystem<sedov, double, N> sedov3d;
-  }
+  constexpr ttl::System navier_stokes = {
+    rho = rho_rhs,
+    v = v_rhs,
+    e = e_rhs
+  };
 }
 
-int main(int argc, char* const argv[])
+template <int N>
+int run_ns(auto const& args)
 {
-  std::map args = docopt::docopt(USAGE, {argv + 1, argv + argc});
+  constexpr ttl::ExecutableSystem<navier_stokes, double, N> navier_stokes_Nd;
 
   // auto trees = sedov.simplify_trees();
   // trees([](auto const&... tree) {
@@ -80,7 +72,7 @@ int main(int argc, char* const argv[])
   //   (fmt::print("graph rho {{\n{}}}\n", ttl::dot(tree)), ...);
   // });
 
-  constexpr auto shapes = sedov.shapes(N);
+  constexpr auto shapes = navier_stokes.shapes(N);
   shapes([](auto const&... shape) {
     (fmt::print("{}\n", shape), ...);
   });
@@ -219,8 +211,8 @@ int main(int argc, char* const argv[])
     // });
 
 
-  sedov3d.evaluate([](int id, int i) { return 0; },
-                   [](int id) { return 0; });
+  navier_stokes_Nd.evaluate([](int id, int i) { return 0; },
+                            [](int id) { return 0; });
 
   // double constants[sedov3d.n_constants()];
   // constants[sedov3d.constants(model::gamma)] = 1.4;     // [-]ratio of specific heats
@@ -268,6 +260,20 @@ int main(int argc, char* const argv[])
   //                       [&](int n) -> double {
   //                         return constants[n];
   //                       });
+  return 0;
+}
 
+int main(int argc, char* const argv[])
+{
+  std::map args = docopt::docopt(USAGE, {argv + 1, argv + argc});
+
+  switch (args["N"].asLong())
+  {
+   case 1: return run_ns<1>(args);
+   case 2: return run_ns<2>(args);
+   case 3: return run_ns<3>(args);
+  }
+
+  fmt::print("navier stokes only supports N=1,2,3 ({})\n", args["N"].asLong());
   return 0;
 }
