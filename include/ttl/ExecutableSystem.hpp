@@ -42,9 +42,7 @@ namespace ttl
         {
           constexpr auto const& shape = kumi::get<i>(shapes);
           auto const& tree = kumi::get<i>(tensor_trees);
-          std::array<T, shape.n_immediates> immediates;
-          auto st = SerializedTree<T, shape>(tree, immediates, scalars, constant_coefficients);
-          return kumi::make_tuple(st, immediates);
+          return SerializedTree<T, shape>(tree, scalars, constant_coefficients);
         }()...);
       }(std::make_index_sequence<shapes.size()>());
     }
@@ -57,10 +55,9 @@ namespace ttl
       {
         return kumi::make_tuple([]
         {
-          constexpr auto const&       shape = kumi::get<i>(shapes);
-          constexpr auto const&        tree = kumi::get<0>(kumi::get<i>(serialized_trees));
-          constexpr auto const&  immediates = kumi::get<1>(kumi::get<i>(serialized_trees));
-          return ExecutableTree<T, shape, tree>(immediates);
+          constexpr auto const& shape = kumi::get<i>(shapes);
+          constexpr auto const&  tree = kumi::get<i>(serialized_trees);
+          return ExecutableTree<T, shape, tree>();
         }()...);
       }(std::make_index_sequence<shapes.size()>());
     }

@@ -6,18 +6,11 @@
 
 namespace ttl
 {
-  template <class T, TreeShape shape, auto tree>
+  template <class T, TreeShape shape, serialized_tree auto tree>
   struct ExecutableTree
   {
     using Stack = T[shape.stack_depth];
     constexpr static int N = shape.dims;
-
-    std::array<T, shape.n_immediates> immediates;
-
-    constexpr ExecutableTree(std::array<T, shape.n_immediates> immediates)
-        : immediates(std::move(immediates))
-    {
-    }
 
     template <int k>
     void eval_sum(Stack& stack) const
@@ -159,7 +152,8 @@ namespace ttl
     template <int k>
     void eval_immediate(Stack& stack) const
     {
-      stack[tree.stack_offset(k)] = immediates[tree.immediate_offsets[k]];
+      constexpr static double immediate = tree.immediate(k);
+      stack[tree.stack_offset(k)] = immediate;
     }
 
     template <int k>

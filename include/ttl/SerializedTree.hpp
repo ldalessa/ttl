@@ -5,6 +5,7 @@
 #include "ttl/TensorTree.hpp"
 #include "ttl/TreeShape.hpp"
 #include "ttl/exec.hpp"
+#include "ttl/pack_fp.hpp"
 #include "ttl/set.hpp"
 #include <array>
 
@@ -13,35 +14,39 @@ namespace ttl
   template <class T, TreeShape shape>
   struct SerializedTree
   {
+    using serialized_tree_tag = void;
     using Node = TensorTree::Node;
 
-    // for debugging
+    // For debugging (this is only needed for gdb, so that I can actually
+    // inspect the shape that we're dealing with, the CNTTP one is obliterated.
     decltype(shape) debug_shape = shape;
 
-    // Arrays of data.
-    char        indices_[shape.n_indices];
-    char  inner_indices_[shape.n_inner_indices];
-    char tensor_indices_[shape.n_tensor_indices];
-    int      scalar_ids_[shape.n_scalars];
-    // T        immediates[shape.n_immediates];
+    // Arrays of compressed data.
+    char        indices_[shape.n_indices];        //!< `ij` outer index
+    char  inner_indices_[shape.n_inner_indices];  //!< `ij` contracted
+    char tensor_indices_[shape.n_tensor_indices]; //!< `iij` tensor
+    int      scalar_ids_[shape.n_scalars];        //!< scalar ids for tensors
+    uint64_t immediates_[shape.n_immediates]{};     //!< could just be double in gcc-11
 
-    exec::Tag tags [shape.n_nodes];
-    int        rvo_[shape.n_nodes];
-    int       left_[shape.n_nodes];
+    // Per-node state.
+    exec::Tag tags [shape.n_nodes];             //!< type of each node
+    int        rvo_[shape.n_nodes];             //!< return stack slot
+    int       left_[shape.n_nodes];             //!< index of left child
 
+    // Per-node offsets into the compressed data.
     int        index_offsets_[shape.n_nodes + 1];
     int  inner_index_offsets_[shape.n_nodes + 1];
     int tensor_index_offsets_[shape.n_nodes + 1];
     int   scalar_ids_offsets_[shape.n_nodes + 1];
-    int    immediate_offsets [shape.n_nodes + 1];
+    int    immediate_offsets_[shape.n_nodes + 1]; //!< stored externally
 
+    /// Create a serialized tree from a tensor tree
     constexpr SerializedTree(TensorTree const& tree,
-                             std::array<T, shape.n_immediates>& immediates,
                              set<Scalar> const& scalars,
                              set<Scalar> const& constants)
     {
       {
-        Builder_ builder(*this, immediates);
+        Builder_ builder(*this);
         builder.map(tree.root(), scalars, constants);
       }
 
@@ -53,7 +58,7 @@ namespace ttl
         assert(inner_index_offsets_[i]  <= inner_index_offsets_[i+1]);
         assert(tensor_index_offsets_[i] <= tensor_index_offsets_[i+1]);
         assert(scalar_ids_offsets_[i]   <= scalar_ids_offsets_[i+1]);
-        assert(immediate_offsets[i]     <= immediate_offsets[i+1]);
+        assert(immediate_offsets_[i]    <= immediate_offsets_[i+1]);
 
         if (is_binary(tags[i])) {
           assert(left_[i] < i - 1);
@@ -109,11 +114,15 @@ namespace ttl
       return &scalar_ids_[scalar_ids_offsets_[k]];
     }
 
+    constexpr double immediate(int k) const
+    {
+      return unpack_fp(immediates_[immediate_offsets_[k]]);
+    }
+
     // Variables used during the initialization process.
     struct Builder_
     {
       SerializedTree& tree;
-      std::array<T, shape.n_immediates>& immediates;
 
       int i = 0;
       int index = 0;
@@ -123,9 +132,8 @@ namespace ttl
       int immediate = 0;
       ce::dvector<int> stack;
 
-      constexpr Builder_(SerializedTree& tree, std::array<T, shape.n_immediates>& immediates)
+      constexpr Builder_(SerializedTree& tree)
           : tree(tree)
-          , immediates(immediates)
       {
         stack.reserve(shape.stack_depth + 1);
         stack.push_back(0);
@@ -139,7 +147,7 @@ namespace ttl
         tree.inner_index_offsets_[i]  = std::size(tree.inner_indices_);
         tree.tensor_index_offsets_[i] = std::size(tree.tensor_indices_);
         tree.scalar_ids_offsets_[i]   = std::size(tree.scalar_ids_);
-        tree.immediate_offsets[i]     = shape.n_immediates; // std::size(tree.immediates);
+        tree.immediate_offsets_[i]    = std::size(tree.immediates_);
 
         assert(i == shape.n_nodes);
         assert(scalar == shape.n_scalars);
@@ -180,7 +188,7 @@ namespace ttl
         tree.inner_index_offsets_[i]  = inner_index;
         tree.tensor_index_offsets_[i] = tensor_index;
         tree.scalar_ids_offsets_[i]   = scalar;
-        tree.immediate_offsets[i]     = immediate;
+        tree.immediate_offsets_[i]    = immediate;
 
         // Store my outer index to the right offset.
         for (char c : node->outer()) {
@@ -256,12 +264,12 @@ namespace ttl
 
          case ttl::RATIONAL:
           record(node, top_of_stack);;
-          immediates[immediate++] = as<T>(node->q);
+          tree.immediates_[immediate++] = pack_fp(as<T>(node->q));
           break;
 
          case ttl::DOUBLE:
           record(node, top_of_stack);
-          immediates[immediate++] = node->d;
+          tree.immediates_[immediate++] = pack_fp(node->d);
           break;
 
          default:
@@ -271,5 +279,10 @@ namespace ttl
         return i++;
       }
     };
+  };
+
+  template <class T>
+  concept serialized_tree = requires {
+    typename std::remove_cvref_t<T>::serialized_tree_tag;
   };
 }
