@@ -26,7 +26,7 @@ namespace ttl
     char  inner_indices_[shape.n_inner_indices];  //!< `ij` contracted
     char tensor_indices_[shape.n_tensor_indices]; //!< `iij` tensor
     int      scalar_ids_[shape.n_scalars];        //!< scalar ids for tensors
-    uint64_t immediates_[shape.n_immediates]{};     //!< could just be double in gcc-11
+    uint64_t immediates_[shape.n_immediates];     //!< just double in gcc-11
 
     // Per-node state.
     exec::Tag tags [shape.n_nodes];             //!< type of each node
@@ -38,7 +38,7 @@ namespace ttl
     int  inner_index_offsets_[shape.n_nodes + 1];
     int tensor_index_offsets_[shape.n_nodes + 1];
     int   scalar_ids_offsets_[shape.n_nodes + 1];
-    int    immediate_offsets_[shape.n_nodes + 1]; //!< stored externally
+    int    immediate_offsets_[shape.n_nodes + 1];
 
     /// Create a serialized tree from a tensor tree
     constexpr SerializedTree(TensorTree const& tree,
