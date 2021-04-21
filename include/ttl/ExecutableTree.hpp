@@ -5,6 +5,13 @@
 
 namespace ttl
 {
+  /// An executable tree.
+  ///
+  /// We're not using constexpr executable stack addresses during evaluation
+  /// because we want to support multithreaded tree evaluation (so each thread
+  /// has its own stack, and we don't know its address statically). We could
+  /// create a stack array of some max size, template on the thread-id, and then
+  /// these addresses _would_ be constexpr.
   template <class T, TreeShape shape, serialized_tree auto tree>
   struct ExecutableTree
   {
@@ -18,31 +25,25 @@ namespace ttl
       constexpr static int l = tree.left(k);
       constexpr static int r = tree.right(k);
 
+      constexpr static int rk = tree.stack_offset(k);
+      constexpr static int rl = tree.stack_offset(l);
+      constexpr static int rr = tree.stack_offset(r);
+
+      // Not constexpr (see class note on multithreading).
+      T* const __restrict c = stack + rk;
+      T* const __restrict a = stack + rl;
+      T* const __restrict b = stack + rr;
+
       constexpr static exec::Index ci = tree.index(k);
       constexpr static exec::Index ai = tree.index(l);
       constexpr static exec::Index bi = tree.index(r);
 
       static_assert(ci == ai);
+      constexpr static exec::IndexMapper<ci, bi, N> b_map{};
 
-      // don't need to map c->a, but it leads to more uniform code
-      constexpr static exec::IndexMapper<ci, ai, N> amap{};
-      constexpr static exec::IndexMapper<ci, bi, N> bmap{};
-
-      constexpr static int M = ci.size();
-
-      constexpr static int rk = tree.stack_offset(k);
-      constexpr static int rl = tree.stack_offset(l);
-      constexpr static int rr = tree.stack_offset(r);
-
-      T* const __restrict c = stack + rk;
-      T* const __restrict a = stack + rl;
-      T* const __restrict b = stack + rr;
-
-      exec::eval<N, M>([&](auto... index) {
-        int i = amap(index...);
-        int j = bmap(index...);
-        c[i] = a[i] + b[j];
-      });
+      for (int i = 0; i < b_map.size(); ++i) {
+        c[i] = a[i] + b[b_map[i]];
+      }
     }
 
     template <int k>
@@ -52,30 +53,25 @@ namespace ttl
       constexpr static int l = tree.left(k);
       constexpr static int r = tree.right(k);
 
-      constexpr static exec::Index ci = tree.index(k);
-      constexpr static exec::Index ai = tree.index(l);
-      constexpr static exec::Index bi = tree.index(r);
-      static_assert(ci == ai);
-
-      // don't need to map c->a, but it leads to more uniform code
-      constexpr static exec::IndexMapper<ci, ai, N> amap{};
-      constexpr static exec::IndexMapper<ci, bi, N> bmap{};
-
-      constexpr static int M = ci.size();
-
       constexpr static int rk = tree.stack_offset(k);
       constexpr static int rl = tree.stack_offset(l);
       constexpr static int rr = tree.stack_offset(r);
 
+      // Not constexpr (see class note on multithreading).
       T* const __restrict c = stack + rk;
       T* const __restrict a = stack + rl;
       T* const __restrict b = stack + rr;
 
-      exec::eval<N, M>([&](auto... index) {
-        int i = amap(index...);
-        int j = bmap(index...);
-        c[i] = a[i] - b[j];
-      });
+      constexpr static exec::Index ci = tree.index(k);
+      constexpr static exec::Index ai = tree.index(l);
+      constexpr static exec::Index bi = tree.index(r);
+
+      static_assert(ci == ai);
+      constexpr static exec::IndexMapper<ci, bi, N> b_map{};
+
+      for (int i = 0; i < b_map.size(); ++i) {
+        c[i] = a[i] - b[b_map[i]];
+      }
     }
 
     template <int k>
@@ -85,15 +81,6 @@ namespace ttl
       constexpr static int l = tree.left(k);
       constexpr static int r = tree.right(k);
 
-      constexpr static exec::Index  ci = tree.index(k);
-      constexpr static exec::Index all = tree.inner_index(k);
-      constexpr static exec::Index  ai = tree.index(l);
-      constexpr static exec::Index  bi = tree.index(r);
-
-      constexpr static exec::IndexMapper<all, ci, N> cmap{};
-      constexpr static exec::IndexMapper<all, ai, N> amap{};
-      constexpr static exec::IndexMapper<all, bi, N> bmap{};
-
       constexpr static int rk = tree.stack_offset(k);
       constexpr static int rl = tree.stack_offset(l);
       constexpr static int rr = tree.stack_offset(r);
@@ -102,21 +89,28 @@ namespace ttl
       T* const __restrict a = stack + rl;
       T* const __restrict b = stack + rr;
 
+      constexpr static exec::Index  ci = tree.index(k);
+      constexpr static exec::Index all = tree.inner_index(k);
+      constexpr static exec::Index  ai = tree.index(l);
+      constexpr static exec::Index  bi = tree.index(r);
+
+      // Map the index space.
+      constexpr static exec::IndexMapper<all, ci, N> c_map{};
+      constexpr static exec::IndexMapper<all, ai, N> a_map{};
+      constexpr static exec::IndexMapper<all, bi, N> b_map{};
+      static_assert(c_map.size() == a_map.size());
+      static_assert(a_map.size() == b_map.size());
+
       // Don't know the state of the stack but we're going to need to accumulate
       // there so we need to zero it first (it's nearly certainly dirty, either
       // from previous frame or from previous evaluation)
-      for (int ii = 0; ii < ttl::pow(N, ci.size()); ++ii) {
-        c[ii] = T();
+      for (int i = 0; i < c_map.size(); ++i) {
+        c[i] = T();
       }
 
-      constexpr static int M = all.size();
-      exec::eval<N, M>([&](auto... index)
-      {
-        int ii = cmap(index...);
-        int jj = amap(index...);
-        int kk = bmap(index...);
-        c[ii] += a[jj] * b[kk];
-      });
+      for (int i = 0; i < c_map.size(); ++i) {
+        c[c_map[i]] += a[a_map[i]] * b[b_map[i]];
+      }
     }
 
     template <int k>
@@ -140,14 +134,12 @@ namespace ttl
       constexpr static int rl = tree.stack_offset(l);
       constexpr static int rr = tree.stack_offset(r);
 
-      constexpr static int M = ttl::pow(N, ci.size());
-
       T* const __restrict c = stack + rk;
       T* const __restrict a = stack + rl;
       T* const __restrict b = stack + rr;
 
       auto rb = T(1)/b[0];
-      for (int i = 0; i < M; ++i) {
+      for (int i = 0; i < ttl::pow(N, ci.size()); ++i) {
         c[i] = a[i] * rb;
       }
     }
@@ -162,33 +154,29 @@ namespace ttl
     template <int k>
     void eval_scalar(int i, Stack& stack, auto const& scalars) const
     {
-      constexpr static exec::Index outer = tree.index(k);
-      constexpr static exec::Index   all = tree.inner_index(k);
-      constexpr static exec::Index index = tree.tensor_index(k);
-
-      constexpr static exec::IndexMapper<all, outer, N> outer_map{};
-      constexpr static exec::IndexMapper<all, index, N> index_map{};
-
-      constexpr static int rk = tree.stack_offset(k);
+      constexpr static exec::Index  outer_index = tree.index(k);
+      constexpr static exec::Index    all_index = tree.inner_index(k);
+      constexpr static exec::Index tensor_index = tree.tensor_index(k);
 
       constexpr static int const *ids = tree.scalar_ids(k);
+      constexpr static int rk = tree.stack_offset(k);
 
+      // not constexpr addresses, see class note about multithreading
       T* const __restrict c = stack + rk;
 
       // Don't know the state of the stack but we're going to need to accumulate
       // there so we need to zero it first (it's nearly certainly dirty, either
       // from previous frame or from previous evaluation).
-      for (int ii = 0; ii < ttl::pow(N, outer.size()); ++ii) {
+      for (int ii = 0; ii < ttl::pow(N, outer_index.size()); ++ii) {
         c[ii] = T();
       }
 
-      constexpr static int M = all.size();
-      exec::eval<N, M>([&](auto... index)
-      {
-        int ii = outer_map(index...);
-        int jj = index_map(index...);
-        c[ii] += scalars(ids[jj], i);
-      });
+      constexpr static exec::IndexMapper<all_index, outer_index, N> c_map{};
+      constexpr static exec::IndexMapper<all_index, tensor_index, N> id_map{};
+
+      for (int ii = 0; ii < c_map.size(); ++ii) {
+        c[c_map[ii]] += scalars(ids[id_map[ii]], i);
+      }
     }
 
     template <int k>
