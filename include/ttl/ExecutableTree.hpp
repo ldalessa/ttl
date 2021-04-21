@@ -2,7 +2,6 @@
 
 #include "ttl/exec.hpp"
 #include "ttl/SerializedTree.hpp"
-#include <array>
 
 namespace ttl
 {
@@ -25,7 +24,9 @@ namespace ttl
 
       static_assert(ci == ai);
 
-      constexpr static exec::IndexMapper<ci, bi> bmap{};
+      // don't need to map c->a, but it leads to more uniform code
+      constexpr static exec::IndexMapper<ci, ai, N> amap{};
+      constexpr static exec::IndexMapper<ci, bi, N> bmap{};
 
       constexpr static int M = ci.size();
 
@@ -37,9 +38,9 @@ namespace ttl
       T* const __restrict a = stack + rl;
       T* const __restrict b = stack + rr;
 
-      exec::eval<N, M>([&](std::array<int, M> outer) {
-        int i = exec::row_major<N>(outer);
-        int j = exec::row_major<N>(bmap(outer));
+      exec::eval<N, M>([&](auto... index) {
+        int i = amap(index...);
+        int j = bmap(index...);
         c[i] = a[i] + b[j];
       });
     }
@@ -56,7 +57,9 @@ namespace ttl
       constexpr static exec::Index bi = tree.index(r);
       static_assert(ci == ai);
 
-      constexpr static exec::IndexMapper<ci, bi> bmap{};
+      // don't need to map c->a, but it leads to more uniform code
+      constexpr static exec::IndexMapper<ci, ai, N> amap{};
+      constexpr static exec::IndexMapper<ci, bi, N> bmap{};
 
       constexpr static int M = ci.size();
 
@@ -68,9 +71,9 @@ namespace ttl
       T* const __restrict a = stack + rl;
       T* const __restrict b = stack + rr;
 
-      exec::eval<N, M>([&](std::array<int, M> outer) {
-        int i = exec::row_major<N>(outer);
-        int j = exec::row_major<N>(bmap(outer));
+      exec::eval<N, M>([&](auto... index) {
+        int i = amap(index...);
+        int j = bmap(index...);
         c[i] = a[i] - b[j];
       });
     }
@@ -87,9 +90,9 @@ namespace ttl
       constexpr static exec::Index  ai = tree.index(l);
       constexpr static exec::Index  bi = tree.index(r);
 
-      constexpr static exec::IndexMapper<all, ci> cmap{};
-      constexpr static exec::IndexMapper<all, ai> amap{};
-      constexpr static exec::IndexMapper<all, bi> bmap{};
+      constexpr static exec::IndexMapper<all, ci, N> cmap{};
+      constexpr static exec::IndexMapper<all, ai, N> amap{};
+      constexpr static exec::IndexMapper<all, bi, N> bmap{};
 
       constexpr static int rk = tree.stack_offset(k);
       constexpr static int rl = tree.stack_offset(l);
@@ -107,11 +110,11 @@ namespace ttl
       }
 
       constexpr static int M = all.size();
-      exec::eval<N, M>([&](std::array<int, M> outer)
+      exec::eval<N, M>([&](auto... index)
       {
-        int ii = exec::row_major<N>(cmap(outer));
-        int jj = exec::row_major<N>(amap(outer));
-        int kk = exec::row_major<N>(bmap(outer));
+        int ii = cmap(index...);
+        int jj = amap(index...);
+        int kk = bmap(index...);
         c[ii] += a[jj] * b[kk];
       });
     }
@@ -163,8 +166,8 @@ namespace ttl
       constexpr static exec::Index   all = tree.inner_index(k);
       constexpr static exec::Index index = tree.tensor_index(k);
 
-      constexpr static exec::IndexMapper<all, outer> outer_map{};
-      constexpr static exec::IndexMapper<all, index> index_map{};
+      constexpr static exec::IndexMapper<all, outer, N> outer_map{};
+      constexpr static exec::IndexMapper<all, index, N> index_map{};
 
       constexpr static int rk = tree.stack_offset(k);
 
@@ -180,10 +183,10 @@ namespace ttl
       }
 
       constexpr static int M = all.size();
-      exec::eval<N, M>([&](std::array<int, M> outer)
+      exec::eval<N, M>([&](auto... index)
       {
-        int ii = exec::row_major<N>(outer_map(outer));
-        int jj = exec::row_major<N>(index_map(outer));
+        int ii = outer_map(index...);
+        int jj = index_map(index...);
         c[ii] += scalars(ids[jj], i);
       });
     }

@@ -1,6 +1,8 @@
 #pragma once
 
+#include <algorithm>
 #include <array>
+#include <cassert>
 
 namespace ttl::exec
 {
@@ -25,75 +27,110 @@ namespace ttl::exec
     const char* i;
     const char* e;
 
+    constexpr friend bool operator==(Index const& a, Index const& b)
+    {
+      return (a.size() == b.size()) && std::equal(a.i, a.e, b.i, b.e);
+    }
+
+    constexpr friend auto operator<=>(Index const& a, Index const& b)
+    {
+      return std::lexicographical_compare_three_way(a.i, a.e, b.i, b.e);
+    }
+
+    constexpr auto operator[](int index) const -> char
+    {
+      return i[index];
+    }
+
     constexpr auto size() const -> int
     {
       return e - i;
     }
 
-    constexpr char operator[](int index) const
+    constexpr auto index_of(char c) const -> int
     {
-      return i[index];
-    }
-
-    constexpr friend bool operator==(Index const& a, Index const& b)
-    {
-      if (a.size() != b.size()) {
-        return false;
-      }
-
-      for (int j = 0, e = a.size(); j < e; ++j)
-      {
-        if (a.i[j] != b.i[j]) {
-          return false;
+      for (auto ii = i; ii < e; ++ii) {
+        if (*ii == c) {
+          return ii - i;
         }
       }
-
-      return true;
+      assert(false);
     }
   };
 
-  template <auto const& from, auto const& to>
+  template <exec::Index const& from, exec::Index const& to, int N>
   struct IndexMapper
   {
-    constexpr auto operator()(std::array<int, from.size()> index) const
-      -> std::array<int, to.size()>
+    constexpr static std::size_t S = from.size();
+    constexpr static std::size_t T = to.size();
+
+    constexpr static std::array<int, T> map_ = []
     {
-      if constexpr (from == to) {
-          return index;
-        }
-      else {
-        std::array<int, to.size()> out;
-        for (int i = 0; i < to.size(); ++i) {
-          out[i] = 0;
-        }
-        return out;
+      std::array<int, T> map;
+      for (int i = 0; i < T; ++i) {
+        map[i] = from.index_of(to[i]);
       }
+      return map;
+    }();
+
+    constexpr static auto row_major(std::array<int, S> const& in)
+    {
+      int sum = 0;
+      int   n = 1;
+      for (int i = 0; i < T; ++i) {
+        sum += n * in[map_[i]];
+        n *= N;
+      }
+      return sum;
+    }
+
+    /// Row-major expansion of the mapped result.
+    template <std::size_t... is>
+    constexpr auto operator()(std::index_sequence<is...>) const -> int
+    {
+      static_assert(sizeof...(is) == S);
+      constexpr std::array<int, S> in = { is... };
+      constexpr int i = row_major(in);
+      return i;
+    }
+
+    constexpr auto operator()(std::integral auto... is) const -> int
+    {
+      static_assert(sizeof...(is) == S);
+      std::array<int, S> in = { is... };
+      int i = row_major(in);
+      return i;
     }
   };
 
-  template <int N, std::size_t M>
-  constexpr int row_major(std::array<int, M> const& index)
+  /// Evaluate an operator for the M^N outer product of indices.
+#ifdef TTL_CONSTEXPR_MAP
+  template <int N, int M, std::size_t... is>
+  constexpr void eval(auto const& op)
   {
-    int sum = 0;
-    int n = 1;
-    for (int i : index) {
-      if (i < 0 or N <= i) __builtin_unreachable();
-      sum += n * i;
-      n *= N;
-    }
-    return sum;
-  }
-
-  template <int N, std::size_t M, int m = 0>
-  constexpr void eval(auto const& op, std::array<int, M> index = {}) {
+    constexpr int m = sizeof...(is);
     if constexpr (m == M) {
-        op(index);
-      }
+      op(std::index_sequence<is...>());
+    }
+    else {
+      [&]<std::size_t... i>(std::index_sequence<i...>) {
+        (eval<N, M, i, is...>(op), ...);
+      }(std::make_index_sequence<N>());
+    }
+  }
+#else
+  template <int N, int M>
+  constexpr void eval(auto const& op, auto... is)
+  {
+    constexpr int m = sizeof...(is);
+    if constexpr (m == M) {
+      op(is...);
+    }
     else {
       for (int i = 0; i < N; ++i) {
-        index[m] = i;
-        eval<N, M, m+1>(op, index);
+        eval<N, M>(op, i, is...);
       }
     }
   }
+#endif
 } // namespace exec

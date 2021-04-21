@@ -1,58 +1,93 @@
 #pragma once
 
+#include <algorithm>
 #include <cassert>
 #include <concepts>
 #include <optional>
 #include <string_view>
-#include <fmt/core.h>
 
-namespace ttl {
+namespace ttl
+{
   struct Index
   {
-    char data[8] = {};
-    int n = 0;
+    int  size_ = 0;
+    char data_[TTL_MAX_PARSE_INDEX] = {};
 
     constexpr Index() = default;
 
     constexpr Index(char c)
     {
-      data[n++] = c;
+      data_[size_++] = c;
     }
 
     constexpr Index(std::same_as<Index> auto const&... is)
     {
       ([&] {
         for (char c : is) {
-          data[n++] = c;
+          data_[size_++] = c;
         }
       }(), ...);
     }
 
+    constexpr friend bool operator==(Index const& a, Index const& b)
+    {
+      return (a.size_ == b.size_) && std::equal(
+        std::begin(a.data_), std::begin(a.data_) + a.size_,
+        std::begin(b.data_), std::begin(b.data_) + b.size_);
+    }
+
+    constexpr friend auto operator<=>(Index const& a, Index const& b)
+    {
+      return std::lexicographical_compare_three_way(
+        std::begin(a.data_), std::begin(a.data_) + a.size_,
+        std::begin(b.data_), std::begin(b.data_) + b.size_);
+    }
+
     constexpr auto size() const -> int
     {
-      return n;
+      return size_;
     }
 
-    constexpr auto begin() const { return std::begin(data); }
-    constexpr auto begin()       { return std::begin(data); }
-    constexpr auto   end() const { return begin() + n; }
-    constexpr auto   end()       { return begin() + n; }
-
-    constexpr const char& operator[](int i) const { return data[i]; }
-    constexpr       char& operator[](int i)       { return data[i]; }
-
-    constexpr void push_back(char c) {
-      data[n++] = c;
+    constexpr auto begin() const -> decltype(auto)
+    {
+      return std::begin(data_);
     }
 
-    constexpr friend bool operator==(Index const&, Index const&) = default;
-    constexpr friend auto operator<=>(Index const&, Index const&) = default;
+    constexpr auto begin() -> decltype(auto)
+    {
+      return std::begin(data_);
+    }
+
+    constexpr auto end() const -> decltype(auto)
+    {
+      return begin() + size_;
+    }
+
+    constexpr auto end() -> decltype(auto)
+    {
+      return begin() + size_;
+    }
+
+    constexpr auto operator[](int i) const -> const char&
+    {
+      return data_[i];
+    }
+
+    constexpr auto operator[](int i) -> char&
+    {
+      return data_[i];
+    }
+
+    constexpr void push_back(char c)
+    {
+      data_[size_++] = c;
+    }
 
     // Count the number of `c` in the index.
     constexpr auto count(char c) const -> int
     {
       int cnt = 0;
-      for (char d : data) {
+      for (char d : data_) {
         cnt += (c == d);
       }
       return cnt;
@@ -61,8 +96,8 @@ namespace ttl {
     // Return the index of the first instance of `c` in the index, or nullopt.
     constexpr auto index_of(char c) const -> std::optional<int>
     {
-      for (int i = 0, e = n; i < e; ++i) {
-        if (c == data[i]) {
+      for (int i = 0, e = size_; i < e; ++i) {
+        if (c == data_[i]) {
           return i;
         }
       }
@@ -75,7 +110,7 @@ namespace ttl {
       -> Index&
     {
       assert(search.size() == replace.size());
-      for (char& c : data) {
+      for (char& c : data_) {
         if (auto&& i = search.index_of(c)) {
           c = replace[*i];
         }
@@ -87,7 +122,7 @@ namespace ttl {
   constexpr auto reverse(Index const& a) -> Index
   {
     Index out;
-    for (int i = a.n - 1; i >= 0; --i) {
+    for (int i = a.size_ - 1; i >= 0; --i) {
       out.push_back(a[i]);
     }
     return out;
@@ -165,7 +200,7 @@ namespace ttl {
   }
 
   constexpr bool permutation(Index const& a, Index const& b) {
-    return (a - b).n == 0 && (b - a).n == 0;
+    return (a - b).size_ == 0 && (b - a).size_ == 0;
   }
 
   constexpr auto to_string(Index const& index) -> std::string_view
@@ -173,6 +208,8 @@ namespace ttl {
     return { index.begin(), index.end() };
   }
 }
+
+#include <fmt/format.h>
 
 template <>
 struct fmt::formatter<ttl::Index>

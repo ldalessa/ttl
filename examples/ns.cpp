@@ -204,7 +204,7 @@ int run_ns(auto const& args)
 
   // return 0;
 
-    // auto trees = sedov3d.make_executable_tensor_trees();
+  // auto trees = navier_stokes_Nd.make_executable_trees();
     // trees([](auto const&... tree) {
     //   (tree.evaluate([](int id, int i) { return 0; },
     //                  [](int id)        { return 0; }), ...);

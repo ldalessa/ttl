@@ -2,7 +2,7 @@
 
 #include "Index.hpp"
 #include <fmt/core.h>
-#include <array>
+#include <algorithm>
 #include <concepts>
 
 namespace ttl
@@ -10,14 +10,14 @@ namespace ttl
   struct ScalarIndex
   {
     int size_ = 0;
-    std::array<int, 9> data_ = {};              // using array allows default <=>
+    int data_[TTL_MAX_PARSE_INDEX] = {};
 
     constexpr ScalarIndex() = default;
 
     constexpr ScalarIndex(int n)
         : size_(n)
     {
-      assert(0 <= n and n < data_.size());
+      assert(0 <= n and n < std::size(data_));
     }
 
     constexpr ScalarIndex(std::in_place_t, std::integral auto... is)
@@ -28,17 +28,31 @@ namespace ttl
       assert(((0 <= is) && ...));
     }
 
-    constexpr auto  size() const
+    constexpr friend bool operator==(ScalarIndex const& a, ScalarIndex const& b)
+    {
+      return (a.size_ == b.size_) && std::equal(
+        std::begin(a.data_), std::begin(a.data_) + a.size_,
+        std::begin(b.data_), std::begin(b.data_) + b.size_);
+    }
+
+    constexpr friend auto operator<=>(ScalarIndex const& a, ScalarIndex const& b)
+    {
+      return std::lexicographical_compare_three_way(
+        std::begin(a.data_), std::begin(a.data_) + a.size_,
+        std::begin(b.data_), std::begin(b.data_) + b.size_);
+    }
+
+    constexpr auto size() const -> decltype(auto)
     {
       return size_;
     }
 
-    constexpr auto begin() const
+    constexpr auto begin() const -> decltype(auto)
     {
       return std::begin(data_);
     }
 
-    constexpr auto end() const
+    constexpr auto end() const -> decltype(auto)
     {
       return begin() + size();
     }
@@ -53,7 +67,8 @@ namespace ttl
       return data_[i];
     }
 
-    constexpr void resize(int n) {
+    constexpr void resize(int n)
+    {
       size_ = n;
     }
 
@@ -71,9 +86,6 @@ namespace ttl
       }
       return out;
     }
-
-    constexpr friend bool operator==(ScalarIndex const&, ScalarIndex const&) = default;
-    constexpr friend auto operator<=>(ScalarIndex const&, ScalarIndex const&) = default;
 
     constexpr bool carry_sum_inc(int N)
     {

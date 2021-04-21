@@ -7,6 +7,9 @@ if (TTL_SANITIZE)
   set(CMAKE_LINKER_FLAGS "${CMAKE_LINKER_FLAGS} -fsanitize=${TTL_SANITIZE}")
 endif (TTL_SANITIZE)
 
+option(TTL_CONSTEXPR_MAP "Use full constexpr index expansion during tree evaluation (expensive)" ON)
+set(TTL_MAX_PARSE_INDEX "16" CACHE STRING "The largest tensor index supported in the expression parser")
+
 # -----------------------------------------------------------------------------
 # External project dependencies
 # -----------------------------------------------------------------------------
@@ -35,6 +38,12 @@ FetchContent_MakeAvailable(eve)
 
 add_library(ttl_lib INTERFACE)
 target_include_directories(ttl_lib INTERFACE $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>)
+target_compile_definitions(ttl_lib INTERFACE TTL_MAX_PARSE_INDEX=${TTL_MAX_PARSE_INDEX})
+
+if (TTL_CONSTEXPR_MAP)
+  target_compile_definitions(ttl_lib INTERFACE TTL_CONSTEXPR_MAP)
+endif (TTL_CONSTEXPR_MAP)
+
 target_link_libraries(ttl_lib INTERFACE ce::ce eve::eve fmt::fmt ofw::ofw)
 target_compile_features(ttl_lib INTERFACE cxx_std_20)
 add_library(ttl::ttl ALIAS ttl_lib)
