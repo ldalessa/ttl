@@ -71,6 +71,21 @@ namespace ttl
     constexpr friend bool operator==(Scalar const&, Scalar const&) = default;
     constexpr friend auto operator<=>(Scalar const&, Scalar const&) = default;
 
+    /// Check to see if the Scalar is valid in an N-dimensional expression.
+    constexpr bool validate(int N)
+    {
+      if (α.size() > N) {
+        return false;
+      }
+      α.ensure(N);
+      for (auto i : index) {
+        if (i >= N) {
+          return false;
+        }
+      }
+      return true;
+    }
+
     constexpr auto operator=(std::floating_point auto d) const
     {
       return kumi::make_tuple(*this, double(d));

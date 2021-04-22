@@ -199,10 +199,8 @@ int run_ns(auto const& args)
     //                  [](int id)        { return 0; }), ...);
     // });
 
-  constexpr auto n = navier_stokes_Nd.constants;
 
-  const std::array constants =
-  {
+  const std::array constants = navier_stokes_Nd.map_constants(
     γ = 1.4,                        // [-]ratio of specific heats
     cv = 717.f,                     // [J/kg.K] specific heat at constant volume
     κ = 0.02545,                    // [W/m.K] thermal conductivity
@@ -210,8 +208,7 @@ int run_ns(auto const& args)
     μv = 1e-5,                      // [Pa.s] volume viscosity
     g(0) = 0,                       // no gravity
     g(1) = 1,                       // no gravity
-    g(2) = 2                        // no gravity
-  };
+    g(2) = 2);                      // no gravity
 
   navier_stokes_Nd.evaluate(
     [](int id, int i) {

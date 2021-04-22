@@ -94,5 +94,30 @@ namespace ttl
       return to_array<M>(collect_scalars(false));
     }();
 
+    /// Take a set of user-bound scalar constants and turn them into an array
+    /// suitable for evaluate().
+    constexpr static auto map_constants(kumi::product_type auto... tuples)
+    {
+      constexpr int M = constants.size();
+      using Tuple = kumi::tuple<Scalar, double>;
+      static_assert((std::same_as<Tuple, decltype(tuples)> && ...));
+      std::array<Tuple, M> out;
+      auto begin = constants.begin();
+      auto end = constants.end();
+      ([&] {
+        auto scalar = kumi::get<0>(tuples);
+        if (!scalar.validate(N)) {
+          if (!std::is_constant_evaluated()) {
+            fmt::print("ignoring impossible constant: {}\n", scalar);
+          }
+          return;
+        }
+
+        if (auto i = std::find(begin, end, scalar); i != end) {
+          out[i - begin] = tuples;
+        }
+      }(), ...);
+      return out;
+    }
   };
 }
