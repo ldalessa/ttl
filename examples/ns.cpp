@@ -26,38 +26,38 @@ static constexpr const char USAGE[] =
 
 namespace {
   /// Model parameters
-  constexpr ttl::Tensor    gamma = ttl::scalar("gamma");
-  constexpr ttl::Tensor       mu = ttl::scalar("mu");
-  constexpr ttl::Tensor muVolume = ttl::scalar("muVolume");
-  constexpr ttl::Tensor       cv = ttl::scalar("cv");
-  constexpr ttl::Tensor    kappa = ttl::scalar("kappa");
-  constexpr ttl::Tensor        g = ttl::vector("g");
+  constexpr ttl::Tensor  γ = ttl::scalar("γ");
+  constexpr ttl::Tensor  μ = ttl::scalar("μ");
+  constexpr ttl::Tensor μv = ttl::scalar("μv");
+  constexpr ttl::Tensor cv = ttl::scalar("cv");
+  constexpr ttl::Tensor  κ = ttl::scalar("κ");
+  constexpr ttl::Tensor  g = ttl::vector("g");
 
   /// Dependent variables
-  constexpr ttl::Tensor rho = ttl::scalar("rho");
-  constexpr ttl::Tensor   e = ttl::scalar("e");
-  constexpr ttl::Tensor   v = ttl::vector("v");
+  constexpr ttl::Tensor ρ = ttl::scalar("ρ");
+  constexpr ttl::Tensor e = ttl::scalar("e");
+  constexpr ttl::Tensor v = ttl::vector("v");
 
   /// Tensor indices
   constexpr ttl::Index i = 'i';
   constexpr ttl::Index j = 'j';
 
   /// Constitutive model terms
-  constexpr auto     d = symmetrize(D(v(i),j));
-  constexpr auto     p = cm::ideal_gas(rho, e,  gamma);
-  constexpr auto sigma = cm::newtonian_fluid(p, v, mu, muVolume);
-  constexpr auto theta = cm::calorically_perfect(e, cv);
-  constexpr auto     q = cm::fouriers_law(theta, kappa);
+  constexpr auto d = symmetrize(D(v(i),j));
+  constexpr auto p = cm::ideal_gas(ρ, e,  γ);
+  constexpr auto σ = cm::newtonian_fluid(p, v, μ, μv);
+  constexpr auto θ = cm::calorically_perfect(e, cv);
+  constexpr auto q = cm::fouriers_law(θ, κ);
 
   /// System of equations.
-  constexpr auto rho_rhs = - D(rho,i) * v(i) - rho * D(v(i),i);
-  constexpr auto   v_rhs = - D(v(i),j) * v(j) + D(sigma(i,j),j) / rho + g(i);
-  constexpr auto   e_rhs = - v(i) * D(e,i) + sigma(i,j) * d(i,j) / rho - D(q(i),i) / rho;
+  constexpr auto ρ_rhs = - D(ρ,i) * v(i) - ρ * D(v(i),i);
+  constexpr auto v_rhs = - D(v(i),j) * v(j) + D(σ(i,j),j) / ρ + g(i);
+  constexpr auto e_rhs = - v(i) * D(e,i) + σ(i,j) * d(i,j) / ρ - D(q(i),i) / ρ;
 
   constexpr ttl::System navier_stokes = {
-    rho = rho_rhs,
-    v = v_rhs,
-    e = e_rhs
+    ρ <<= ρ_rhs,
+    v <<= v_rhs,
+    e <<= e_rhs
   };
 }
 
@@ -65,17 +65,6 @@ template <int N>
 int run_ns(auto const& args)
 {
   constexpr ttl::ExecutableSystem<double, N, navier_stokes> navier_stokes_Nd;
-
-  // auto trees = sedov.simplify_trees();
-  // trees([](auto const&... tree) {
-  //   (fmt::print("\t{}\n", tree.to_string()), ...);
-  //   (fmt::print("graph rho {{\n{}}}\n", ttl::dot(tree)), ...);
-  // });
-
-  constexpr auto shapes = navier_stokes.shapes(N);
-  shapes([](auto const&... shape) {
-    (fmt::print("{}\n", shape), ...);
-  });
 
   // constexpr auto trees = sedov3d.serialized_tensor_trees;
   // auto ser = sedov3d.serialize_tensor_trees();
@@ -104,21 +93,21 @@ int run_ns(auto const& args)
   // }
 
   // auto eqns = args["--eqn"].asStringList();
-  // if (std::find(eqns.begin(), eqns.end(), "rho") != eqns.end()) {
+  // if (std::find(eqns.begin(), eqns.end(), "ρ") != eqns.end()) {
   //   if (args["-p"].asBool()) {
-  //     fmt::print("parse: {} = {}\n", rho, rho_rhs.to_string());
+  //     fmt::print("parse: {} = {}\n", ρ, ρ_rhs.to_string());
   //   }
   //   if (args["-t"].asBool()) {
-  //     fmt::print("tensor: {}\n", sedov.simplify(rho, rho_rhs).to_string());
+  //     fmt::print("tensor: {}\n", sedov.simplify(ρ, ρ_rhs).to_string());
   //   }
   //   if (args["-s"].asBool()) {
-  //     for (auto&& tree : sedov.scalar_trees(N, sedov.simplify(rho, rho_rhs))) {
+  //     for (auto&& tree : sedov.scalar_trees(N, sedov.simplify(ρ, ρ_rhs))) {
   //       fmt::print("scalar: {}\n", tree.to_string());
   //     }
   //   }
   //   if (args["-e"].asBool()) {
-  //     constexpr int M = sedov3dscalar.scalars(rho);
-  //     fmt::print("exec rho: {}\n", kumi::get<M>(sedov3dscalar.executable).to_string());
+  //     constexpr int M = sedov3dscalar.scalars(ρ);
+  //     fmt::print("exec ρ: {}\n", kumi::get<M>(sedov3dscalar.executable).to_string());
   //   }
   // }
 
@@ -160,16 +149,16 @@ int run_ns(auto const& args)
   // }
 
   // auto dots = args["--dot"].asStringList();
-  // if (std::find(dots.begin(), dots.end(), "rho") != dots.end()) {
+  // if (std::find(dots.begin(), dots.end(), "ρ") != dots.end()) {
   //   if (args["-p"].asBool()) {
-  //     fmt::print("graph rho_parse {{\n{}}}\n", ttl::dot(rho_rhs));
+  //     fmt::print("graph ρ_parse {{\n{}}}\n", ttl::dot(ρ_rhs));
   //   }
   //   if (args["-t"].asBool()) {
-  //     fmt::print("graph rho_tensor {{\n{}}}\n", ttl::dot(sedov.simplify(rho, rho_rhs)));
+  //     fmt::print("graph ρ_tensor {{\n{}}}\n", ttl::dot(sedov.simplify(ρ, ρ_rhs)));
   //   }
   //   if (args["-s"].asBool()) {
-  //     for (int i = 0; auto&& tree : sedov.scalar_trees(N, sedov.simplify(rho, rho_rhs))) {
-  //       fmt::print("graph rho{} {{\n{}}}\n", i++, ttl::dot(tree));
+  //     for (int i = 0; auto&& tree : sedov.scalar_trees(N, sedov.simplify(ρ, ρ_rhs))) {
+  //       fmt::print("graph ρ{} {{\n{}}}\n", i++, ttl::dot(tree));
   //     }
   //   }
   // }
@@ -210,19 +199,27 @@ int run_ns(auto const& args)
     //                  [](int id)        { return 0; }), ...);
     // });
 
+  constexpr auto n = navier_stokes_Nd.constants;
 
-  navier_stokes_Nd.evaluate([](int id, int i) { return 0; },
-                            [](int id) { return 0; });
+  const std::array constants =
+  {
+    γ = 1.4,                        // [-]ratio of specific heats
+    cv = 717.f,                     // [J/kg.K] specific heat at constant volume
+    κ = 0.02545,                    // [W/m.K] thermal conductivity
+    μ = 1.9e-5,                     // [Pa.s] dynamic viscosity
+    μv = 1e-5,                      // [Pa.s] volume viscosity
+    g(0) = 0,                       // no gravity
+    g(1) = 1,                       // no gravity
+    g(2) = 2                        // no gravity
+  };
 
-  // double constants[sedov3d.n_constants()];
-  // constants[sedov3d.constants(model::gamma)] = 1.4;     // [-]ratio of specific heats
-  // constants[sedov3d.constants(cv)]       = 717.f;   // [J/kg.K] specific heat at constant volume
-  // constants[sedov3d.constants(kappa)]    = 0.02545; // [W/m.K] thermal conductivity
-  // constants[sedov3d.constants(mu)]       = 1.9e-5;  // [Pa.s] dynamic viscosity
-  // constants[sedov3d.constants(muVolume)] = 1e-5;    // [Pa.s] volume viscosity
-  // constants[sedov3d.constants(g, 0)]     = 0;       // no gravity
-  // constants[sedov3d.constants(g, 1)]     = 0;       // no gravity
-  // constants[sedov3d.constants(g, 2)]     = 0;       // no gravity
+  navier_stokes_Nd.evaluate(
+    [](int id, int i) {
+      return 0;
+    },
+    [&](int id) {
+      return kumi::get<1>(constants[id]);
+    });
 
   // int n = (argc > 16) ? std::stoi(argv[1]) : 128; // args["N_POINTS"].asLong() : 0;
 

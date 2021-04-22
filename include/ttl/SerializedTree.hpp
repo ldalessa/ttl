@@ -27,11 +27,13 @@ namespace ttl
     char tensor_indices_[shape.n_tensor_indices]; //!< `iij` tensor
     int      scalar_ids_[shape.n_scalars];        //!< scalar ids for tensors
     uint64_t immediates_[shape.n_immediates];     //!< just double in gcc-11
+    char     tensor_ids_[shape.n_tensor_ids];
 
     // Per-node state.
     exec::Tag tags [shape.n_nodes];             //!< type of each node
     int        rvo_[shape.n_nodes];             //!< return stack slot
-    int       left_[shape.n_nodes];             //!< index of left child
+    int       left_[shape.n_nodes];             //!< index of left child (if any)
+    int      order_[shape.n_nodes];             //!< tensor order (if any)
 
     // Per-node offsets into the compressed data.
     int        index_offsets_[shape.n_nodes + 1];
@@ -39,6 +41,7 @@ namespace ttl
     int tensor_index_offsets_[shape.n_nodes + 1];
     int   scalar_ids_offsets_[shape.n_nodes + 1];
     int    immediate_offsets_[shape.n_nodes + 1];
+    int   tensor_ids_offsets_[shape.n_nodes + 1];
 
     /// Create a serialized tree from a tensor tree
     constexpr SerializedTree(TensorTree const& tree,
@@ -59,6 +62,7 @@ namespace ttl
         assert(tensor_index_offsets_[i] <= tensor_index_offsets_[i+1]);
         assert(scalar_ids_offsets_[i]   <= scalar_ids_offsets_[i+1]);
         assert(immediate_offsets_[i]    <= immediate_offsets_[i+1]);
+        assert(tensor_ids_offsets_[i]   <= tensor_ids_offsets_[i+1]);
 
         if (is_binary(tags[i])) {
           assert(left_[i] < i - 1);
@@ -85,7 +89,7 @@ namespace ttl
       return exec::Index {
         .i = &indices_[index_offsets_[k]],
         .e = &indices_[index_offsets_[k+1]]
-        };
+      };
     }
 
     constexpr exec::Index inner_index(int k) const
@@ -93,7 +97,7 @@ namespace ttl
       return exec::Index {
         .i = &inner_indices_[inner_index_offsets_[k]],
         .e = &inner_indices_[inner_index_offsets_[k+1]]
-        };
+      };
     }
 
     constexpr exec::Index tensor_index(int k) const
@@ -101,7 +105,7 @@ namespace ttl
       return exec::Index {
         .i = &tensor_indices_[tensor_index_offsets_[k]],
         .e = &tensor_indices_[tensor_index_offsets_[k+1]]
-        };
+      };
     }
 
     constexpr int stack_offset(int k) const
@@ -119,6 +123,43 @@ namespace ttl
       return unpack_fp(immediates_[immediate_offsets_[k]]);
     }
 
+    constexpr Tensor tensor(int k) const
+    {
+      assert(tags[k] == exec::CONSTANT || tags[k] == exec::SCALAR);
+      std::string_view id {
+        &tensor_ids_[tensor_ids_offsets_[k]],
+        &tensor_ids_[tensor_ids_offsets_[k+1]],
+      };
+      return Tensor(id, order_[k]);
+    }
+
+    constexpr int n_constant_coefficients() const
+    {
+      int n = 0;
+      for (exec::Tag tag : tags) {
+        n += (tag == exec::CONSTANT);
+      }
+      return n;
+    }
+
+    constexpr void get_scalars(bool constant, set<Scalar>& scalars) const
+    {
+      for (int i = 0; i < shape.n_nodes; ++i)
+      {
+        exec::Tag tag = tags[i];
+        if (( constant && tag == exec::CONSTANT) || (!constant && tag == exec::SCALAR))
+        {
+          Tensor          t = tensor(i);
+          exec::Index  from = inner_index(i);
+          exec::Index    to = tensor_index(i);
+          ScalarIndex index(from.size());
+          do {
+            scalars.emplace(t, index.select(from, to), true);
+          } while (index.carry_sum_inc(shape.dims));
+        }
+      }
+    }
+
     // Variables used during the initialization process.
     struct Builder_
     {
@@ -128,6 +169,7 @@ namespace ttl
       int index = 0;
       int inner_index = 0;
       int tensor_index = 0;
+      int tensor = 0;
       int scalar = 0;
       int immediate = 0;
       ce::dvector<int> stack;
@@ -148,9 +190,11 @@ namespace ttl
         tree.tensor_index_offsets_[i] = std::size(tree.tensor_indices_);
         tree.scalar_ids_offsets_[i]   = std::size(tree.scalar_ids_);
         tree.immediate_offsets_[i]    = std::size(tree.immediates_);
+        tree.tensor_ids_offsets_[i]   = std::size(tree.tensor_ids_);
 
         assert(i == shape.n_nodes);
         assert(scalar == shape.n_scalars);
+        assert(tensor == shape.n_tensor_ids);
         assert(index == shape.n_indices);
         assert(inner_index == shape.n_inner_indices);
         assert(tensor_index == shape.n_tensor_indices);
@@ -180,15 +224,17 @@ namespace ttl
       constexpr void record(Node const* node, int top_of_stack, int left = -1)
       {
         assert(top_of_stack + node->tensor_size(shape.dims) <= shape.stack_depth);
-        tree.tags[i]                 = to_tag(node);
-        tree.rvo_[i]                 = top_of_stack;
-        tree.left_[i]                = left;
+        tree.tags[i]                  = to_tag(node);
+        tree.rvo_[i]                  = top_of_stack;
+        tree.left_[i]                 = left;
+        tree.order_[i]                = node->order();
 
         tree.index_offsets_[i]        = index;
         tree.inner_index_offsets_[i]  = inner_index;
         tree.tensor_index_offsets_[i] = tensor_index;
         tree.scalar_ids_offsets_[i]   = scalar;
         tree.immediate_offsets_[i]    = immediate;
+        tree.tensor_ids_offsets_[i]   = tensor;
 
         // Store my outer index to the right offset.
         for (char c : node->outer()) {
@@ -203,6 +249,8 @@ namespace ttl
 
       constexpr void map_tensor(Node const* node, set<Scalar> const& scalars, set<Scalar> const& constants)
       {
+        tree.order_[i] = node->tensor.order();
+
         // Store my scalar offsets to the scalar_ids array.
         node->scalars(shape.dims, [&](Scalar const& s) {
             if (s.constant) {
@@ -220,6 +268,11 @@ namespace ttl
         // Store my tensor index
         for (char c : node->index) {
           tree.tensor_indices_[tensor_index++] = c;
+        }
+
+        // Store my tensor.
+        for (char c : node->tensor.id()) {
+          tree.tensor_ids_[tensor++] = c;
         }
       }
 

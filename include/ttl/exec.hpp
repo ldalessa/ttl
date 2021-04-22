@@ -61,64 +61,18 @@ namespace ttl::exec
     }
   };
 
-  template <exec::Index const& from, exec::Index const& to, int N>
-  struct IndexMapper
+  template <int N, int M>
+  constexpr auto make_map(Index const& from, Index const& to)
+    -> std::array<int, ttl::pow(N, M)>
   {
-    constexpr static int S = from.size();
-    constexpr static int T = to.size();
+    assert(from.size() == M);
+    std::array<int, ttl::pow(N, M)> out;
+    ScalarIndex index(from.size());
+    int i = 0;
+    do {
+      out[i++] = index.select(from, to).row_major(N);
+    } while (index.carry_sum_inc(N));
+    return out;
+  }
 
-    constexpr static std::array<int, T> selection_map_ = []
-    {
-      std::array<int, T> map;
-      for (int i = 0; i < T; ++i) {
-        map[i] = from.index_of(to[i]);
-      }
-      return map;
-    }();
-
-    constexpr static auto row_major(std::array<int, S> const& in)
-    {
-      int sum = 0;
-      int   n = 1;
-      for (int i = 0; i < T; ++i) {
-        sum += n * in[selection_map_[i]];
-        n *= N;
-      }
-      return sum;
-    }
-
-    /// Row-major expansion of the mapped result.
-    constexpr static auto map(ScalarIndex const& index) -> int
-    {
-      assert(index.size() == S);
-      std::array<int, S> in;
-      for (int i = 0; i < S; ++i) {
-        in[i] = index[i];
-      }
-      return row_major(in);
-    }
-
-    constexpr static auto make_map()
-    {
-      std::array<int, ttl::pow(N, S)> out;
-      ScalarIndex i(S);
-      int j = 0;
-      do {
-        out[j++] = map(i);
-      } while (i.carry_sum_inc(N));
-      return out;
-    }
-
-    constexpr static auto map_ = make_map();
-
-    constexpr auto operator[](int i) const -> int
-    {
-      return map_[i];
-    }
-
-    constexpr static auto size() -> int
-    {
-      return std::ssize(map_);
-    }
-  };
 } // namespace exec

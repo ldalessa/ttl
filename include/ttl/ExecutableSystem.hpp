@@ -27,6 +27,8 @@ namespace ttl
           return all;
         });
 
+        all.sort();
+
         set<Scalar> constant_coefficients;
         set<Scalar> scalars;
         for (Scalar const& s : all) {
@@ -69,5 +71,28 @@ namespace ttl
         (tree.evaluate(scalars, constants), ...);
       });
     }
+
+    constexpr static set<Scalar> collect_scalars(bool constant)
+    {
+      set<Scalar> scalars;
+      serialized_trees([&](auto const&... tree) {
+        (tree.get_scalars(true, scalars), ...);
+      });
+      scalars.sort();
+      return scalars;
+    }
+
+    constexpr static std::array constants = []
+    {
+      constexpr int M = collect_scalars(true).size();
+      return to_array<M>(collect_scalars(true));
+    }();
+
+    constexpr static std::array scalars = []
+    {
+      constexpr int M = collect_scalars(false).size();
+      return to_array<M>(collect_scalars(false));
+    }();
+
   };
 }

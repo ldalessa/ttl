@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Index.hpp"
-#include <fmt/core.h>
 #include <algorithm>
 #include <concepts>
 
@@ -20,11 +19,11 @@ namespace ttl
       assert(0 <= n and n < std::size(data_));
     }
 
-    constexpr ScalarIndex(std::in_place_t, std::integral auto... is)
+    constexpr ScalarIndex(std::in_place_t, std::signed_integral auto... is)
         : size_{ sizeof...(is) }
         , data_{ int(is)... }
     {
-      static_assert(sizeof...(is) < std::size(data_));
+      static_assert(sizeof...(is) < TTL_MAX_PARSE_INDEX);
       assert(((0 <= is) && ...));
     }
 
@@ -72,7 +71,23 @@ namespace ttl
       size_ = n;
     }
 
-    constexpr auto select(Index const& from, Index const& to) const
+    constexpr void ensure(int n)
+    {
+      size_ = std::max(size_, n);
+    }
+
+    constexpr auto row_major(int N) const
+    {
+      int sum = 0;
+      int   n = 1;
+      for (int i = 0; i < size(); ++i) {
+        sum += n * data_[i];
+        n *= N;
+      }
+      return sum;
+    }
+
+    constexpr auto select(auto&& from, auto&& to) const
       -> ScalarIndex
     {
       assert(size_ == from.size());
@@ -97,18 +112,10 @@ namespace ttl
       }
       return false;                             // overflow
     }
-
-    constexpr bool carry_sum_inc(int N, int n)
-    {
-      for (; n < size_; data_[n++] = 0) {
-        if (++data_[n] < N) {
-          return true; // no carry
-        }
-      }
-      return false;
-    }
   };
 }
+
+#include <fmt/format.h>
 
 template <>
 struct fmt::formatter<ttl::ScalarIndex>

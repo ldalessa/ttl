@@ -33,11 +33,39 @@ namespace ttl
       return id_;
     }
 
-    // Implemented in Tree.hpp to avoid circular include.
-    constexpr auto operator()(std::same_as<Index> auto... is) const;
+    /// Bind a tensor with an index in an expression.
+    ///
+    /// The resulting tree can be captured as constexpr.
+    ///
+    /// Implemented in ParseTree.hpp to avoid circular include.
+    constexpr auto bind_tensor(std::same_as<Index> auto... is) const;
 
-    // Implemented in Equation to avoid circular include.
-    constexpr auto operator=(is_tree auto&&) const;
+    constexpr auto operator()(Index i, std::same_as<Index> auto... is) const
+    {
+      return bind_tensor(i, is...);
+    }
+
+    /// Bind a tensor with a scalar index.
+    ///
+    /// The resulting Scalar cannot be captured as a constexpr, but can be used
+    /// inside of a constexpr expression context.
+    ///
+    /// This is implemented in Scalar.hpp to avoid circular include.
+    constexpr auto bind_scalar(std::signed_integral auto... is) const;
+
+    constexpr auto operator()(std::signed_integral auto i, std::signed_integral auto... is) const
+    {
+      return bind_scalar(i, is...);
+    }
+
+    constexpr auto operator=(std::floating_point auto d) const;
+    constexpr auto operator=(std::integral auto i) const;
+    constexpr auto operator=(Rational q) const;
+
+    /// Create a differential equation of dt.
+    ///
+    /// This is implemented in Equation in order to avoid circular includes.
+    constexpr auto operator<<=(is_tree auto&&) const;
   };
 
   constexpr auto to_string(const Tensor& t) -> std::string_view

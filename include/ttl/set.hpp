@@ -46,5 +46,20 @@ namespace ttl
       }
       return false;
     }
+
+    constexpr auto sort() -> set&
+    {
+      std::sort(this->begin(), this->end());
+      return *this;
+    }
+
+    template <std::size_t M>
+    constexpr friend auto to_array(set const& self) -> std::array<Scalar, M>
+    {
+      assert(M == self.size());
+      std::array<Scalar, M> out;
+      std::copy_n(self.begin(), M, out.begin());
+      return out;
+    }
   };
 }

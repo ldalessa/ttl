@@ -253,7 +253,8 @@ namespace ttl
                             kw::n_scalars = n,
                             kw::n_indices = order(),
                             kw::n_tensor_indices = index.size(),
-                            kw::n_inner_indices = m);
+                            kw::n_inner_indices = m,
+                            kw::n_tensor_ids = tensor.id().size());
          }
 
           default: assert(false);
@@ -270,7 +271,7 @@ namespace ttl
 
         ScalarIndex i(space.size());
         do {
-          op(Scalar(N, tensor, i.select(space, inner), constant));
+          op(Scalar(tensor, i.select(space, inner), constant));
         } while (i.carry_sum_inc(N));
       }
 
@@ -362,7 +363,7 @@ namespace ttl
 
       ScalarIndex index(order());
       do {
-        out.emplace(N, lhs_, index, false);
+        out.emplace(lhs_, index, false);
       } while (index.carry_sum_inc(N));
 
       return out;

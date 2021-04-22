@@ -9,7 +9,7 @@ namespace {
   constexpr ttl::Index j = 'j';
 
   constexpr ttl::System test = {
-    C = A(i,j) + B(i,j)
+    C <<= A(i,j) + B(i,j)
   };
 
   constexpr ttl::ExecutableSystem<double, 3, test> test3d;

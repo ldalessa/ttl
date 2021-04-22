@@ -206,4 +206,9 @@ namespace ttl
 
   template <int A, int B>
   ParseTree(Tag, ParseTree<A>, ParseTree<B>) -> ParseTree<A + B + 1>;
+
+  constexpr auto Tensor::bind_tensor(std::same_as<Index> auto... is) const
+  {
+    return ParseTree(*this, (is + ... + Index()));
+  }
 }

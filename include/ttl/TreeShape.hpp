@@ -14,6 +14,7 @@ namespace ttl
     inline constexpr auto n_inner_indices = "n_inner_indices"_kw;
     inline constexpr auto n_tensor_indices = "n_tensor_indices"_kw;
     inline constexpr auto stack_depth = "stack_depth"_kw;
+    inline constexpr auto n_tensor_ids = "n_tensor_ids"_kw;
   }
 
   struct TreeShape
@@ -24,6 +25,7 @@ namespace ttl
     int     n_immediates = 0;
     int  n_inner_indices = 0;
     int n_tensor_indices = 0;
+    int     n_tensor_ids = 0;
     int             dims;
     int        n_indices;
     int      stack_depth;
@@ -35,13 +37,15 @@ namespace ttl
                                                      kw::n_indices |
                                                      kw::n_inner_indices |
                                                      kw::n_tensor_indices |
-                                                     kw::stack_depth))
+                                                     kw::stack_depth |
+                                                     kw::n_tensor_ids))
     {
       rbr::settings args = { params... };
       n_scalars        = args[kw::n_scalars        | 0]; // default: 0
       n_immediates     = args[kw::n_immediates     | 0]; // default: 0
       n_inner_indices  = args[kw::n_inner_indices  | 0]; // default: 0
       n_tensor_indices = args[kw::n_tensor_indices | 0]; // default: 0
+      n_tensor_ids     = args[kw::n_tensor_ids     | 0]; // default: 0
       dims             = args[kw::dims];                 // required
       n_indices        = args[kw::n_indices];            // required
       stack_depth      = args[kw::stack_depth];          // required
@@ -56,6 +60,7 @@ namespace ttl
         , n_immediates(a.n_immediates + b.n_immediates)
         , n_inner_indices(a.n_inner_indices + b.n_inner_indices)
         , n_tensor_indices(a.n_tensor_indices + b.n_tensor_indices)
+        , n_tensor_ids(a.n_tensor_ids + b.n_tensor_ids)
         , dims(a.dims)
         , n_indices(a.n_indices + b.n_indices)
         , stack_depth(std::max(a.stack_depth, b.stack_depth))

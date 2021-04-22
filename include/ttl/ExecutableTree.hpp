@@ -39,7 +39,10 @@ namespace ttl
       constexpr static exec::Index bi = tree.index(r);
 
       static_assert(ci == ai);
-      constexpr static exec::IndexMapper<ci, bi, N> b_map{};
+
+      // Map the index space.
+      constexpr static int M = ci.size();
+      constexpr static std::array b_map = exec::make_map<N, M>(ci, bi);
 
       for (int i = 0; i < b_map.size(); ++i) {
         c[i] = a[i] + b[b_map[i]];
@@ -67,7 +70,10 @@ namespace ttl
       constexpr static exec::Index bi = tree.index(r);
 
       static_assert(ci == ai);
-      constexpr static exec::IndexMapper<ci, bi, N> b_map{};
+
+      // Map the index space.
+      constexpr static int M = ci.size();
+      constexpr static std::array b_map = exec::make_map<N, M>(ci, bi);
 
       for (int i = 0; i < b_map.size(); ++i) {
         c[i] = a[i] - b[b_map[i]];
@@ -95,11 +101,10 @@ namespace ttl
       constexpr static exec::Index  bi = tree.index(r);
 
       // Map the index space.
-      constexpr static exec::IndexMapper<all, ci, N> c_map{};
-      constexpr static exec::IndexMapper<all, ai, N> a_map{};
-      constexpr static exec::IndexMapper<all, bi, N> b_map{};
-      static_assert(c_map.size() == a_map.size());
-      static_assert(a_map.size() == b_map.size());
+      constexpr static int M = all.size();
+      constexpr static std::array c_map = exec::make_map<N, M>(all, ci);
+      constexpr static std::array a_map = exec::make_map<N, M>(all, ai);
+      constexpr static std::array b_map = exec::make_map<N, M>(all, bi);
 
       // Don't know the state of the stack but we're going to need to accumulate
       // there so we need to zero it first (it's nearly certainly dirty, either
@@ -171,8 +176,9 @@ namespace ttl
         c[ii] = T();
       }
 
-      constexpr static exec::IndexMapper<all_index, outer_index, N> c_map{};
-      constexpr static exec::IndexMapper<all_index, tensor_index, N> id_map{};
+      constexpr static int M = all_index.size();
+      constexpr static std::array c_map = exec::make_map<N, M>(all_index, outer_index);
+      constexpr static std::array id_map = exec::make_map<N, M>(all_index, tensor_index);
 
       for (int ii = 0; ii < c_map.size(); ++ii) {
         c[c_map[ii]] += scalars(ids[id_map[ii]], i);

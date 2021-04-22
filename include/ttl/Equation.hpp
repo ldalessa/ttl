@@ -20,7 +20,7 @@ namespace ttl
   };
 
   template <is_tree Tree>
-  constexpr auto Tensor::operator=(Tree&& rhs) const {
+  constexpr auto Tensor::operator<<=(Tree&& rhs) const {
     assert(order_ == rhs.outer().size());
     return Equation(*this, std::forward<Tree>(rhs));
   }
