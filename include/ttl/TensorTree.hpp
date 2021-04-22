@@ -310,9 +310,15 @@ namespace ttl
     }
 
     template <int M>
-    constexpr TensorTree(Tensor const& lhs, ParseTree<M> const& tree, auto&& constants)
+    constexpr TensorTree(Tensor const& lhs, ParseTree<M> const& tree, auto const& constants)
         : lhs_(lhs)
         , root_(map(tree.root(), constants))
+    {
+    }
+
+    template <int M>
+    constexpr TensorTree(Tensor const& lhs, ParseTree<M> const& tree, is_system auto const& system)
+        : TensorTree(lhs, tree, [&](Tensor const& t) { return system.is_constant(t); })
     {
     }
 

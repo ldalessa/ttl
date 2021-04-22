@@ -5,9 +5,10 @@
 #include "Tensor.hpp"
 #include "concepts.hpp"
 
-namespace ttl {
+namespace ttl
+{
   template <typename T>
-  concept is_expr =
+  concept is_tensor_expression =
   is_tree<T> ||
   std::same_as<T, Tensor> ||
   std::same_as<T, Rational> ||
@@ -29,35 +30,35 @@ namespace ttl {
     return a;
   }
 
-  constexpr ParseTree<1> bind(is_expr auto const& a) {
+  constexpr ParseTree<1> bind(is_tensor_expression auto const& a) {
     return ParseTree(a);
   }
 
-  constexpr auto operator+(is_expr auto const& a) {
+  constexpr auto operator+(is_tensor_expression auto const& a) {
     return bind(a);
   }
 
-  constexpr auto operator+(is_expr auto const& a, is_expr auto const& b) {
+  constexpr auto operator+(is_tensor_expression auto const& a, is_tensor_expression auto const& b) {
     return ParseTree(SUM, bind(a), bind(b));
   }
 
-  constexpr auto operator*(is_expr auto const& a, is_expr auto const& b) {
+  constexpr auto operator*(is_tensor_expression auto const& a, is_tensor_expression auto const& b) {
     return ParseTree(PRODUCT, bind(a), bind(b));
   }
 
-  constexpr auto operator-(is_expr auto const& a, is_expr auto const& b) {
+  constexpr auto operator-(is_tensor_expression auto const& a, is_tensor_expression auto const& b) {
     return ParseTree(DIFFERENCE, bind(a), bind(b));
   }
 
-  constexpr auto operator-(is_expr auto const& a) {
+  constexpr auto operator-(is_tensor_expression auto const& a) {
     return ParseTree(-1) * bind(a);
   }
 
-  constexpr auto operator/(is_expr auto const& a, is_expr auto const& b) {
+  constexpr auto operator/(is_tensor_expression auto const& a, is_tensor_expression auto const& b) {
     return ParseTree(RATIO, bind(a), bind(b));
   }
 
-  constexpr auto D(is_expr auto const& a, std::same_as<Index> auto... is) {
+  constexpr auto D(is_tensor_expression auto const& a, std::same_as<Index> auto... is) {
     return ParseTree(PARTIAL, bind(a), ParseTree((is + ...)));
   }
 
@@ -68,7 +69,7 @@ namespace ttl {
     return ParseTree(a + b);
   }
 
-  constexpr auto symmetrize(is_expr auto const& a) {
+  constexpr auto symmetrize(is_tensor_expression auto const& a) {
     ParseTree t = bind(a);
     return ParseTree(Rational(1,2)) * (t + t(reverse(t.outer())));
   }

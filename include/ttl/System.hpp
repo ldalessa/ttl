@@ -8,10 +8,13 @@
 #include "pow.hpp"
 #include "set.hpp"
 
-namespace ttl {
+namespace ttl
+{
   template <kumi::product_type Equations>
   struct System
   {
+    using is_system_tag = void;
+
     /// Create a system of equations from a pack of equations.
     constexpr System(is_equation auto... eqns)
         : equations { std::move(eqns)... }
