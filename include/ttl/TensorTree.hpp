@@ -271,7 +271,7 @@ namespace ttl
 
         ScalarIndex i(space.size());
         do {
-          op(Scalar(tensor, i.select(space, inner), constant));
+          op(Scalar(tensor, i.select(space, inner), constant, N));
         } while (i.carry_sum_inc(N));
       }
 

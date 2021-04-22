@@ -154,7 +154,7 @@ namespace ttl
           exec::Index    to = tensor_index(i);
           ScalarIndex index(from.size());
           do {
-            scalars.emplace(t, index.select(from, to), true);
+            scalars.emplace(t, index.select(from, to), constant, shape.dims);
           } while (index.carry_sum_inc(shape.dims));
         }
       }

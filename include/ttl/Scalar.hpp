@@ -42,7 +42,7 @@ namespace ttl
     /// @param t        The underlying tensor.
     /// @param incoming The specified index.
     /// @param constant True if the tensor is a constant.
-    constexpr Scalar(Tensor const& t, ScalarIndex const& incoming, bool constant)
+    constexpr Scalar(Tensor const& t, ScalarIndex const& incoming, bool constant, int N = 0)
         : constant(constant)
         , order(0)
         , direction(0)
@@ -52,13 +52,17 @@ namespace ttl
     {
       assert(t.order() <= incoming.size());
 
+      if (N) {
+        α.resize(N);
+      }
+
       int i = 0;
       for (; i < t.order(); ++i) {
         index[i] = incoming[i];
+        assert(!N or incoming[i] < N);
       }
 
       for (; i < incoming.size(); ++i) {
-        α.ensure(incoming[i]);
         α[incoming[i]] += 1;
         direction |= ttl::pow(2, incoming[i]);
       }
@@ -121,6 +125,8 @@ namespace ttl
       if (direction == 0) {
         return str;
       }
+
+      assert(α.size());
 
       str.append("_∂");
 

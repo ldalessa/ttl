@@ -7,6 +7,7 @@
 #include "ttl/TreeShape.hpp"
 #include "kumi.hpp"
 #include <array>
+#include <bitset>
 
 namespace ttl
 {
@@ -76,7 +77,7 @@ namespace ttl
     {
       set<Scalar> scalars;
       serialized_trees([&](auto const&... tree) {
-        (tree.get_scalars(true, scalars), ...);
+        (tree.get_scalars(constant, scalars), ...);
       });
       scalars.sort();
       return scalars;
@@ -96,6 +97,15 @@ namespace ttl
 
     /// Take a set of user-bound scalar constants and turn them into an array
     /// suitable for evaluate().
+    ///
+    /// It is okay to provide a bound scalar that doesn't exist in the problem
+    /// declaration, it will just be ignored. This can happen if the source code
+    /// is written to support multiple dimensionalities.
+    ///
+    /// It is okay to provide multiple definitions of the same scalar, only the
+    /// first one will be used.
+    ///
+    /// All of the scalars in the problem must be provided at the same time.
     constexpr static auto map_constants(kumi::product_type auto... tuples)
     {
       constexpr int M = constants.size();
@@ -104,8 +114,10 @@ namespace ttl
       std::array<Tuple, M> out;
       auto begin = constants.begin();
       auto end = constants.end();
+      std::bitset<M> bits;
       ([&] {
         auto scalar = kumi::get<0>(tuples);
+        scalar.constant = true;
         if (!scalar.validate(N)) {
           if (!std::is_constant_evaluated()) {
             fmt::print("ignoring impossible constant: {}\n", scalar);
@@ -114,9 +126,31 @@ namespace ttl
         }
 
         if (auto i = std::find(begin, end, scalar); i != end) {
-          out[i - begin] = tuples;
+          int n = i - begin;
+          if (!bits.test(n)) {
+            out[n] = tuples;
+            bits.set(n);
+          }
+          else {
+            fmt::print("ignoring multiply specified constant: {}\n", scalar);
+          }
+        }
+        else {
+          fmt::print("invalid constant: {}\n", scalar);
         }
       }(), ...);
+
+      if (bits.count() != M) {
+        for (int i = 0; i < M; ++i) {
+          if (!bits[i]) {
+            if (!std::is_constant_evaluated()) {
+              fmt::print("missing constant: {}\n", constants[i]);
+            }
+          }
+        }
+        assert(false);
+      }
+
       return out;
     }
   };
