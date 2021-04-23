@@ -54,22 +54,26 @@ namespace {
   constexpr auto v_rhs = - D(v(i),j) * v(j) + D(σ(i,j),j) / ρ + g(i);
   constexpr auto e_rhs = - v(i) * D(e,i) + σ(i,j) * d(i,j) / ρ - D(q(i),i) / ρ;
 
-  // constexpr ttl::System navier_stokes = {
-  //   ρ <<= ρ_rhs,
-  //   v <<= v_rhs,
-  //   e <<= e_rhs
-  // };
+  constexpr ttl::System navier_stokes = {
+    ρ <<= ρ_rhs,
+    v <<= v_rhs,
+    e <<= e_rhs
+  };
 }
 template <int N>
 int run_ns(auto& args)
 {
-  fmt::print("ρ = {}\n", to_string(ρ_rhs));
-  fmt::print("v = {}\n", to_string(v_rhs));
-  fmt::print("e = {}\n", to_string(e_rhs));
+  navier_stokes.equations([](ttl::is_equation auto const&... eqn) {
+    (eqn([](const auto& lhs, const auto& rhs) {
+      fmt::print("{} = {}\n", lhs, to_string(rhs));
+    }), ...);
+  });
 
-  fmt::print("graph ρ {{\n{}}}\n", ttl::dot(ρ_rhs));
-  fmt::print("graph v {{\n{}}}\n", ttl::dot(v_rhs));
-  fmt::print("graph e {{\n{}}}\n", ttl::dot(e_rhs));
+  navier_stokes.equations([](ttl::is_equation auto const&... eqn) {
+    (eqn([](const auto& lhs, const auto& rhs) {
+      fmt::print("graph {} {{\n{}}}\n", lhs, ttl::dot(rhs));
+    }), ...);
+  });
 
   // constexpr ttl::ExecutableSystem<double, N, navier_stokes> navier_stokes_Nd;
 

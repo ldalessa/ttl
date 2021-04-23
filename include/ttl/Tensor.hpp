@@ -61,7 +61,7 @@ namespace ttl
     /// Create a differential equation of dt.
     ///
     /// This is implemented in Equation in order to avoid circular includes.
-    constexpr auto operator<<=(is_parse_tree auto&&) const;
+    constexpr auto operator<<=(is_parse_tree auto) const;
   };
 
   constexpr auto to_string(const Tensor& t) -> std::string_view

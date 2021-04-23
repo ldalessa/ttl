@@ -54,10 +54,10 @@ namespace ttl
     }
 
     template <std::size_t M>
-    constexpr friend auto to_array(set const& self) -> std::array<Scalar, M>
+    constexpr friend auto to_array(set const& self) -> std::array<T, M>
     {
       assert(M == self.size());
-      std::array<Scalar, M> out;
+      std::array<T, M> out;
       std::copy_n(self.begin(), M, out.begin());
       return out;
     }

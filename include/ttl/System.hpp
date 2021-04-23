@@ -1,8 +1,8 @@
 #pragma once
 
 #include "Equation.hpp"
-#include "ParseTree.hpp"
-#include "TensorTree.hpp"
+// #include "ParseTree.hpp"
+// #include "TensorTree.hpp"
 #include "concepts.hpp"
 #include "kumi.hpp"
 #include "pow.hpp"
@@ -55,45 +55,45 @@ namespace ttl
       });
     }
 
-    /// Simplify a parse tree to create a tensor tree.
-    ///
-    /// The simpified tree is a traditional dynamically allocated tree of nodes,
-    /// not an expression tree, and thus can't be leaked from the constexpr
-    /// context.
-    constexpr auto simplify(Tensor const& lhs, is_tree auto const& tree) const
-      -> TensorTree
-    {
-      return TensorTree(lhs, tree, [&](const Tensor& t) {
-        return is_constant(t);
-      });
-    }
+    // /// Simplify a parse tree to create a tensor tree.
+    // ///
+    // /// The simpified tree is a traditional dynamically allocated tree of nodes,
+    // /// not an expression tree, and thus can't be leaked from the constexpr
+    // /// context.
+    // constexpr auto simplify(Tensor const& lhs, is_tree auto const& tree) const
+    //   -> TensorTree
+    // {
+    //   return TensorTree(lhs, tree, [&](const Tensor& t) {
+    //     return is_constant(t);
+    //   });
+    // }
 
-    /// Create a tuple of simplified trees corresponding to the system.
-    constexpr auto simplify_trees() const -> kumi::product_type auto
-    {
-      return equations([&](is_equation auto const&... eqns) {
-        return kumi::make_tuple(simplify(eqns.lhs, eqns.rhs)...);
-      });
-    }
+    // /// Create a tuple of simplified trees corresponding to the system.
+    // constexpr auto simplify_trees() const -> kumi::product_type auto
+    // {
+    //   return equations([&](is_equation auto const&... eqns) {
+    //     return kumi::make_tuple(simplify(eqns.lhs, eqns.rhs)...);
+    //   });
+    // }
 
-    /// Returns a tuple of shapes for the simplified trees.
-    ///
-    /// This shape depends on the dimensionality, as it requires knowledge about
-    /// how many scalars are going to be associated with tensors an immediate
-    /// values.
-    constexpr auto shapes(int N) const -> kumi::product_type auto
-    {
-      auto trees = simplify_trees();
-      return trees([N](is_tree auto const& ... trees) {
-        return kumi::make_tuple(trees.shape(N)...);
-      });
-    }
+    // /// Returns a tuple of shapes for the simplified trees.
+    // ///
+    // /// This shape depends on the dimensionality, as it requires knowledge about
+    // /// how many scalars are going to be associated with tensors an immediate
+    // /// values.
+    // constexpr auto shapes(int N) const -> kumi::product_type auto
+    // {
+    //   auto trees = simplify_trees();
+    //   return trees([N](is_tree auto const& ... trees) {
+    //     return kumi::make_tuple(trees.shape(N)...);
+    //   });
+    // }
 
-    /// Create a tuple of pairs of shapes and simplified trees.
-    constexpr auto simplify_trees(int N) const
-    {
-      return kumi::zip(shapes(N), simplify_trees());
-    }
+    // /// Create a tuple of pairs of shapes and simplified trees.
+    // constexpr auto simplify_trees(int N) const
+    // {
+    //   return kumi::zip(shapes(N), simplify_trees());
+    // }
   };
 
   System(is_equation auto... eqns)
