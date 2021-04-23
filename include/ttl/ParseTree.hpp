@@ -3,6 +3,7 @@
 #include "ttl/Index.hpp"
 #include "ttl/Rational.hpp"
 #include "ttl/ScalarIndex.hpp"
+#include "ttl/Tag.hpp"
 #include "ttl/Tensor.hpp"
 #include "ttl/concepts.hpp"
 #include "ce/dvector.hpp"
@@ -16,68 +17,6 @@
 
 namespace ttl
 {
-  enum Tag : int {
-    SUM = 0,
-    DIFFERENCE,
-    PRODUCT,
-    RATIO,
-    BIND,
-    PARTIAL,
-    POW,
-    SQRT,
-    EXP,
-    NEGATE,
-    RATIONAL,
-    DOUBLE,
-    TENSOR,
-    SCALAR,
-    DELTA,
-    EPSILON,
-    MAX
-  };
-
-  constexpr bool is_binary(Tag tag)
-  {
-    return tag <= RATIO;
-  }
-
-  constexpr bool is_unary(Tag tag)
-  {
-    return not is_binary(tag) && tag <= NEGATE;
-  }
-
-  constexpr Index outer(Tag tag, Index const& a, Index const& b = {})
-  {
-    if (tag == SUM or tag == DIFFERENCE) return a;
-    if (tag == PRODUCT or tag == RATIO) return a ^ b;
-    if (tag == PARTIAL) return exclusive(a + b);
-    if (tag == BIND) return b;
-    return exclusive(a);
-  }
-
-  constexpr const char* to_string(Tag tag)
-  {
-    constexpr const char* strings[] = {
-      "+", // SUM
-      "-", // DIFFERENCE
-      "*", // PRODUCT
-      "/", // RATIO
-      "bind",  // BIND
-      "∂", // PARTIAL
-      "^", // POW
-      "√", // SQRT
-      "ℇ", // EXP
-      "-", // NEGATE
-      "",  // RATIONAL
-      "",  // DOUBLE
-      "",  // TENSOR
-      "",  // SCALAR
-      "δ", // DELTA
-      "ε", // EPSILON
-    };
-    static_assert(std::size(strings) == MAX);
-    return strings[tag];
-  }
 
   template <int M>
   struct ParseTree
@@ -99,9 +38,9 @@ namespace ttl
     template <int A, int B>
     constexpr ParseTree(ParseTree<A> const& a, ParseTree<B> const& b, Tag tag)
         : depth_ { std::max(a.depth_, b.depth_) + 1 }
-        , outer_ { ttl::outer(tag, a.outer_, b.outer_) }
+        , outer_ { tag.outer(a.outer_, b.outer_) }
     {
-      assert(is_binary(tag));
+      assert(tag.is_binary());
 
       auto join = [](auto* a, auto* b, auto* c) {
         return std::copy(b, b + B, std::copy(a, a + A, c));
@@ -122,9 +61,9 @@ namespace ttl
 
     constexpr ParseTree(ParseTree<M - 1> const& a, Tag tag)
         : depth_ { a.depth_ + 1 }
-        , outer_ { ttl::outer(tag, a.outer_, {}) }
+        , outer_ { tag.outer(a.outer_, {}) }
     {
-      assert(is_unary(tag));
+      assert(tag.is_unary());
 
       using std::begin;
       using std::end;
@@ -141,7 +80,7 @@ namespace ttl
 
     constexpr ParseTree(ParseTree<M - 1> const& a, Tag tag, Index const& i)
         : depth_ { a.depth_ + 1 }
-        , outer_ { ttl::outer(tag, a.outer_, i) }
+        , outer_ { tag.outer(a.outer_, i) }
     {
       assert(tag == PARTIAL || tag == BIND);
 
@@ -166,7 +105,7 @@ namespace ttl
         , tensors { a }
         , tensor_index { i }
         , scalar_index {}
-        , outer_ { ttl::outer(TENSOR, i, {}) }
+        , outer_ { tags[0].outer(i, {}) }
     {
       assert(a);
     }
@@ -191,7 +130,7 @@ namespace ttl
         , tensors {}
         , tensor_index { i }
         , scalar_index {}
-        , outer_ { ttl::outer(tag, i, {}) }
+        , outer_ { tag.outer(i, {}) }
     {
       assert(tag == DELTA || tag == EPSILON);
     }
@@ -260,17 +199,17 @@ namespace ttl
       for (int i = 0; i < k + 1; ++i)
       {
         Tag tag = tags[i];
-        if (is_binary(tag)) {
+        if (tag.is_binary()) {
           Index b = stack.pop_back();
           Index a = stack.pop_back();
-          stack.push_back(ttl::outer(tag, a, b));
+          stack.push_back(tag.outer(a, b));
         }
-        else if (is_unary(tag)) {
+        else if (tag.is_unary()) {
           Index a = stack.pop_back();
-          stack.push_back(ttl::outer(tag, a, tensor_index[i]));
+          stack.push_back(tag.outer(a, tensor_index[i]));
         }
         else {
-          stack.push_back(ttl::outer(tag, tensor_index[i]));
+          stack.push_back(tag.outer(tensor_index[i]));
         }
       }
       return stack.pop_back();
@@ -567,19 +506,3 @@ namespace ttl
   // }
 }
 
-
-#include <fmt/format.h>
-
-template <>
-struct fmt::formatter<ttl::Tag>
-{
-  constexpr auto parse(format_parse_context& ctx)
-  {
-    return ctx.begin();
-  }
-
-  constexpr auto format(ttl::Tag tag, auto& ctx)
-  {
-    return fmt::format_to(ctx.out(), "{}", to_string(tag));
-  }
-};
