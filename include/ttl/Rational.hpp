@@ -91,6 +91,14 @@ namespace ttl
       return T(a.p) / T(a.q);
     }
   };
+
+  namespace literals
+  {
+    constexpr Rational operator "" _q(unsigned long long n)
+    {
+      return Rational(n);
+    }
+  }
 }
 
 template <>

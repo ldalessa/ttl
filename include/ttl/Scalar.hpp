@@ -2,7 +2,6 @@
 
 #include "ttl/Rational.hpp"
 #include "ttl/ScalarIndex.hpp"
-#include "ttl/Tag.hpp"
 #include "ttl/Tensor.hpp"
 #include "ttl/pow.hpp"
 #include <kumi.hpp>
@@ -22,11 +21,11 @@ namespace ttl
 
     constexpr Scalar() = default;
 
-    constexpr Scalar(auto const* node)
-        : Scalar(node->tensor, node->index, node->constant)
-    {
-      assert(node->tag == TENSOR);
-    }
+    // constexpr Scalar(auto const* node)
+    //     : Scalar(node->tensor, node->index, node->constant)
+    // {
+    //   assert(node->tag == TENSOR);
+    // }
 
     /// Manifest a scalar for a particular tensor index.
     ///
@@ -140,28 +139,28 @@ namespace ttl
     }
   };
 
-  constexpr auto Tensor::bind_scalar(std::signed_integral auto... is) const
-  {
-    return Scalar(*this, { std::in_place, is... }, false);
-  }
+  // constexpr auto Tensor::bind_scalar(std::signed_integral auto... is) const
+  // {
+  //   return Scalar(*this, { std::in_place, is... }, false);
+  // }
 
-  constexpr auto Tensor::operator=(std::floating_point auto d) const
-  {
-    assert(order_ == 0);
-    return bind_scalar() = d;
-  }
+  // constexpr auto Tensor::operator=(std::floating_point auto d) const
+  // {
+  //   assert(order_ == 0);
+  //   return bind_scalar() = d;
+  // }
 
-  constexpr auto Tensor::operator=(std::integral auto i) const
-  {
-    assert(order_ == 0);
-    return bind_scalar() = i;
-  }
+  // constexpr auto Tensor::operator=(std::integral auto i) const
+  // {
+  //   assert(order_ == 0);
+  //   return bind_scalar() = i;
+  // }
 
-  constexpr auto Tensor::operator=(Rational q) const
-  {
-    assert(order_ == 0);
-    return bind_scalar() = q;
-  }
+  // constexpr auto Tensor::operator=(Rational q) const
+  // {
+  //   assert(order_ == 0);
+  //   return bind_scalar() = q;
+  // }
 }
 
 #include <fmt/format.h>

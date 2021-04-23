@@ -8,11 +8,11 @@ namespace {
   constexpr ttl::Index i = 'i';
   constexpr ttl::Index j = 'j';
 
-  constexpr ttl::System test = {
-    C <<= A(i,j) + B(i,j)
-  };
+  // constexpr ttl::System test = {
+  //   C <<= A(i,j) + B(i,j)
+  // };
 
-  constexpr ttl::ExecutableSystem<double, 3, test> test3d;
+  // constexpr ttl::ExecutableSystem<double, 3, test> test3d;
 }
 
 int main()

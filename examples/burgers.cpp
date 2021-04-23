@@ -14,8 +14,8 @@ namespace {
 
   /// System of equations.
   constexpr auto   u_rhs = ν * D(u(i),i,j) - (u(i) + c(i)) * D(u(i),j);
-  constexpr ttl::System burgers = { u <<= u_rhs };
-  constexpr ttl::ExecutableSystem<double, 1, burgers> burgers1d;
+  // constexpr ttl::System burgers = { u <<= u_rhs };
+  // constexpr ttl::ExecutableSystem<double, 1, burgers> burgers1d;
 }
 
 int main()

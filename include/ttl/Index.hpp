@@ -10,6 +10,8 @@ namespace ttl
 {
   struct Index
   {
+    using is_index_tag = void;
+
     int  size_ = 0;
     char data_[TTL_MAX_PARSE_INDEX] = {};
 
