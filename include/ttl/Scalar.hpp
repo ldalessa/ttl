@@ -13,12 +13,12 @@ namespace ttl
 {
   struct Scalar
   {
-    bool     constant;              //!< true if we think the scalar is constant
-    int         order;              //!< the number of non-zero α
-    int     direction;              //!< the non-zero α
-    ScalarIndex     α;              //!< the ∂x_{i}^{α[i]} order values
-    Tensor     tensor;              //!< the underlying tensor
-    ScalarIndex index;              //!< the actual component
+    bool     constant = false;      //!< true if we think the scalar is constant
+    int         order = 0;          //!< the number of non-zero α
+    int     direction = 0;          //!< the non-zero α
+    ScalarIndex     α = {};         //!< the ∂x_{i}^{α[i]} order values
+    Tensor     tensor = {};         //!< the underlying tensor
+    ScalarIndex index = {};         //!< the actual component
 
     constexpr Scalar() = default;
 
