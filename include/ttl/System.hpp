@@ -1,12 +1,11 @@
 #pragma once
 
-#include "Equation.hpp"
-// #include "ParseTree.hpp"
-// #include "TensorTree.hpp"
-#include "concepts.hpp"
-#include "kumi.hpp"
-#include "pow.hpp"
-#include "set.hpp"
+#include "ttl/Equation.hpp"
+#include "ttl/concepts.hpp"
+#include "ttl/pow.hpp"
+#include "ttl/set.hpp"
+#include "ttl/optimizer/Tree.hpp"
+#include <kumi.hpp>
 
 namespace ttl
 {
@@ -55,26 +54,26 @@ namespace ttl
       });
     }
 
-    // /// Simplify a parse tree to create a tensor tree.
-    // ///
-    // /// The simpified tree is a traditional dynamically allocated tree of nodes,
-    // /// not an expression tree, and thus can't be leaked from the constexpr
-    // /// context.
-    // constexpr auto simplify(Tensor const& lhs, is_tree auto const& tree) const
-    //   -> TensorTree
-    // {
-    //   return TensorTree(lhs, tree, [&](const Tensor& t) {
-    //     return is_constant(t);
-    //   });
-    // }
+    /// Simplify an equation.
+    constexpr auto simplify(is_equation auto const& eqn) const
+      -> optimizer::Tree
+    {
+      return optimizer::Tree(eqn);
+    }
 
-    // /// Create a tuple of simplified trees corresponding to the system.
-    // constexpr auto simplify_trees() const -> kumi::product_type auto
-    // {
-    //   return equations([&](is_equation auto const&... eqns) {
-    //     return kumi::make_tuple(simplify(eqns.lhs, eqns.rhs)...);
-    //   });
-    // }
+    /// Create a tuple of simplified trees corresponding to the system.
+    constexpr auto simplify_equations() const -> kumi::product_type auto
+    {
+      return equations([&](is_equation auto const&... eqns) {
+        return kumi::make_tuple(simplify(eqns)...);
+      });
+    }
+
+    constexpr auto simplify_equations(int N) const -> bool
+    {
+      auto trees = simplify_equations();
+      return true;
+    }
 
     // /// Returns a tuple of shapes for the simplified trees.
     // ///

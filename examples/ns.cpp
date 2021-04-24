@@ -69,6 +69,16 @@ int run_ns(auto& args)
     }), ...);
   });
 
+
+  constexpr auto b = navier_stokes.simplify_equations(1);
+
+  navier_stokes.simplify_equations()([](auto const&... eqn) {
+    (eqn([](const auto& lhs, const auto& rhs) {
+      fmt::print("{} = {}\n", *lhs, to_string(*rhs));
+    }), ...);
+  });
+
+
   navier_stokes.equations([](ttl::is_equation auto const&... eqn) {
     (eqn([](const auto& lhs, const auto& rhs) {
       fmt::print("graph {} {{\n{}}}\n", lhs, ttl::dot(rhs));

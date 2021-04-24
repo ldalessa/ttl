@@ -163,16 +163,32 @@ namespace ttl
       return ParseTree<M+1>(*this, BIND, (is + ... + Index{}));
     }
 
-    /// Return the tag for the root of the
+    /// Return the tag for the root of the tree.
     constexpr auto tag() const -> Tag
     {
-      return tags[M - 1];
+      return tag(M - 1);
+    }
+
+    /// Return the tags for any node in the tree.
+    constexpr auto tag(int k) const -> Tag
+    {
+      return tags[k];
     }
 
     /// Return the tensor index stored for any node in the tree.
     constexpr auto index(int i) const -> Index
     {
       return tensor_index[i];
+    }
+
+    constexpr auto size() const -> int
+    {
+      return size_;
+    }
+
+    constexpr auto depth() const -> int
+    {
+      return depth_;
     }
 
     constexpr auto left(int i = M - 1) const -> int
@@ -237,13 +253,6 @@ namespace ttl
            stack.emplace_back(std::move(c));
          } continue;
 
-         case BIND:
-         case PARTIAL: {
-           std::string a = stack.pop_back();
-           std::string b = fmt::format("{}({},{})", tags[i], std::move(a), tensor_index[i]);
-           stack.emplace_back(std::move(b));
-         } continue;
-
          case POW: {
            std::string b = stack.pop_back();
            std::string a = stack.pop_back();
@@ -251,18 +260,19 @@ namespace ttl
            stack.emplace_back(std::move(c));
          } continue;
 
+         case BIND:
+         case PARTIAL: {
+           std::string a = stack.pop_back();
+           std::string b = fmt::format("{}({},{})", tags[i], std::move(a), tensor_index[i]);
+           stack.emplace_back(std::move(b));
+         } continue;
+
           // All the functions are the same.
          case SQRT:
          case EXP:
-         case DELTA:
-         case EPSILON: {
-           stack.emplace_back(fmt::format("{}({})", tags[i], tensor_index[i]));
-         } continue;
-
          case NEGATE: {
            std::string a = stack.pop_back();
-           std::string b = fmt::format("{}{}", tags[i], std::move(a));
-           stack.emplace_back(std::move(b));
+           stack.emplace_back(fmt::format("{}({})", tags[i], std::move(a)));
          } continue;
 
          case RATIONAL: {
@@ -284,12 +294,20 @@ namespace ttl
 
          case SCALAR: {
            if (scalar_index[i].size()) {
-             stack.emplace_back(fmt::format("{}", *tensors[i], scalar_index[i]));
+             stack.emplace_back(fmt::format("{}({})", *tensors[i], scalar_index[i]));
            }
            else {
-             stack.emplace_back(fmt::format("{}({})", *tensors[i]));
+             stack.emplace_back(fmt::format("{}", *tensors[i]));
            }
          } continue;
+
+         case DELTA:
+         case EPSILON: {
+           stack.emplace_back(fmt::format("{}({})", tags[i], tensor_index[i]));
+         } continue;
+
+         case MAX:
+          assert(false);
         }
         __builtin_unreachable();
       }
@@ -374,6 +392,9 @@ namespace ttl
          case EPSILON: {
            fmt::format_to(out, "\tnode{}[label=\"{}({})\"]\n", i, tag, tensor_index[i]);
          } continue;
+
+         case MAX:
+          assert(false);
         }
         __builtin_unreachable();
       }

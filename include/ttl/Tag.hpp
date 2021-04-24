@@ -9,9 +9,9 @@ namespace ttl
     DIFFERENCE,
     PRODUCT,
     RATIO,
+    POW,
     BIND,
     PARTIAL,
-    POW,
     SQRT,
     EXP,
     NEGATE,
@@ -61,7 +61,7 @@ namespace ttl
 
     constexpr bool is_binary() const
     {
-      return id_ <= RATIO;
+      return id_ <= POW;
     }
 
     constexpr bool is_unary() const
@@ -98,9 +98,9 @@ namespace ttl
         "-", // DIFFERENCE
         "*", // PRODUCT
         "/", // RATIO
+        "^", // POW
         "bind",  // BIND
         "∂", // PARTIAL
-        "^", // POW
         "√", // SQRT
         "ℇ", // EXP
         "-", // NEGATE
