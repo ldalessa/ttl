@@ -17,10 +17,13 @@ namespace ttl::optimizer
     inline constexpr auto scalar_index = "scalar_index"_kw;
   }
 
+  struct node_ptr;
+
   struct Node
   {
-    Tag   tag = {};
-    int count = 0;
+    Node* parent = nullptr;
+    Tag      tag = {};
+    int    count = 0;
 
     constexpr Node() = default;
 
@@ -28,6 +31,8 @@ namespace ttl::optimizer
         : tag(tag)
     {
     }
+
+    constexpr virtual void replace(Node*, node_ptr&) {}
 
     virtual auto to_string() const -> std::string = 0;
 
@@ -76,7 +81,6 @@ namespace ttl::optimizer
       return *this;
     }
 
-
     constexpr node_ptr& operator=(std::nullptr_t)
     {
       dec();
@@ -88,6 +92,14 @@ namespace ttl::optimizer
       return ptr_ != nullptr;
     }
 
+    constexpr friend bool operator==(node_ptr const& a, Node* b) {
+      return a.ptr_ == b;
+    }
+
+    constexpr friend bool operator==(Node* a, node_ptr const& b) {
+      return a == b.ptr_;
+    }
+
     constexpr auto operator*() const -> Node&
     {
       return *ptr_;
@@ -97,6 +109,8 @@ namespace ttl::optimizer
     {
       return ptr_;
     }
+
+    constexpr auto visit(auto const& op, auto&&... args) const;
 
     constexpr void inc() const;
     constexpr void dec();
@@ -115,6 +129,21 @@ namespace ttl::optimizer
       b = args[kw::b];
       assert(a);
       assert(b);
+      a->parent = this;
+      b->parent = this;
+    }
+
+    constexpr void replace(Node* child, node_ptr& with) override
+    {
+      assert(a == child or b == child);
+      if (a == child) {
+        a = with;
+      }
+      else {
+        b = with;
+      }
+      with->parent = this;
+      child->parent = nullptr;
     }
 
     auto to_string() const -> std::string override
@@ -133,7 +162,17 @@ namespace ttl::optimizer
       rbr::settings args = { params... };
       b = args[kw::b];
       assert(b);
+      b->parent = this;
     }
+
+    constexpr void replace(Node* child, node_ptr& with) override
+    {
+      assert(b == child);
+      b = with;
+      with->parent = this;
+      child->parent = nullptr;
+    }
+
   };
 
   struct Leaf : Node
@@ -408,6 +447,32 @@ namespace ttl::optimizer
         }
         ptr_ = nullptr;
       }
+    }
+  }
+
+  constexpr auto node_ptr::visit(auto const& op, auto&&... args) const
+  {
+    switch (ptr_->tag)
+    {
+     case SUM:        return op(static_cast<Sum*>(ptr_), std::forward<decltype(args)>(args)...);
+     case DIFFERENCE: return op(static_cast<Difference*>(ptr_), std::forward<decltype(args)>(args)...);
+     case PRODUCT:    return op(static_cast<Product*>(ptr_), std::forward<decltype(args)>(args)...);
+     case RATIO:      return op(static_cast<Ratio*>(ptr_), std::forward<decltype(args)>(args)...);
+     case BIND:       return op(static_cast<Bind*>(ptr_), std::forward<decltype(args)>(args)...);
+     case PARTIAL:    return op(static_cast<Partial*>(ptr_), std::forward<decltype(args)>(args)...);
+     case POW:        return op(static_cast<Pow*>(ptr_), std::forward<decltype(args)>(args)...);
+     case SQRT:       return op(static_cast<Sqrt*>(ptr_), std::forward<decltype(args)>(args)...);
+     case EXP:        return op(static_cast<Exp*>(ptr_), std::forward<decltype(args)>(args)...);
+     case NEGATE:     return op(static_cast<Negate*>(ptr_), std::forward<decltype(args)>(args)...);
+     case RATIONAL:   return op(static_cast<Rational*>(ptr_), std::forward<decltype(args)>(args)...);
+     case DOUBLE:     return op(static_cast<Double*>(ptr_), std::forward<decltype(args)>(args)...);
+     case TENSOR:     return op(static_cast<Tensor*>(ptr_), std::forward<decltype(args)>(args)...);
+     case SCALAR:     return op(static_cast<Scalar*>(ptr_), std::forward<decltype(args)>(args)...);
+     case DELTA:      return op(static_cast<Delta*>(ptr_), std::forward<decltype(args)>(args)...);
+     case EPSILON:    return op(static_cast<Epsilon*>(ptr_), std::forward<decltype(args)>(args)...);
+     default:
+      assert(false);
+      __builtin_unreachable();
     }
   }
 

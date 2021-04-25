@@ -2,6 +2,7 @@
 
 #include "ttl/Tensor.hpp"
 #include "ttl/concepts.hpp"
+#include "ttl/optimizer/LowerBinds.hpp"
 #include "ttl/optimizer/Nodes.hpp"
 #include "ce/dvector.hpp"
 
@@ -49,11 +50,19 @@ namespace ttl::optimizer
         assert(stack.size() == 1);
         rhs_ = stack.pop_back();
       });
+
+      lower_binds();
     }
 
     constexpr auto operator()(auto&& op) const
     {
       return op(lhs_, rhs_);
+    }
+
+    constexpr void lower_binds()
+    {
+      LowerBinds lower;
+      lower(rhs_);
     }
   };
 }
