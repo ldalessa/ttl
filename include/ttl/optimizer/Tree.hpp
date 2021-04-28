@@ -2,6 +2,7 @@
 
 #include "ttl/Tensor.hpp"
 #include "ttl/concepts.hpp"
+#include "ttl/optimizer/ConstProp.hpp"
 #include "ttl/optimizer/Dot.hpp"
 #include "ttl/optimizer/LowerBinds.hpp"
 #include "ttl/optimizer/Nodes.hpp"
@@ -53,7 +54,8 @@ namespace ttl::optimizer
         rhs_ = stack.pop_back();
       });
 
-      rhs_ = lower_binds();
+      rhs_ = lower_binds(rhs_);
+      rhs_ = const_prop(rhs_);
     }
 
     constexpr auto operator()(auto&& op) const
@@ -61,19 +63,15 @@ namespace ttl::optimizer
       return op(lhs_, rhs_);
     }
 
-    constexpr auto lower_binds() -> Node*
-    {
-      LowerBinds lower;
-      return lower(rhs_);
-    }
+    LowerBinds lower_binds = {};
+    constexpr static ConstProp const_prop = {};
 
     auto print(FILE* file) const
     {
       Print print;
-      fmt::memory_buffer out;
-      fmt::format_to(out, "{} =", *lhs_);
-      print(rhs_, out);
-      std::fwrite(out.data(), out.size(), 1, file);
+      print.format("{} = ", *lhs_);
+      print(rhs_);
+      print.write(file);
     }
 
     auto dot(FILE* file) const

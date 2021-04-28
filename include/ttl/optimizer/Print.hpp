@@ -2,66 +2,82 @@
 
 #include "ttl/optimizer/Nodes.hpp"
 #include <fmt/format.h>
+#include <string_view>
 
 namespace ttl::optimizer
 {
+  using namespace std::literals;
+
   struct Print
   {
-    void operator()(node_ptr node, fmt::memory_buffer& out) const
+    fmt::memory_buffer out;
+
+    void format(const auto&... args)
     {
-      node.visit(*this, out);
+      fmt::format_to(out, args...);
     }
 
-    void operator()(Binary* node, fmt::memory_buffer& out) const
+    void write(FILE* file)
     {
-      fmt::format_to(out, "{}", "(");
-      node->a.visit(*this, out);
+      std::fwrite(out.data(), out.size(), 1, file);
+    }
+
+    auto operator()(node_ptr node) -> auto&
+    {
+      node.visit(*this);
+      return out;
+    }
+
+    void operator()(Binary* node)
+    {
+      out.append("("sv);
+      node->a.visit(*this);
       fmt::format_to(out, " {} ", node->tag);
-      node->b.visit(*this, out);
-      fmt::format_to(out, "{}", ")");
+      node->b.visit(*this);
+      out.append(")"sv);
     }
 
-    void operator()(Pow* node, fmt::memory_buffer& out) const
+    void operator()(Pow* node)
     {
-      fmt::format_to(out, "{}", "(");
-      node->a.visit(*this, out);
+      out.append("("sv);
+      node->a.visit(*this);
       fmt::format_to(out, "){}", node->tag);
-      node->b.visit(*this, out);
+      node->b.visit(*this);
     }
 
-    void operator()(Unary* node, fmt::memory_buffer& out) const
+    void operator()(Unary* node)
     {
       fmt::format_to(out, "{}(", node->tag);
-      node->a.visit(*this, out);
-      fmt::format_to(out, "{}", ")");
+      node->a.visit(*this);
+      out.append(")"sv);
     }
 
-    void operator()(Bind* bind, fmt::memory_buffer& out) const
+    void operator()(Bind* bind)
     {
       fmt::format_to(out, "{}(", bind->tag);
-      bind->a.visit(*this, out);
+      bind->a.visit(*this);
       fmt::format_to(out, ",{})", bind->index);
     }
 
-    void operator()(Partial* partial, fmt::memory_buffer& out) const
+    void operator()(Partial* partial)
     {
       fmt::format_to(out, "{}(", partial->tag);
-      partial->a.visit(*this, out);
+      partial->a.visit(*this);
       fmt::format_to(out, ",{})", partial->index);
     }
 
 
-    void operator()(Rational* q, fmt::memory_buffer& out) const
+    void operator()(Rational* q)
     {
       fmt::format_to(out, "{}", q->q);
     }
 
-    void operator()(Double* d, fmt::memory_buffer& out) const
+    void operator()(Double* d)
     {
       fmt::format_to(out, "{}", d->d);
     }
 
-    void operator()(Tensor* tensor, fmt::memory_buffer& out) const
+    void operator()(Tensor* tensor)
     {
       if (tensor->index.size()) {
         fmt::format_to(out, "{}({})", *tensor->tensor, tensor->index);
@@ -71,7 +87,7 @@ namespace ttl::optimizer
       }
     }
 
-    void operator()(Scalar* scalar, fmt::memory_buffer& out) const
+    void operator()(Scalar* scalar)
     {
       if (scalar->index.size()) {
         fmt::format_to(out, "{}({})", *scalar->tensor, scalar->index);
@@ -81,12 +97,12 @@ namespace ttl::optimizer
       }
     }
 
-    void operator()(Delta* δ, fmt::memory_buffer& out) const
+    void operator()(Delta* δ)
     {
       fmt::format_to(out, "{}({})", δ->tag, δ->index);
     }
 
-    void operator()(Epsilon* ε, fmt::memory_buffer& out) const
+    void operator()(Epsilon* ε)
     {
       fmt::format_to(out, "{}({})", ε->tag, ε->index);
     }
