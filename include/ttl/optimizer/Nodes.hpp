@@ -33,13 +33,7 @@ namespace ttl::optimizer
     }
 
     constexpr virtual void replace(Node*, node_ptr&) {}
-
-    virtual auto to_string() const -> std::string = 0;
-
-    friend auto to_string(Node const& tree) -> std::string
-    {
-      return tree.to_string();
-    }
+    constexpr virtual auto outer() const -> Index = 0;
   };
 
   struct node_ptr
@@ -68,6 +62,7 @@ namespace ttl::optimizer
 
     constexpr node_ptr& operator=(node_ptr const& b)
     {
+      assert(*this != b);
       dec();
       ptr_ = b.ptr_;
       inc();
@@ -76,14 +71,19 @@ namespace ttl::optimizer
 
     constexpr node_ptr& operator=(node_ptr&& b)
     {
+      assert(b != *this);
       dec();
       ptr_ = std::exchange(b.ptr_, nullptr);
       return *this;
     }
 
-    constexpr node_ptr& operator=(std::nullptr_t)
+    constexpr node_ptr& operator=(Node* ptr)
     {
-      dec();
+      if (ptr_ != ptr) {
+        dec();
+        ptr_ = ptr;
+        inc();
+      }
       return *this;
     }
 
@@ -91,6 +91,8 @@ namespace ttl::optimizer
     {
       return ptr_ != nullptr;
     }
+
+    constexpr friend bool operator==(node_ptr const&, node_ptr const&) = default;
 
     constexpr friend bool operator==(node_ptr const& a, Node* b) {
       return a.ptr_ == b;
@@ -110,7 +112,7 @@ namespace ttl::optimizer
       return ptr_;
     }
 
-    constexpr auto visit(auto const& op, auto&&... args) const;
+    constexpr auto visit(auto&& op, auto&&... args) const;
 
     constexpr void inc() const;
     constexpr void dec();
@@ -135,44 +137,45 @@ namespace ttl::optimizer
 
     constexpr void replace(Node* child, node_ptr& with) override
     {
+      assert(child);
       assert(a == child or b == child);
-      if (a == child) {
-        a = with;
-      }
-      else {
-        b = with;
-      }
-      with->parent = this;
       child->parent = nullptr;
+      if (a == child) a = with;
+      else b = with;
+      with->parent = this;
     }
 
-    auto to_string() const -> std::string override
+    constexpr auto outer() const -> Index override
     {
-      return fmt::format("({} {} {})", a->to_string(), tag, b->to_string());
+      return tag.outer(a->outer(), b->outer());
     }
   };
 
   struct Unary : Node
   {
-    node_ptr b;
+    node_ptr a;
 
     constexpr Unary(Tag tag, rbr::keyword_parameter auto... params)
         : Node(tag)
     {
       rbr::settings args = { params... };
-      b = args[kw::b];
-      assert(b);
-      b->parent = this;
+      a = args[kw::a];
+      assert(a);
+      a->parent = this;
     }
 
     constexpr void replace(Node* child, node_ptr& with) override
     {
-      assert(b == child);
-      b = with;
-      with->parent = this;
+      assert(child && a == child);
       child->parent = nullptr;
+      a = with;
+      with->parent = this;
     }
 
+    constexpr auto outer() const -> Index override
+    {
+      return a->outer();
+    }
   };
 
   struct Leaf : Node
@@ -180,6 +183,11 @@ namespace ttl::optimizer
     constexpr Leaf(Tag tag, rbr::keyword_parameter auto... params)
         : Node(tag)
     {
+    }
+
+    constexpr auto outer() const -> Index override
+    {
+      return {};
     }
   };
 
@@ -234,9 +242,9 @@ namespace ttl::optimizer
       index = args[kw::tensor_index];
     }
 
-    auto to_string() const -> std::string override
+    constexpr auto outer() const -> Index override
     {
-      return fmt::format("{}({},{})", tag, b->to_string(), index);
+      return tag.outer(a->outer(), index);
     }
   };
 
@@ -251,9 +259,9 @@ namespace ttl::optimizer
       index = args[kw::tensor_index];
     }
 
-    auto to_string() const -> std::string override
+    constexpr auto outer() const -> Index override
     {
-      return fmt::format("{}({},{})", tag, b->to_string(), index);
+      return tag.outer(a->outer(), index);
     }
   };
 
@@ -263,11 +271,6 @@ namespace ttl::optimizer
         : Unary(SQRT, params...)
     {
     }
-
-    auto to_string() const -> std::string override
-    {
-      return fmt::format("{}({})", tag, b->to_string());
-    }
   };
 
   struct Exp : Unary
@@ -276,11 +279,6 @@ namespace ttl::optimizer
         : Unary(EXP, params...)
     {
     }
-
-    auto to_string() const -> std::string override
-    {
-      return fmt::format("{}({})", tag, b->to_string());
-    }
   };
 
   struct Negate : Unary
@@ -288,11 +286,6 @@ namespace ttl::optimizer
     constexpr Negate(rbr::keyword_parameter auto... params)
         : Unary(NEGATE, params...)
     {
-    }
-
-    auto to_string() const -> std::string override
-    {
-      return fmt::format("{}({})", tag, b->to_string());
     }
   };
 
@@ -306,11 +299,6 @@ namespace ttl::optimizer
       rbr::settings args = { params... };
       q = args[kw::q];
     }
-
-    auto to_string() const -> std::string override
-    {
-      return fmt::format("{}", q);
-    }
   };
 
   struct Double : Leaf
@@ -322,11 +310,6 @@ namespace ttl::optimizer
     {
       rbr::settings args = { params... };
       d = args[kw::d];
-    }
-
-    auto to_string() const -> std::string override
-    {
-      return fmt::format("{}", d);
     }
   };
 
@@ -343,14 +326,9 @@ namespace ttl::optimizer
       index = args[kw::tensor_index];
     }
 
-    auto to_string() const -> std::string override
+    constexpr auto outer() const -> Index override
     {
-      if (index.size()) {
-        return fmt::format("{}({})", *tensor, index);
-      }
-      else {
-        return fmt::format("{}", *tensor);
-      }
+      return tag.outer(index);
     }
   };
 
@@ -366,16 +344,6 @@ namespace ttl::optimizer
       tensor = args[kw::tensor];
       index = args[kw::scalar_index];
     }
-
-    auto to_string() const -> std::string override
-    {
-      if (index.size()) {
-        return fmt::format("{}({})", *tensor, index);
-      }
-      else {
-        return fmt::format("{}", *tensor);
-      }
-    }
   };
 
   struct Delta : Leaf
@@ -389,9 +357,9 @@ namespace ttl::optimizer
       index = args[kw::tensor_index];
     }
 
-    auto to_string() const -> std::string override
+    constexpr auto outer() const -> Index override
     {
-      return fmt::format("{}({})", tag, index);
+      return tag.outer(index);
     }
   };
 
@@ -406,9 +374,9 @@ namespace ttl::optimizer
       index = args[kw::tensor_index];
     }
 
-    auto to_string() const -> std::string override
+    constexpr auto outer() const -> Index override
     {
-      return fmt::format("{}({})", tag, index);
+      return tag.outer(index);
     }
   };
 
@@ -450,7 +418,7 @@ namespace ttl::optimizer
     }
   }
 
-  constexpr auto node_ptr::visit(auto const& op, auto&&... args) const
+  constexpr auto node_ptr::visit(auto&& op, auto&&... args) const
   {
     switch (ptr_->tag)
     {
@@ -480,22 +448,22 @@ namespace ttl::optimizer
   {
     switch (tag)
     {
-     case SUM:        ptr_ = new Sum(params...); break;
+     case SUM:        ptr_ = new Sum(params...);        break;
      case DIFFERENCE: ptr_ = new Difference(params...); break;
-     case PRODUCT:    ptr_ = new Product(params...); break;
-     case RATIO:      ptr_ = new Ratio(params...); break;
-     case BIND:       ptr_ = new Bind(params...); break;
-     case PARTIAL:    ptr_ = new Partial(params...); break;
-     case POW:        ptr_ = new Pow(params...); break;
-     case SQRT:       ptr_ = new Sqrt(params...); break;
-     case EXP:        ptr_ = new Exp(params...); break;
-     case NEGATE:     ptr_ = new Negate(params...); break;
-     case RATIONAL:   ptr_ = new Rational(params...); break;
-     case DOUBLE:     ptr_ = new Double(params...); break;
-     case TENSOR:     ptr_ = new Tensor(params...); break;
-     case SCALAR:     ptr_ = new Scalar(params...); break;
-     case DELTA:      ptr_ = new Delta(params...); break;
-     case EPSILON:    ptr_ = new Epsilon(params...); break;
+     case PRODUCT:    ptr_ = new Product(params...);    break;
+     case RATIO:      ptr_ = new Ratio(params...);      break;
+     case BIND:       ptr_ = new Bind(params...);       break;
+     case PARTIAL:    ptr_ = new Partial(params...);    break;
+     case POW:        ptr_ = new Pow(params...);        break;
+     case SQRT:       ptr_ = new Sqrt(params...);       break;
+     case EXP:        ptr_ = new Exp(params...);        break;
+     case NEGATE:     ptr_ = new Negate(params...);     break;
+     case RATIONAL:   ptr_ = new Rational(params...);   break;
+     case DOUBLE:     ptr_ = new Double(params...);     break;
+     case TENSOR:     ptr_ = new Tensor(params...);     break;
+     case SCALAR:     ptr_ = new Scalar(params...);     break;
+     case DELTA:      ptr_ = new Delta(params...);      break;
+     case EPSILON:    ptr_ = new Epsilon(params...);    break;
      default:
       assert(false);
       __builtin_unreachable();

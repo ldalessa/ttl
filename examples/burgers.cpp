@@ -29,15 +29,11 @@ int main()
   constexpr auto b = burgers.simplify_equations(1);
 
   burgers.simplify_equations()([](auto const&... eqn) {
-    (eqn([](const auto& lhs, const auto& rhs) {
-      fmt::print("{} = {}\n", *lhs, to_string(*rhs));
-    }), ...);
+    (eqn.print(stdout), ...);
   });
 
   burgers.equations([](ttl::is_equation auto const&... eqn) {
-    (eqn([](const auto& lhs, const auto& rhs) {
-      fmt::print("graph {} {{\n{}}}\n", lhs, ttl::dot(rhs));
-    }), ...);
+    (eqn.dot(stdout), ...);
   });
 
   return 0;

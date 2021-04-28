@@ -6,55 +6,68 @@ namespace ttl::optimizer
 {
   struct LowerBinds
   {
-    constexpr void operator()(node_ptr node) const
+    constexpr auto operator()(node_ptr node) const -> Node*
     {
-      node.visit(*this, Index{});
+      return node.visit(*this, Index{}, Index{});
     }
 
-    constexpr void operator()(Binary* node, Index outer) const
+    constexpr auto operator()(Binary* node, Index const& search, Index const& replace) const -> Node*
     {
-      node->a.visit(*this, outer);
-      node->b.visit(*this, outer);
+      node->a.visit(*this, search, replace);
+      node->b.visit(*this, search, replace);
+      return node;
     }
 
-    constexpr void operator()(Unary* node, Index outer) const
+    constexpr auto operator()(Unary* node, Index const& search, Index const& replace) const -> Node*
     {
-      node->b.visit(*this, outer);
+      node->a.visit(*this, search, replace);
+      return node;
     }
 
-    constexpr void operator()(Leaf* leaf, Index outer) const
+    constexpr auto operator()(Leaf* leaf, Index const& search, Index const& replace) const -> Node*
     {
-      if (!std::is_constant_evaluated())
-      puts("leaf");
+      return leaf;
     }
 
-    constexpr void operator()(Bind* bind, Index outer) const
+    constexpr auto operator()(Bind* bind, Index const& search, Index const& replace) const -> Node*
     {
-      if (!std::is_constant_evaluated())
-        puts("bind");
 
-      auto child = bind->b;
-
-      if (bind->parent) {
-        bind->parent->replace(bind, child);
+      node_ptr child = bind->a;
+      Index    index = bind->index.search_and_replace(search, replace);
+      Index    inner = child->outer();
+      assert(inner.size() == index.size());
+      if (Node* parent = bind->parent) {
+        parent->replace(bind, child);
       }
       else {
         child->parent = nullptr;
       }
-
-      child.visit(*this, outer);
+      return child.visit(*this, inner, index);
     }
 
-    constexpr void operator()(Tensor* tensor, Index outer) const
+    constexpr auto operator()(Partial* partial, Index const& search, Index const& replace) const -> Node*
     {
-      if (!std::is_constant_evaluated())
-      puts("tensor");
+      partial->index.search_and_replace(search, replace);
+      partial->a.visit(*this, search, replace);
+      return partial;
     }
 
-    constexpr void operator()(Partial* partial, Index outer) const
+    constexpr auto operator()(Tensor* tensor, Index const& search, Index const& replace) const -> Node*
     {
-      if (!std::is_constant_evaluated())
-      puts("partial");
+      tensor->index.search_and_replace(search, replace);
+      return tensor;
+    }
+
+    constexpr auto operator()(Delta* δ, Index const& search, Index const& replace) const -> Node*
+    {
+      δ->index.search_and_replace(search, replace);
+      return δ;
+    }
+
+    constexpr auto operator()(Epsilon* ε, Index const& search, Index const& replace) const -> Node*
+    {
+      ε->index.search_and_replace(search, replace);
+      return ε;
     }
   };
 }

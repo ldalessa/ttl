@@ -2,8 +2,10 @@
 
 #include "ttl/Tensor.hpp"
 #include "ttl/concepts.hpp"
+#include "ttl/optimizer/Dot.hpp"
 #include "ttl/optimizer/LowerBinds.hpp"
 #include "ttl/optimizer/Nodes.hpp"
+#include "ttl/optimizer/Print.hpp"
 #include "ce/dvector.hpp"
 
 namespace ttl::optimizer
@@ -34,7 +36,7 @@ namespace ttl::optimizer
           }
           else if (tag.is_unary())
           {
-            b = stack.pop_back();
+            a = stack.pop_back();
           }
 
           stack.emplace_back(
@@ -51,7 +53,7 @@ namespace ttl::optimizer
         rhs_ = stack.pop_back();
       });
 
-      lower_binds();
+      rhs_ = lower_binds();
     }
 
     constexpr auto operator()(auto&& op) const
@@ -59,10 +61,28 @@ namespace ttl::optimizer
       return op(lhs_, rhs_);
     }
 
-    constexpr void lower_binds()
+    constexpr auto lower_binds() -> Node*
     {
       LowerBinds lower;
-      lower(rhs_);
+      return lower(rhs_);
+    }
+
+    auto print(FILE* file) const
+    {
+      Print print;
+      fmt::memory_buffer out;
+      fmt::format_to(out, "{} =", *lhs_);
+      print(rhs_, out);
+      std::fwrite(out.data(), out.size(), 1, file);
+    }
+
+    auto dot(FILE* file) const
+    {
+      Dot dot;
+      dot.format("graph {} {{\n", *lhs_);
+      dot(rhs_);
+      dot.format("}}\n");
+      dot.write(file);
     }
   };
 }
