@@ -80,15 +80,14 @@ namespace ttl::optimizer
       return i++;
     }
 
-    auto operator()(Rational* q) -> int
+    auto operator()(Literal* lit) -> int
     {
-      fmt::format_to(out, "\tnode{}[label=\"{}\"]\n", i, q->q);
-      return i++;
-    }
-
-    auto operator()(Double* d) -> int
-    {
-      fmt::format_to(out, "\tnode{}[label=\"{}\"]\n", i, d->d);
+      if (lit->tag == DOUBLE) {
+        fmt::format_to(out, "\tnode{}[label=\"{}\"]\n", i, lit->d * as<double>(lit->q));
+      }
+      else {
+        fmt::format_to(out, "\tnode{}[label=\"{}\"]\n", i, lit->q);
+      }
       return i++;
     }
 

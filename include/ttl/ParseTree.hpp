@@ -17,7 +17,6 @@
 
 namespace ttl
 {
-
   template <int M>
   struct ParseTree
   {
@@ -38,9 +37,9 @@ namespace ttl
     template <int A, int B>
     constexpr ParseTree(ParseTree<A> const& a, ParseTree<B> const& b, Tag tag)
         : depth_ { std::max(a.depth_, b.depth_) + 1 }
-        , outer_ { tag.outer(a.outer_, b.outer_) }
+        , outer_ { tag_outer(tag, a.outer_, b.outer_) }
     {
-      assert(tag.is_binary());
+      assert(tag_is_binary(tag));
 
       auto join = [](auto* a, auto* b, auto* c) {
         return std::copy(b, b + B, std::copy(a, a + A, c));
@@ -48,8 +47,8 @@ namespace ttl
 
       *join(a.tags, b.tags, tags) = tag;
       *join(a.left_, b.left_, left_) = M - A;
-      *join(a.qs, b.qs, qs) = {};
-      *join(a.ds, b.ds, ds) = {};
+      *join(a.qs, b.qs, qs) = 1;
+      *join(a.ds, b.ds, ds) = 1.0;
       *join(a.tensors, b.tensors, tensors) = {};
       *join(a.tensor_index, b.tensor_index, tensor_index) = {};
       *join(a.scalar_index, b.scalar_index, scalar_index) = {};
@@ -61,9 +60,9 @@ namespace ttl
 
     constexpr ParseTree(ParseTree<M - 1> const& a, Tag tag)
         : depth_ { a.depth_ + 1 }
-        , outer_ { tag.outer(a.outer_, {}) }
+        , outer_ { tag_outer(tag, a.outer_) }
     {
-      assert(tag.is_unary());
+      assert(tag_is_unary(tag));
 
       using std::begin;
       using std::end;
@@ -71,8 +70,8 @@ namespace ttl
 
       *copy(begin(a.tags), end(a.tags), tags) = tag;
       *copy(begin(a.left_), end(a.left_), left_) = 0;
-      *copy(begin(a.qs), end(a.qs), qs) = {};
-      *copy(begin(a.ds), end(a.ds), ds) = {};
+      *copy(begin(a.qs), end(a.qs), qs) = 1;
+      *copy(begin(a.ds), end(a.ds), ds) = 1.0;
       *copy(begin(a.tensors), end(a.tensors), tensors) = {};
       *copy(begin(a.tensor_index), end(a.tensor_index), tensor_index) = {};
       *copy(begin(a.scalar_index), end(a.scalar_index), scalar_index) = {};
@@ -80,7 +79,7 @@ namespace ttl
 
     constexpr ParseTree(ParseTree<M - 1> const& a, Tag tag, Index const& i)
         : depth_ { a.depth_ + 1 }
-        , outer_ { tag.outer(a.outer_, i) }
+        , outer_ { tag_outer(tag, a.outer_, i) }
     {
       assert(tag == PARTIAL || tag == BIND);
 
@@ -90,8 +89,8 @@ namespace ttl
 
       *copy(begin(a.tags), end(a.tags), tags) = tag;
       *copy(begin(a.left_), end(a.left_), left_) = 0;
-      *copy(begin(a.qs), end(a.qs), qs) = {};
-      *copy(begin(a.ds), end(a.ds), ds) = {};
+      *copy(begin(a.qs), end(a.qs), qs) = 1;
+      *copy(begin(a.ds), end(a.ds), ds) = 1.0;
       *copy(begin(a.tensors), end(a.tensors), tensors) = {};
       *copy(begin(a.tensor_index), end(a.tensor_index), tensor_index) = { i };
       *copy(begin(a.scalar_index), end(a.scalar_index), scalar_index) = {};
@@ -100,12 +99,12 @@ namespace ttl
     constexpr ParseTree(Tensor const* a, Index const& i)
         : tags    { TENSOR }
         , left_   { 0 }
-        , qs      {}
-        , ds      {}
+        , qs      { 1 }
+        , ds      { 1.0 }
         , tensors { a }
         , tensor_index { i }
         , scalar_index {}
-        , outer_ { tags[0].outer(i, {}) }
+        , outer_ { tag_outer(tags[0], i) }
     {
       assert(a);
     }
@@ -113,8 +112,8 @@ namespace ttl
     constexpr ParseTree(Tensor const* a, ScalarIndex const& i)
         : tags    { SCALAR }
         , left_   { 0 }
-        , qs      {}
-        , ds      {}
+        , qs      { 1 }
+        , ds      { 1.0 }
         , tensors { a }
         , tensor_index {}
         , scalar_index { i }
@@ -125,12 +124,12 @@ namespace ttl
     constexpr ParseTree(Tag tag, Index const& i)
         : tags    { tag }
         , left_   { 0 }
-        , qs      {}
-        , ds      {}
+        , qs      { 1 }
+        , ds      { 1.0 }
         , tensors {}
         , tensor_index { i }
         , scalar_index {}
-        , outer_ { tag.outer(i, {}) }
+        , outer_ { tag_outer(tag, i) }
     {
       assert(tag == DELTA || tag == EPSILON);
     }
@@ -139,7 +138,7 @@ namespace ttl
         : tags    { RATIONAL }
         , left_   { 0 }
         , qs      { q }
-        , ds      {}
+        , ds      { 1.0 }
         , tensors {}
         , tensor_index {}
         , scalar_index {}
@@ -149,7 +148,7 @@ namespace ttl
     constexpr ParseTree(double d)
         : tags    { DOUBLE }
         , left_   { 0 }
-        , qs      {}
+        , qs      { 1 }
         , ds      { d }
         , tensors {}
         , tensor_index {}
@@ -215,17 +214,17 @@ namespace ttl
       for (int i = 0; i < k + 1; ++i)
       {
         Tag tag = tags[i];
-        if (tag.is_binary()) {
+        if (tag_is_binary(tag)) {
           Index b = stack.pop_back();
           Index a = stack.pop_back();
-          stack.push_back(tag.outer(a, b));
+          stack.push_back(tag_outer(tag, a, b));
         }
-        else if (tag.is_unary()) {
+        else if (tag_is_unary(tag)) {
           Index a = stack.pop_back();
-          stack.push_back(tag.outer(a, tensor_index[i]));
+          stack.push_back(tag_outer(tag, a, tensor_index[i]));
         }
         else {
-          stack.push_back(tag.outer(tensor_index[i]));
+          stack.push_back(tag_outer(tag, tensor_index[i]));
         }
       }
       return stack.pop_back();

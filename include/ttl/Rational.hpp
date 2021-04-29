@@ -67,8 +67,10 @@ namespace ttl
     {
       auto l = std::gcd(a.p, b.q);
       auto r = std::gcd(b.p, a.q);
-      return { (a.p / l) * (b.p / r),
-        (a.q / r) * (b.q / l) };
+      return {
+        (a.p / l) * (b.p / r),
+        (a.q / r) * (b.q / l)
+      };
     }
 
     constexpr friend auto operator*=(Rational& a, Rational const& b)
@@ -89,6 +91,16 @@ namespace ttl
     constexpr friend auto as(Rational const& a) -> T
     {
       return T(a.p) / T(a.q);
+    }
+
+    constexpr friend auto pow(Rational const& a, Rational const& b) -> Rational
+    {
+      assert(b.q == 1);
+      Rational c(1);
+      for (int i = 0; i < b.p; ++i) {
+        c *= a;
+      }
+      return c;
     }
   };
 

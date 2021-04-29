@@ -21,9 +21,9 @@ namespace ttl::optimizer
 
   struct Node
   {
-    Node* parent = nullptr;
     Tag      tag = {};
     int    count = 0;
+    Node* parent = nullptr;
 
     constexpr Node() = default;
 
@@ -32,8 +32,9 @@ namespace ttl::optimizer
     {
     }
 
-    constexpr virtual void replace(Node*, node_ptr&) {}
-    constexpr virtual auto outer() const -> Index = 0;
+    constexpr virtual auto outer()   const -> Index = 0;
+    constexpr virtual bool is_zero() const { return false; }
+    constexpr virtual bool is_one()  const { return false; }
   };
 
   struct node_ptr
@@ -49,6 +50,12 @@ namespace ttl::optimizer
 
     constexpr node_ptr(Tag, rbr::keyword_parameter auto...);
 
+    constexpr explicit node_ptr(Node* ptr)
+        : ptr_(ptr)
+    {
+      inc();
+    }
+
     constexpr node_ptr(node_ptr const& b)
         : ptr_(b.ptr_)
     {
@@ -60,18 +67,21 @@ namespace ttl::optimizer
     {
     }
 
+    constexpr static node_ptr  one();
+    constexpr static node_ptr zero();
+
     constexpr node_ptr& operator=(node_ptr const& b)
     {
-      assert(*this != b);
-      dec();
-      ptr_ = b.ptr_;
-      inc();
+      if (ptr_ != b.ptr_) {
+        dec();
+        ptr_ = b.ptr_;
+        inc();
+      }
       return *this;
     }
 
     constexpr node_ptr& operator=(node_ptr&& b)
     {
-      assert(b != *this);
       dec();
       ptr_ = std::exchange(b.ptr_, nullptr);
       return *this;
@@ -135,19 +145,9 @@ namespace ttl::optimizer
       b->parent = this;
     }
 
-    constexpr void replace(Node* child, node_ptr& with) override
-    {
-      assert(child);
-      assert(a == child or b == child);
-      child->parent = nullptr;
-      if (a == child) a = with;
-      else b = with;
-      with->parent = this;
-    }
-
     constexpr auto outer() const -> Index override
     {
-      return tag.outer(a->outer(), b->outer());
+      return tag_outer(tag, a->outer(), b->outer());
     }
   };
 
@@ -164,14 +164,6 @@ namespace ttl::optimizer
       a->parent = this;
     }
 
-    constexpr void replace(Node* child, node_ptr& with) override
-    {
-      assert(child && a == child);
-      child->parent = nullptr;
-      a = with;
-      with->parent = this;
-    }
-
     constexpr auto outer() const -> Index override
     {
       return a->outer();
@@ -180,7 +172,7 @@ namespace ttl::optimizer
 
   struct Leaf : Node
   {
-    constexpr Leaf(Tag tag, rbr::keyword_parameter auto... params)
+    constexpr Leaf(Tag tag)
         : Node(tag)
     {
     }
@@ -244,7 +236,7 @@ namespace ttl::optimizer
 
     constexpr auto outer() const -> Index override
     {
-      return tag.outer(a->outer(), index);
+      return tag_outer(tag, a->outer(), index);
     }
   };
 
@@ -261,7 +253,7 @@ namespace ttl::optimizer
 
     constexpr auto outer() const -> Index override
     {
-      return tag.outer(a->outer(), index);
+      return tag_outer(tag, a->outer(), index);
     }
   };
 
@@ -287,29 +279,64 @@ namespace ttl::optimizer
         : Unary(NEGATE, params...)
     {
     }
-  };
 
-  struct Rational : Leaf
-  {
-    ttl::Rational q;
-
-    constexpr Rational(rbr::keyword_parameter auto... params)
-        : Leaf(RATIONAL, params...)
+    constexpr Negate(node_ptr a)
+        : Unary(NEGATE, kw::a = a)
     {
-      rbr::settings args = { params... };
-      q = args[kw::q];
     }
   };
 
-  struct Double : Leaf
+  struct Literal : Leaf
   {
+    ttl::Rational q;
     double d;
 
-    constexpr Double(rbr::keyword_parameter auto... params)
-        : Leaf(DOUBLE, params...)
+    constexpr Literal(rbr::keyword_parameter auto... params)
+        : Leaf(RATIONAL)
     {
       rbr::settings args = { params... };
+      q = args[kw::q];
       d = args[kw::d];
+
+      if (d != 1.0) {
+        tag = DOUBLE;
+      }
+    }
+
+    constexpr Literal(Tag op, Literal const& a, Literal const& b)
+        : Leaf(RATIONAL)
+        , q(1)
+        , d(1.0)
+    {
+      if (a.tag == RATIONAL and b.tag == RATIONAL) {
+        q = tag_eval(tag, a.q, b.q);
+      }
+      else {
+        tag = DOUBLE;
+        d = tag_eval(tag, a.as_double(), b.as_double());
+      }
+    }
+
+    constexpr Literal(Rational q)
+        : Leaf(RATIONAL)
+        , q(q)
+        , d(1.0)
+    {
+    }
+
+    constexpr bool is_zero() const override
+    {
+      return (q == 0 or d == 0.0);
+    }
+
+    constexpr bool is_one() const
+    {
+      return (q == 1 and d == 1.0);
+    }
+
+    constexpr double as_double() const
+    {
+      return d * as<double>(q);
     }
   };
 
@@ -319,7 +346,7 @@ namespace ttl::optimizer
     Index index;
 
     constexpr Tensor(rbr::keyword_parameter auto... params)
-        : Leaf(TENSOR, params...)
+        : Leaf(TENSOR)
     {
       rbr::settings args = { params... };
       tensor = args[kw::tensor];
@@ -328,7 +355,7 @@ namespace ttl::optimizer
 
     constexpr auto outer() const -> Index override
     {
-      return tag.outer(index);
+      return tag_outer(tag, index);
     }
   };
 
@@ -338,7 +365,7 @@ namespace ttl::optimizer
     ScalarIndex index;
 
     constexpr Scalar(rbr::keyword_parameter auto... params)
-        : Leaf(SCALAR, params...)
+        : Leaf(SCALAR)
     {
       rbr::settings args = { params... };
       tensor = args[kw::tensor];
@@ -351,7 +378,7 @@ namespace ttl::optimizer
     Index index;
 
     constexpr Delta(rbr::keyword_parameter auto... params)
-        : Leaf(DELTA, params...)
+        : Leaf(DELTA)
     {
       rbr::settings args = { params... };
       index = args[kw::tensor_index];
@@ -359,7 +386,7 @@ namespace ttl::optimizer
 
     constexpr auto outer() const -> Index override
     {
-      return tag.outer(index);
+      return tag_outer(tag, index);
     }
   };
 
@@ -368,7 +395,7 @@ namespace ttl::optimizer
     Index index;
 
     constexpr Epsilon(rbr::keyword_parameter auto... params)
-        : Leaf(EPSILON, params...)
+        : Leaf(EPSILON)
     {
       rbr::settings args = { params... };
       index = args[kw::tensor_index];
@@ -376,7 +403,7 @@ namespace ttl::optimizer
 
     constexpr auto outer() const -> Index override
     {
-      return tag.outer(index);
+      return tag_outer(tag, index);
     }
   };
 
@@ -403,8 +430,8 @@ namespace ttl::optimizer
          case SQRT:       delete static_cast<Sqrt*>(ptr_);       break;
          case EXP:        delete static_cast<Exp*>(ptr_);        break;
          case NEGATE:     delete static_cast<Negate*>(ptr_);     break;
-         case RATIONAL:   delete static_cast<Rational*>(ptr_);   break;
-         case DOUBLE:     delete static_cast<Double*>(ptr_);     break;
+         case RATIONAL:
+         case DOUBLE:     delete static_cast<Literal*>(ptr_);    break;
          case TENSOR:     delete static_cast<Tensor*>(ptr_);     break;
          case SCALAR:     delete static_cast<Scalar*>(ptr_);     break;
          case DELTA:      delete static_cast<Delta*>(ptr_);      break;
@@ -432,8 +459,8 @@ namespace ttl::optimizer
      case SQRT:       return op(static_cast<Sqrt*>(ptr_), std::forward<decltype(args)>(args)...);
      case EXP:        return op(static_cast<Exp*>(ptr_), std::forward<decltype(args)>(args)...);
      case NEGATE:     return op(static_cast<Negate*>(ptr_), std::forward<decltype(args)>(args)...);
-     case RATIONAL:   return op(static_cast<Rational*>(ptr_), std::forward<decltype(args)>(args)...);
-     case DOUBLE:     return op(static_cast<Double*>(ptr_), std::forward<decltype(args)>(args)...);
+     case RATIONAL:
+     case DOUBLE:     return op(static_cast<Literal*>(ptr_), std::forward<decltype(args)>(args)...);
      case TENSOR:     return op(static_cast<Tensor*>(ptr_), std::forward<decltype(args)>(args)...);
      case SCALAR:     return op(static_cast<Scalar*>(ptr_), std::forward<decltype(args)>(args)...);
      case DELTA:      return op(static_cast<Delta*>(ptr_), std::forward<decltype(args)>(args)...);
@@ -458,8 +485,8 @@ namespace ttl::optimizer
      case SQRT:       ptr_ = new Sqrt(params...);       break;
      case EXP:        ptr_ = new Exp(params...);        break;
      case NEGATE:     ptr_ = new Negate(params...);     break;
-     case RATIONAL:   ptr_ = new Rational(params...);   break;
-     case DOUBLE:     ptr_ = new Double(params...);     break;
+     case RATIONAL:
+     case DOUBLE:     ptr_ = new Literal(params...);    break;
      case TENSOR:     ptr_ = new Tensor(params...);     break;
      case SCALAR:     ptr_ = new Scalar(params...);     break;
      case DELTA:      ptr_ = new Delta(params...);      break;
@@ -469,5 +496,22 @@ namespace ttl::optimizer
       __builtin_unreachable();
     }
     inc();
+  }
+
+  constexpr node_ptr node_ptr::zero()
+  {
+    return node_ptr(new Literal(0));
+  }
+
+  constexpr node_ptr node_ptr::one()
+  {
+    return node_ptr(new Literal(1));
+  }
+
+  constexpr inline auto combine(Tag tag, Node const& a, Node const& b) -> node_ptr
+  {
+    auto aa = static_cast<Literal const&>(a);
+    auto bb = static_cast<Literal const&>(b);
+    return node_ptr(new Literal(tag, aa, bb));
   }
 }

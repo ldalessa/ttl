@@ -66,15 +66,14 @@ namespace ttl::optimizer
       fmt::format_to(out, ",{})", partial->index);
     }
 
-
-    void operator()(Rational* q)
+    void operator()(Literal* lit)
     {
-      fmt::format_to(out, "{}", q->q);
-    }
-
-    void operator()(Double* d)
-    {
-      fmt::format_to(out, "{}", d->d);
+      if (lit->tag == DOUBLE) {
+        fmt::format_to(out, "{}", lit->d * as<double>(lit->q));
+      }
+      else {
+        fmt::format_to(out, "{}", lit->q);
+      }
     }
 
     void operator()(Tensor* tensor)

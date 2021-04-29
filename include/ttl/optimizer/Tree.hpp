@@ -30,12 +30,12 @@ namespace ttl::optimizer
           Tag tag = rhs.tag(i);
           node_ptr a;
           node_ptr b;
-          if (tag.is_binary())
+          if (tag_is_binary(tag))
           {
             b = stack.pop_back();
             a = stack.pop_back();
           }
-          else if (tag.is_unary())
+          else if (tag_is_unary(tag))
           {
             a = stack.pop_back();
           }
@@ -71,6 +71,7 @@ namespace ttl::optimizer
       Print print;
       print.format("{} = ", *lhs_);
       print(rhs_);
+      print.format("\n");
       print.write(file);
     }
 
