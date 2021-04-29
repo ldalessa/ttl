@@ -8,6 +8,7 @@ namespace ttl
   using tag_id_t = unsigned;
 
   enum Tag : tag_id_t {
+    NO_TAG     = 0,
     SUM        = 1lu << 0,
     DIFFERENCE = 1lu << 1,
     PRODUCT    = 1lu << 2,
@@ -27,8 +28,8 @@ namespace ttl
     MAX        = 1lu << 16
   };
 
-  constexpr inline Tag NO_TAG{0};
-
+  /// Tag operators (for building and testing tag sets).
+  /// @{
   constexpr auto operator|(Tag a, Tag b) -> Tag
   {
     return Tag(tag_id_t(a) | tag_id_t(b));
@@ -38,14 +39,160 @@ namespace ttl
   {
     return Tag(tag_id_t(a) & tag_id_t(b));
   }
+  /// @}
 
-  constexpr inline Tag ALL = Tag(MAX - 1);
-  constexpr inline Tag BINARY = SUM | DIFFERENCE | PRODUCT | RATIO | POW;
-  constexpr inline Tag UNARY = BIND | PARTIAL | SQRT | EXP | NEGATE;
-  constexpr inline Tag LEAF = RATIONAL | DOUBLE | TENSOR | SCALAR | DELTA | EPSILON;
-  constexpr inline Tag LITERAL = RATIONAL | DOUBLE;
-  constexpr inline Tag ADDITION = SUM | DIFFERENCE;
-  constexpr inline Tag MULTIPLICATION = PRODUCT | RATIO;
+  /// Tag sets... all of the sets contain MAX to disambiguate single-element
+  /// sets from their single element.
+  /// @{
+  constexpr inline Tag ALL            = Tag(MAX | MAX - 1);
+  constexpr inline Tag ADDITION       = MAX | SUM | DIFFERENCE;
+  constexpr inline Tag MULTIPLICATION = MAX | PRODUCT | RATIO;
+  constexpr inline Tag BUILTIN2       = MAX | POW;
+  constexpr inline Tag BINARY         = MAX | ADDITION | MULTIPLICATION | BUILTIN2;
+
+  constexpr inline Tag BINDER         = MAX | BIND | PARTIAL;
+  constexpr inline Tag BUILTIN1       = MAX | SQRT | EXP | NEGATE;
+  constexpr inline Tag UNARY          = MAX | BINDER | BUILTIN1;
+
+  constexpr inline Tag VARIABLE       = MAX | TENSOR | SCALAR;
+  constexpr inline Tag IMMEDIATE      = MAX | RATIONAL | DOUBLE;
+  constexpr inline Tag BUILTIN0       = MAX | DELTA | EPSILON;
+  constexpr inline Tag CONSTANT       = MAX | IMMEDIATE | BUILTIN0;
+  constexpr inline Tag LEAF           = MAX | CONSTANT | VARIABLE;
+  /// @}
+
+  template <Tag> struct tag_t;
+
+  template <Tag tag>
+  constexpr inline tag_t<tag> tag_v = {};
+
+  template <> struct tag_t<ALL> {};
+
+#define make_tag_t(child, parent) template <> struct tag_t<child> : tag_t<parent> {}
+
+  /// Binary tag hierarchy
+  /// @{
+  make_tag_t(BINARY,         ALL);
+  make_tag_t(ADDITION,       BINARY);
+  make_tag_t(SUM,            ADDITION);
+  make_tag_t(DIFFERENCE,     ADDITION);
+  make_tag_t(MULTIPLICATION, BINARY);
+  make_tag_t(PRODUCT,        MULTIPLICATION);
+  make_tag_t(RATIO,          MULTIPLICATION);
+  make_tag_t(BUILTIN2,       BINARY);
+  make_tag_t(POW,            BUILTIN2);
+  /// @}
+
+  /// Unary tag hierarchy
+  /// @{
+  make_tag_t(UNARY,    ALL);
+  make_tag_t(BINDER,   UNARY);
+  make_tag_t(BIND,     BINDER);
+  make_tag_t(PARTIAL,  BINDER);
+  make_tag_t(BUILTIN1, UNARY);
+  make_tag_t(SQRT,     BUILTIN1);
+  make_tag_t(EXP,      BUILTIN1);
+  make_tag_t(NEGATE,   BUILTIN1);
+  /// @}
+
+  /// Leaf tag hierarchy
+  /// @{
+  make_tag_t(LEAF,      ALL);
+  make_tag_t(CONSTANT,  LEAF);
+  make_tag_t(IMMEDIATE, CONSTANT);
+  make_tag_t(RATIONAL,  IMMEDIATE);
+  make_tag_t(DOUBLE,    IMMEDIATE);
+  make_tag_t(BUILTIN0,  CONSTANT);
+  make_tag_t(DELTA,     BUILTIN0);
+  make_tag_t(EPSILON,   BUILTIN0);
+  make_tag_t(VARIABLE,  LEAF);
+  make_tag_t(TENSOR,    VARIABLE);
+  make_tag_t(SCALAR,    VARIABLE);
+  /// @}
+#undef make_tag_t
+
+  namespace tags
+  {
+    using binary         = tag_t<BINARY> const&;
+    using addition       = tag_t<ADDITION> const&;
+    using sum            = tag_t<SUM> const&;
+    using difference     = tag_t<DIFFERENCE> const&;
+    using multiplication = tag_t<MULTIPLICATION> const&;
+    using product        = tag_t<PRODUCT> const&;
+    using ratio          = tag_t<RATIO> const&;
+    using builtin2       = tag_t<BUILTIN2> const&;
+    using pow            = tag_t<POW> const&;
+    using unary          = tag_t<UNARY> const&;
+    using binder         = tag_t<BINDER> const&;
+    using bind           = tag_t<BIND> const&;
+    using partial        = tag_t<PARTIAL> const&;
+    using builtin1       = tag_t<BUILTIN1> const&;
+    using sqrt           = tag_t<SQRT> const&;
+    using exp            = tag_t<EXP> const&;
+    using negate         = tag_t<NEGATE> const&;
+    using leaf           = tag_t<LEAF> const&;
+    using constant       = tag_t<CONSTANT> const&;
+    using immediate      = tag_t<IMMEDIATE> const&;
+    using rational       = tag_t<RATIONAL> const&;
+    using floating_point = tag_t<DOUBLE> const&;
+    using builtin0       = tag_t<BUILTIN0> const&;
+    using delta          = tag_t<DELTA> const&;
+    using epsilon        = tag_t<EPSILON> const&;
+    using variable       = tag_t<VARIABLE> const&;
+    using tensor         = tag_t<TENSOR> const&;
+    using scalar         = tag_t<SCALAR> const&;
+  }
+
+  constexpr auto visit(Tag tag, auto&& op, auto&&... args) -> decltype(auto)
+  {
+    switch (tag)
+    {
+     case SUM:        return std::forward<decltype(op)>(op)(tag_v<SUM>,        std::forward<decltype(args)>(args)...);
+     case DIFFERENCE: return std::forward<decltype(op)>(op)(tag_v<DIFFERENCE>, std::forward<decltype(args)>(args)...);
+     case PRODUCT:    return std::forward<decltype(op)>(op)(tag_v<PRODUCT>,    std::forward<decltype(args)>(args)...);
+     case RATIO:      return std::forward<decltype(op)>(op)(tag_v<RATIO>,      std::forward<decltype(args)>(args)...);
+     case BIND:       return std::forward<decltype(op)>(op)(tag_v<BIND>,       std::forward<decltype(args)>(args)...);
+     case PARTIAL:    return std::forward<decltype(op)>(op)(tag_v<PARTIAL>,    std::forward<decltype(args)>(args)...);
+     case POW:        return std::forward<decltype(op)>(op)(tag_v<POW>,        std::forward<decltype(args)>(args)...);
+     case SQRT:       return std::forward<decltype(op)>(op)(tag_v<SQRT>,       std::forward<decltype(args)>(args)...);
+     case EXP:        return std::forward<decltype(op)>(op)(tag_v<EXP>,        std::forward<decltype(args)>(args)...);
+     case NEGATE:     return std::forward<decltype(op)>(op)(tag_v<NEGATE>,     std::forward<decltype(args)>(args)...);
+     case RATIONAL:   return std::forward<decltype(op)>(op)(tag_v<RATIONAL>,   std::forward<decltype(args)>(args)...);
+     case DOUBLE:     return std::forward<decltype(op)>(op)(tag_v<DOUBLE>,     std::forward<decltype(args)>(args)...);
+     case TENSOR:     return std::forward<decltype(op)>(op)(tag_v<TENSOR>,     std::forward<decltype(args)>(args)...);
+     case SCALAR:     return std::forward<decltype(op)>(op)(tag_v<SCALAR>,     std::forward<decltype(args)>(args)...);
+     case DELTA:      return std::forward<decltype(op)>(op)(tag_v<DELTA>,      std::forward<decltype(args)>(args)...);
+     case EPSILON:    return std::forward<decltype(op)>(op)(tag_v<EPSILON>,    std::forward<decltype(args)>(args)...);
+     default:
+      assert(false);
+    };
+    __builtin_unreachable();
+  }
+
+  // constexpr auto visit(Tag a, Tag b, auto const& op, auto&&... args)
+  // {
+  //   switch (b) {
+  //    case SUM:        return visit(a, op, tag_v<SUM>,        std::forward<decltype(args)>(args)...);
+  //    case DIFFERENCE: return visit(a, op, tag_v<Difference>, std::forward<decltype(args)>(args)...);
+  //    case PRODUCT:    return visit(a, op, tag_v<Product>,    std::forward<decltype(args)>(args)...);
+  //    case RATIO:      return visit(a, op, tag_v<Ratio>,      std::forward<decltype(args)>(args)...);
+  //    case BIND:       return visit(a, op, tag_v<Bind>,       std::forward<decltype(args)>(args)...);
+  //    case PARTIAL:    return visit(a, op, tag_v<Partial>,    std::forward<decltype(args)>(args)...);
+  //    case POW:        return visit(a, op, tag_v<Pow>,        std::forward<decltype(args)>(args)...);
+  //    case SQRT:       return visit(a, op, tag_v<Sqrt>,       std::forward<decltype(args)>(args)...);
+  //    case EXP:        return visit(a, op, tag_v<Exp>,        std::forward<decltype(args)>(args)...);
+  //    case NEGATE:     return visit(a, op, tag_v<Negate>,     std::forward<decltype(args)>(args)...);
+  //    case RATIONAL:   return visit(a, op, tag_v<RATIONAL>,   std::forward<decltype(args)>(args)...);
+  //    case DOUBLE:     return visit(a, op, tag_v<DOUBLE>,     std::forward<decltype(args)>(args)...);
+  //    case TENSOR:     return visit(a, op, tag_v<Tensor>,     std::forward<decltype(args)>(args)...);
+  //    case SCALAR:     return visit(a, op, tag_v<Scalar>,     std::forward<decltype(args)>(args)...);
+  //    case DELTA:      return visit(a, op, tag_v<Delta>,      std::forward<decltype(args)>(args)...);
+  //    case EPSILON:    return visit(a, op, tag_v<Epsilon>,    std::forward<decltype(args)>(args)...);
+  //    default:
+  //     assert(false);
+  //   };
+  //   __builtin_unreachable();
+  // }
 
   constexpr auto ispow2(Tag tag)
   {
@@ -98,9 +245,9 @@ namespace ttl
     return tag_is(tag, LEAF);
   }
 
-  constexpr bool tag_is_literal(Tag tag)
+  constexpr bool tag_is_immediate(Tag tag)
   {
-    return tag_is(tag, LITERAL);
+    return tag_is(tag, IMMEDIATE);
   }
 
   constexpr bool tag_is_multiplication(Tag tag)
@@ -111,6 +258,11 @@ namespace ttl
   constexpr bool tag_is_addition(Tag tag)
   {
     return tag_is(tag, ADDITION);
+  }
+
+  constexpr bool tag_is_variable(Tag tag)
+  {
+    return tag_is(tag, VARIABLE);
   }
 
   template <class T>

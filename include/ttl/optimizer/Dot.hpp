@@ -1,5 +1,6 @@
 #pragma once
 
+#include "ttl/Tag.hpp"
 #include "ttl/optimizer/Nodes.hpp"
 #include <fmt/format.h>
 
@@ -19,15 +20,15 @@ namespace ttl::optimizer
       std::fwrite(out.data(), out.size(), 1, file);
     }
 
-    void operator()(node_ptr node)
+    void operator()(node_ptr const& node)
     {
-      node.visit(*this);
+      visit(node, *this);
     }
 
-    auto operator()(Binary* node) -> int
+    auto operator()(tags::binary, node_ptr const& node) -> int
     {
-      int a = node->a.visit(*this);
-      int b = node->b.visit(*this);
+      int a = visit(node->a(), *this);
+      int b = visit(node->b(), *this);
       Index outer = node->outer();
       if (outer.size()) {
         fmt::format_to(out, "\tnode{}[label=\"{} ↑{}\"]\n", i, node->tag, outer);
@@ -40,47 +41,37 @@ namespace ttl::optimizer
       return i++;
     }
 
-    auto operator()(Unary* node) -> int
+    auto operator()(tags::unary, node_ptr const& node) -> int
     {
-      int a = node->a.visit(*this);
+      int a = visit(node->a(), *this);
       fmt::format_to(out, "\tnode{}[label=\"{}\"]\n", i, node->tag);
       fmt::format_to(out, "\tnode{} -- node{}\n", i, a);
       return i++;
     }
 
-    auto operator()(Bind* bind) -> int
+    auto operator()(tags::binder, node_ptr const& bind) -> int
     {
-      int a = bind->a.visit(*this);
+      int a = visit(bind->a(), *this);
 
       Index outer = bind->outer();
-      Index child = bind->a->outer();
+      Index child = bind->a()->outer();
       if (outer.size()) {
-        fmt::format_to(out, "\tnode{}[label=\"{}({},{}) ↑{}\"]\n", i, bind->tag, child, bind->index, outer);
+        fmt::format_to(out, "\tnode{}[label=\"{}({},{}) ↑{}\"]\n", i, bind->tag, child, bind->tensor_index, outer);
       }
       else {
-        fmt::format_to(out, "\tnode{}[label=\"{}({},{})\"]\n", i, bind->tag, child, bind->index);
+        fmt::format_to(out, "\tnode{}[label=\"{}({},{})\"]\n", i, bind->tag, child, bind->tensor_index);
       }
       fmt::format_to(out, "\tnode{} -- node{}\n", i, a);
       return i++;
     }
 
-    auto operator()(Partial* partial) -> int
+    auto operator()(tags::leaf, node_ptr const& leaf) -> int
     {
-      int a = partial->a.visit(*this);
-
-      Index outer = partial->outer();
-      Index child = partial->a->outer();
-      if (outer.size()) {
-        fmt::format_to(out, "\tnode{}[label=\"{}({},{}) ↑{}\"]\n", i, partial->tag, child, partial->index, outer);
-      }
-      else {
-        fmt::format_to(out, "\tnode{}[label=\"{}({},{})\"]\n", i, partial->tag, child, partial->index);
-      }
-      fmt::format_to(out, "\tnode{} -- node{}\n", i, a);
+      fmt::format_to(out, "\tnode{}[label=\"{}({})\"]\n", i, leaf->tag, leaf->tensor_index);
       return i++;
     }
 
-    auto operator()(Literal* lit) -> int
+    auto operator()(tags::immediate, node_ptr const& lit) -> int
     {
       if (lit->tag == DOUBLE) {
         fmt::format_to(out, "\tnode{}[label=\"{}\"]\n", i, lit->d * as<double>(lit->q));
@@ -91,10 +82,10 @@ namespace ttl::optimizer
       return i++;
     }
 
-    auto operator()(Tensor* tensor) -> int
+    auto operator()(tags::tensor, node_ptr const& tensor) -> int
     {
-      if (tensor->index.size()) {
-        fmt::format_to(out, "\tnode{}[label=\"{}({})\"]\n", i, *tensor->tensor, tensor->index);
+      if (tensor->tensor_index.size()) {
+        fmt::format_to(out, "\tnode{}[label=\"{}({})\"]\n", i, *tensor->tensor, tensor->tensor_index);
       }
       else {
         fmt::format_to(out, "\tnode{}[label=\"{}\"]\n", i, *tensor->tensor);
@@ -102,26 +93,14 @@ namespace ttl::optimizer
       return i++;
     }
 
-    auto operator()(Scalar* scalar) -> int
+    auto operator()(tags::scalar, node_ptr const& scalar) -> int
     {
-      if (scalar->index.size()) {
-        fmt::format_to(out, "\tnode{}[label=\"{}({})\"]\n", i, *scalar->tensor, scalar->index);
+      if (scalar->scalar_index.size()) {
+        fmt::format_to(out, "\tnode{}[label=\"{}({})\"]\n", i, *scalar->tensor, scalar->scalar_index);
       }
       else {
         fmt::format_to(out, "\tnode{}[label=\"{}\"]\n", i, *scalar->tensor);
       }
-      return i++;
-    }
-
-    auto operator()(Delta* δ) -> int
-    {
-      fmt::format_to(out, "\tnode{}[label=\"{}({})\"]\n", i, δ->tag, δ->index);
-      return i++;
-    }
-
-    auto operator()(Epsilon* ε) -> int
-    {
-      fmt::format_to(out, "\tnode{}[label=\"{}({})\"]\n", i, ε->tag, ε->index);
       return i++;
     }
   };

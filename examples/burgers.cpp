@@ -21,8 +21,8 @@ namespace {
 int main()
 {
   burgers.equations([](ttl::is_equation auto const&... eqn) {
-    (eqn([](const auto& lhs, const auto& rhs) {
-      fmt::print("{} = {}\n", lhs, to_string(rhs));
+    (eqn([](ttl::Tensor const *lhs, const auto& rhs) {
+      fmt::print("{} = {}\n", *lhs, to_string(rhs));
     }), ...);
   });
 

@@ -1,22 +1,23 @@
 #pragma once
 
+#include "ttl/Tag.hpp"
 #include "ttl/optimizer/Nodes.hpp"
 
 namespace ttl::optimizer
 {
   struct ConstProp
   {
-    constexpr auto operator()(node_ptr node) const -> node_ptr
+    constexpr auto operator()(node_ptr node) const
+      -> node_ptr
     {
-      return node_ptr(node.visit(*this));
+      return visit(node, *this);
     }
 
-    constexpr auto operator()(Sum* node) const -> node_ptr
+    constexpr auto operator()(tags::sum, node_ptr node) const
+      -> node_ptr
     {
-      node_ptr a = node->a.visit(*this);
-      node_ptr b = node->b.visit(*this);
-      node->a = a;
-      node->b = b;
+      node_ptr a = visit(node->a(), *this);
+      node_ptr b = visit(node->b(), *this);
 
       if (a->is_zero()) {
         return b;
@@ -26,45 +27,49 @@ namespace ttl::optimizer
         return a;
       }
 
-      bool alit = tag_is_literal(a->tag);
-      bool blit = tag_is_literal(b->tag);
+      // bool alit = a->is_literal();
+      // bool blit = b->is_literal();
 
-      if (alit and blit) {
-        return combine(SUM, *a, *b);
-      }
+      // if (alit and blit) {
+      //   return node_ptr{*a * *b};
+      // }
 
-      return node_ptr(node);
+      node->a(std::move(a));
+      node->b(std::move(b));
+      return node;
     }
 
-    constexpr auto operator()(Difference* node) const -> node_ptr
+    constexpr auto operator()(tags::difference, node_ptr node) const
+      -> node_ptr
     {
-      node_ptr a = node->a.visit(*this);
-      node_ptr b = node->b.visit(*this);
-      node->a = a;
-      node->b = b;
+      node_ptr a = visit(node->a(), *this);
+      node_ptr b = visit(node->b(), *this);
 
       if (b->is_zero()) {
         return a;
       }
 
       if (a->is_zero()) {
-        return node_ptr(new Negate(b));
+        return node_ptr(new Node(tag_v<NEGATE>, std::move(b)));
       }
 
-      bool alit = tag_is_literal(a->tag);
-      bool blit = tag_is_literal(b->tag);
+      // bool alit = tag_is_literal(a->tag);
+      // bool blit = tag_is_literal(b->tag);
 
-      if (alit and  blit) {
-        return combine(DIFFERENCE, *a, *b);
-      }
+      // if (alit and  blit) {
+      //   return combine(DIFFERENCE, *a, *b);
+      // }
 
-      return node_ptr(node);
+      node->a(std::move(a));
+      node->b(std::move(b));
+      return node;
     }
 
-    constexpr auto operator()(Product* node) const -> node_ptr
+    constexpr auto operator()(tags::product, node_ptr node) const
+      -> node_ptr
     {
-      node_ptr a = node->a.visit(*this);
-      node_ptr b = node->b.visit(*this);
+      node_ptr a = visit(node->a(), *this);
+      node_ptr b = visit(node->b(), *this);
 
       if (a->is_zero()) {
         return a;
@@ -114,16 +119,17 @@ namespace ttl::optimizer
       // }
 
       // if (!a->tag.is_multiplication() or !b->tag.is_multiplication()) {
-        node->a = a;
-        node->b = b;
-        return node_ptr(node);
+      node->a(std::move(a));
+      node->b(std::move(b));
+      return node;
       // }
     }
 
-    constexpr auto operator()(Ratio* node) const -> node_ptr
+    constexpr auto operator()(tags::ratio, node_ptr node) const
+      -> node_ptr
     {
-      node_ptr a = node->a.visit(*this);
-      node_ptr b = node->b.visit(*this);
+      node_ptr a = visit(node->a(), *this);
+      node_ptr b = visit(node->b(), *this);
 
       if (a->is_zero()) {
         return a;
@@ -137,18 +143,19 @@ namespace ttl::optimizer
         return a;
       }
 
-      node->a = a;
-      node->b = b;
-      return node_ptr(node);
+      node->a(std::move(a));
+      node->b(std::move(b));
+      return node;
     }
 
-    constexpr auto operator()(Pow* node) const -> node_ptr
+    constexpr auto operator()(tags::pow, node_ptr node) const
+      -> node_ptr
     {
-      node_ptr a = node->a.visit(*this);
-      node_ptr b = node->b.visit(*this);
+      node_ptr a = visit(node->a(), *this);
+      node_ptr b = visit(node->b(), *this);
 
       if (b->is_zero()) {
-        return node_ptr::one();
+        return node_ptr(new Node(tag_v<RATIONAL>, 1));
       }
 
       if (b->is_one()) {
@@ -159,36 +166,39 @@ namespace ttl::optimizer
         return a;
       }
 
-      bool alit = tag_is_literal(a->tag);
-      bool blit = tag_is_literal(b->tag);
-      assert(blit);
+      // bool alit = tag_is_literal(a->tag);
+      // bool blit = tag_is_literal(b->tag);
+      // assert(blit);
 
-      if (alit) {
-        return combine(POW, *a, *b);
-      }
+      // if (alit) {
+      //   return combine(POW, *a, *b);
+      // }
 
-      node->a = a;
-      node->b = b;
-      return node_ptr(node);
+      node->a(std::move(a));
+      node->b(std::move(b));
+      return node;
     }
 
-    constexpr auto operator()(Unary* node) const -> node_ptr
+    constexpr auto operator()(tags::unary, node_ptr node) const
+      -> node_ptr
     {
-      node->a = node->a.visit(*this);
-      return node_ptr(node);
+      node->a(visit(node->a(), *this));
+      return node;
     }
 
-    constexpr auto operator()(Bind* bind) const -> node_ptr
+    constexpr auto operator()(tags::bind, node_ptr bind) const
+      -> node_ptr
     {
       if (std::is_constant_evaluated()) {
         assert(false);
       }
-      return {};
+      return node_ptr();
     }
 
-    constexpr auto operator()(Leaf* leaf) const -> node_ptr
+    constexpr auto operator()(tags::leaf, node_ptr leaf) const
+      -> node_ptr
     {
-      return node_ptr(leaf);
+      return leaf;
     }
   };
 }

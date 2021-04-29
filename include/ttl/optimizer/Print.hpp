@@ -1,5 +1,6 @@
 #pragma once
 
+#include "ttl/Tag.hpp"
 #include "ttl/optimizer/Nodes.hpp"
 #include <fmt/format.h>
 #include <string_view>
@@ -22,88 +23,76 @@ namespace ttl::optimizer
       std::fwrite(out.data(), out.size(), 1, file);
     }
 
-    auto operator()(node_ptr node) -> auto&
+    auto operator()(node_ptr const& node) -> auto&
     {
-      node.visit(*this);
+      visit(node, *this);
       return out;
     }
 
-    void operator()(Binary* node)
+    void operator()(tags::binary, node_ptr const& node)
     {
       out.append("("sv);
-      node->a.visit(*this);
+      visit(node->a(), *this);
       fmt::format_to(out, " {} ", node->tag);
-      node->b.visit(*this);
+      visit(node->b(), *this);
       out.append(")"sv);
     }
 
-    void operator()(Pow* node)
+    void operator()(tags::pow, node_ptr const& node)
     {
       out.append("("sv);
-      node->a.visit(*this);
+      visit(node->a(), *this);
       fmt::format_to(out, "){}", node->tag);
-      node->b.visit(*this);
+      visit(node->b(), *this);
     }
 
-    void operator()(Unary* node)
+    void operator()(tags::unary, node_ptr const& node)
     {
       fmt::format_to(out, "{}(", node->tag);
-      node->a.visit(*this);
+      visit(node->a(), *this);
       out.append(")"sv);
     }
 
-    void operator()(Bind* bind)
+    void operator()(tags::binder, node_ptr const& bind)
     {
       fmt::format_to(out, "{}(", bind->tag);
-      bind->a.visit(*this);
-      fmt::format_to(out, ",{})", bind->index);
+      visit(bind->a(), *this);
+      fmt::format_to(out, ",{})", bind->tensor_index);
     }
 
-    void operator()(Partial* partial)
+    void operator()(tags::leaf, node_ptr const& i)
     {
-      fmt::format_to(out, "{}(", partial->tag);
-      partial->a.visit(*this);
-      fmt::format_to(out, ",{})", partial->index);
+      fmt::format_to(out, "{}({})", i->tag, i->tensor_index);
     }
 
-    void operator()(Literal* lit)
+    void operator()(tags::immediate, node_ptr const& i)
     {
-      if (lit->tag == DOUBLE) {
-        fmt::format_to(out, "{}", lit->d * as<double>(lit->q));
+      if (i->tag == DOUBLE) {
+        fmt::format_to(out, "{}", i->d * as<double>(i->q));
       }
       else {
-        fmt::format_to(out, "{}", lit->q);
+        fmt::format_to(out, "{}", i->q);
       }
     }
 
-    void operator()(Tensor* tensor)
+    void operator()(tags::tensor, node_ptr const& tensor)
     {
-      if (tensor->index.size()) {
-        fmt::format_to(out, "{}({})", *tensor->tensor, tensor->index);
+      if (tensor->tensor_index.size()) {
+        fmt::format_to(out, "{}({})", *tensor->tensor, tensor->tensor_index);
       }
       else {
         fmt::format_to(out, "{}", *tensor->tensor);
       }
     }
 
-    void operator()(Scalar* scalar)
+    void operator()(tags::scalar, node_ptr const& scalar)
     {
-      if (scalar->index.size()) {
-        fmt::format_to(out, "{}({})", *scalar->tensor, scalar->index);
+      if (scalar->scalar_index.size()) {
+        fmt::format_to(out, "{}({})", *scalar->tensor, scalar->scalar_index);
       }
       else {
         fmt::format_to(out, "{}", *scalar->tensor);
       }
-    }
-
-    void operator()(Delta* δ)
-    {
-      fmt::format_to(out, "{}({})", δ->tag, δ->index);
-    }
-
-    void operator()(Epsilon* ε)
-    {
-      fmt::format_to(out, "{}({})", ε->tag, ε->index);
     }
   };
 }

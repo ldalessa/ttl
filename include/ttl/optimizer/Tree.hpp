@@ -16,42 +16,58 @@ namespace ttl::optimizer
     ttl::Tensor const* lhs_;
     node_ptr rhs_;
 
+    constexpr static LowerBinds lower_binds = {};
+    constexpr static ConstProp const_prop = {};
+
     constexpr Tree() = default;
 
-    constexpr Tree(is_equation auto const& eqn)
+    constexpr Tree(is_equation auto const& eqn, auto const& constants)
     {
-      eqn([&](auto const& lhs, is_parse_tree auto const& rhs)
+      eqn([&](Tensor const* lhs, is_parse_tree auto const& rhs)
       {
-        lhs_ = &lhs;
+        lhs_ = lhs;
 
-        ce::dvector<node_ptr> stack; stack.reserve(rhs.depth());
+        ce::dvector<bool> constant; constant.reserve(rhs.depth());
+        ce::dvector<node_ptr> nodes; nodes.reserve(rhs.depth());
         for (int i = 0, e = rhs.size(); i < e; ++i)
         {
           Tag tag = rhs.tag(i);
           node_ptr a;
           node_ptr b;
+          bool c;
+
           if (tag_is_binary(tag))
           {
-            b = stack.pop_back();
-            a = stack.pop_back();
+            b = nodes.pop_back();
+            a = nodes.pop_back();
+            constant.push_back(constant.pop_back() && constant.pop_back());
           }
           else if (tag_is_unary(tag))
           {
-            a = stack.pop_back();
+            a = nodes.pop_back();
+          }
+          else if (tag_is_variable(tag))
+          {
+            constant.push_back(constants(rhs.tensors[i]));
+          }
+          else {
+            constant.push_back(true);
           }
 
-          stack.emplace_back(
-            tag,
-            kw::a = std::move(a),
-            kw::b = std::move(b),
-            kw::d = rhs.ds[i],
-            kw::q = rhs.qs[i],
-            kw::tensor = rhs.tensors[i],
-            kw::tensor_index = rhs.tensor_index[i],
-            kw::scalar_index = rhs.scalar_index[i]);
+          nodes.emplace_back(
+              new Node(
+                  tag,
+                  std::move(a),
+                  std::move(b),
+                  rhs.qs[i],
+                  rhs.ds[i],
+                  rhs.tensors[i],
+                  rhs.tensor_index[i],
+                  rhs.scalar_index[i],
+                  constant.back()));
         }
-        assert(stack.size() == 1);
-        rhs_ = stack.pop_back();
+        assert(nodes.size() == 1);
+        rhs_ = nodes.pop_back();
       });
 
       rhs_ = lower_binds(rhs_);
@@ -62,9 +78,6 @@ namespace ttl::optimizer
     {
       return op(lhs_, rhs_);
     }
-
-    LowerBinds lower_binds = {};
-    constexpr static ConstProp const_prop = {};
 
     auto print(FILE* file) const
     {

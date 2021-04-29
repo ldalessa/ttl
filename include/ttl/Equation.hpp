@@ -10,10 +10,10 @@ namespace ttl
   struct Equation {
     using is_equation_tag = void;
 
-    Tensor lhs;
+    Tensor const* lhs;
     ParseTree<M> rhs;
 
-    constexpr Equation(const Tensor& lhs, ParseTree<M> rhs)
+    constexpr Equation(Tensor const* lhs, ParseTree<M> rhs)
         : lhs(lhs)
         , rhs(std::move(rhs))
     {
@@ -27,21 +27,22 @@ namespace ttl
 
     auto print(FILE* out) const
     {
-      fmt::print(out, "{} = {}\n", lhs, to_string(*rhs));
+      fmt::print(out, "{} = {}\n", *lhs, to_string(*rhs));
     }
 
     auto dot(FILE* file) const
     {
       fmt::memory_buffer out;
-      fmt::format_to(out, "graph {} {{\n", lhs);
+      fmt::format_to(out, "graph {} {{\n", *lhs);
       rhs.to_dot(out);
       fmt::format_to(out, "{}", "}}\n");
       std::fwrite(out.data(), out.size(), 1, file);
     }
   };
 
-  constexpr auto Tensor::operator<<=(is_parse_tree auto rhs) const {
+  constexpr auto Tensor::operator<<=(is_parse_tree auto rhs) const
+  {
     assert(order_ == rhs.outer().size());
-    return Equation(*this, std::move(rhs));
+    return Equation(this, std::move(rhs));
   }
 }

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "ttl/Tag.hpp"
 #include "ttl/optimizer/Nodes.hpp"
 
 namespace ttl::optimizer
@@ -8,60 +9,60 @@ namespace ttl::optimizer
   {
     constexpr auto operator()(node_ptr node) const -> node_ptr
     {
-      return node.visit(*this, Index{}, Index{});
+      return visit(node, *this, Index{}, Index{});
     }
 
-    constexpr auto operator()(Binary* node, Index const& search, Index const& replace) const -> node_ptr
+    constexpr auto operator()(tags::binary, node_ptr const& node, Index const& search, Index const& replace) const
+      -> node_ptr
     {
-      node->a = node->a.visit(*this, search, replace);
-      node->b = node->b.visit(*this, search, replace);
-      return node_ptr(node);
+      node->a(visit(node->a(), *this, search, replace));
+      node->b(visit(node->b(), *this, search, replace));
+      return node;
     }
 
-    constexpr auto operator()(Unary* node, Index const& search, Index const& replace) const -> node_ptr
+    constexpr auto operator()(tags::unary, node_ptr const& node, Index const& search, Index const& replace) const
+      -> node_ptr
     {
-      node->a = node->a.visit(*this, search, replace);
-      return node_ptr(node);
+      node->a(visit(node->a(), *this, search, replace));
+      return node;
     }
 
-    constexpr auto operator()(Leaf* leaf, Index const& search, Index const& replace) const -> node_ptr
+    constexpr auto operator()(tags::leaf, node_ptr const& leaf, Index const&, Index const&) const
+      -> node_ptr
     {
-      return node_ptr(leaf);
+      return leaf;
     }
 
-    constexpr auto operator()(Bind* bind, Index const& search, Index const& replace) const -> node_ptr
+    constexpr auto operator()(tags::bind, node_ptr const& bind, Index const& search, Index const& replace) const
+      -> node_ptr
     {
-
-      node_ptr child = bind->a;
-      Index    index = bind->index.search_and_replace(search, replace);
+      node_ptr child = bind->a();
+      Index    index = bind->tensor_index.search_and_replace(search, replace);
       Index    inner = child->outer();
       assert(inner.size() == index.size());
-      return child.visit(*this, inner, index);
+      return visit(child, *this, inner, index);
     }
 
-    constexpr auto operator()(Partial* partial, Index const& search, Index const& replace) const -> node_ptr
+    constexpr auto operator()(tags::partial, node_ptr const& partial, Index const& search, Index const& replace) const
+      -> node_ptr
     {
-      partial->index.search_and_replace(search, replace);
-      partial->a = partial->a.visit(*this, search, replace);
-      return node_ptr(partial);
+      partial->tensor_index.search_and_replace(search, replace);
+      partial->a(visit(partial->a(), *this, search, replace));
+      return partial;
     }
 
-    constexpr auto operator()(Tensor* tensor, Index const& search, Index const& replace) const -> node_ptr
+    constexpr auto operator()(tags::tensor, node_ptr const& tensor, Index const& search, Index const& replace) const
+      -> node_ptr
     {
-      tensor->index.search_and_replace(search, replace);
-      return node_ptr(tensor);
+      tensor->tensor_index.search_and_replace(search, replace);
+      return tensor;
     }
 
-    constexpr auto operator()(Delta* δ, Index const& search, Index const& replace) const -> node_ptr
+    constexpr auto operator()(tags::builtin0, node_ptr const& δ, Index const& search, Index const& replace) const
+      -> node_ptr
     {
-      δ->index.search_and_replace(search, replace);
-      return node_ptr(δ);
-    }
-
-    constexpr auto operator()(Epsilon* ε, Index const& search, Index const& replace) const -> node_ptr
-    {
-      ε->index.search_and_replace(search, replace);
-      return node_ptr(ε);
+      δ->tensor_index.search_and_replace(search, replace);
+      return δ;
     }
   };
 }
