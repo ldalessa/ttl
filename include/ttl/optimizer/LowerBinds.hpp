@@ -15,15 +15,15 @@ namespace ttl::optimizer
     constexpr auto operator()(tags::binary, node_ptr const& node, Index const& search, Index const& replace) const
       -> node_ptr
     {
-      node->a(visit(node->a(), *this, search, replace));
-      node->b(visit(node->b(), *this, search, replace));
+      node->a = visit(node->a, *this, search, replace);
+      node->b = visit(node->b, *this, search, replace);
       return node;
     }
 
     constexpr auto operator()(tags::unary, node_ptr const& node, Index const& search, Index const& replace) const
       -> node_ptr
     {
-      node->a(visit(node->a(), *this, search, replace));
+      node->a = visit(node->a, *this, search, replace);
       return node;
     }
 
@@ -36,7 +36,7 @@ namespace ttl::optimizer
     constexpr auto operator()(tags::bind, node_ptr const& bind, Index const& search, Index const& replace) const
       -> node_ptr
     {
-      node_ptr child = bind->a();
+      node_ptr child = bind->a;
       Index    index = bind->tensor_index.search_and_replace(search, replace);
       Index    inner = child->outer();
       assert(inner.size() == index.size());
@@ -47,7 +47,7 @@ namespace ttl::optimizer
       -> node_ptr
     {
       partial->tensor_index.search_and_replace(search, replace);
-      partial->a(visit(partial->a(), *this, search, replace));
+      partial->a = visit(partial->a, *this, search, replace);
       return partial;
     }
 

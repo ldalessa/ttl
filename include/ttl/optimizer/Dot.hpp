@@ -27,8 +27,8 @@ namespace ttl::optimizer
 
     auto operator()(tags::binary, node_ptr const& node) -> int
     {
-      int a = visit(node->a(), *this);
-      int b = visit(node->b(), *this);
+      int a = visit(node->a, *this);
+      int b = visit(node->b, *this);
       Index outer = node->outer();
       if (outer.size()) {
         fmt::format_to(out, "\tnode{}[label=\"{} ↑{}\"]\n", i, node->tag, outer);
@@ -43,7 +43,7 @@ namespace ttl::optimizer
 
     auto operator()(tags::unary, node_ptr const& node) -> int
     {
-      int a = visit(node->a(), *this);
+      int a = visit(node->a, *this);
       fmt::format_to(out, "\tnode{}[label=\"{}\"]\n", i, node->tag);
       fmt::format_to(out, "\tnode{} -- node{}\n", i, a);
       return i++;
@@ -51,10 +51,10 @@ namespace ttl::optimizer
 
     auto operator()(tags::binder, node_ptr const& bind) -> int
     {
-      int a = visit(bind->a(), *this);
+      int a = visit(bind->a, *this);
 
       Index outer = bind->outer();
-      Index child = bind->a()->outer();
+      Index child = bind->a->outer();
       if (outer.size()) {
         fmt::format_to(out, "\tnode{}[label=\"{}({},{}) ↑{}\"]\n", i, bind->tag, child, bind->tensor_index, outer);
       }

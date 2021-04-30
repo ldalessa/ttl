@@ -69,8 +69,7 @@ int run_ns(auto& args)
     }), ...);
   });
 
-
-  auto b = navier_stokes.simplify_equations(1);
+  constexpr auto b = navier_stokes.simplify_equations(1);
 
   navier_stokes.simplify_equations()([](auto const&... eqn) {
     (eqn.print(stdout), ...);

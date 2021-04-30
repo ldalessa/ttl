@@ -32,31 +32,31 @@ namespace ttl::optimizer
     void operator()(tags::binary, node_ptr const& node)
     {
       out.append("("sv);
-      visit(node->a(), *this);
+      visit(node->a, *this);
       fmt::format_to(out, " {} ", node->tag);
-      visit(node->b(), *this);
+      visit(node->b, *this);
       out.append(")"sv);
     }
 
     void operator()(tags::pow, node_ptr const& node)
     {
       out.append("("sv);
-      visit(node->a(), *this);
+      visit(node->a, *this);
       fmt::format_to(out, "){}", node->tag);
-      visit(node->b(), *this);
+      visit(node->b, *this);
     }
 
     void operator()(tags::unary, node_ptr const& node)
     {
       fmt::format_to(out, "{}(", node->tag);
-      visit(node->a(), *this);
+      visit(node->a, *this);
       out.append(")"sv);
     }
 
     void operator()(tags::binder, node_ptr const& bind)
     {
       fmt::format_to(out, "{}(", bind->tag);
-      visit(bind->a(), *this);
+      visit(bind->a, *this);
       fmt::format_to(out, ",{})", bind->tensor_index);
     }
 

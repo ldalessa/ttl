@@ -26,7 +26,7 @@ namespace ttl::optimizer
     constexpr node_ptr() = default;
 
     /// Initialize from a pointer.
-    constexpr explicit node_ptr(Node *ptr)
+    constexpr node_ptr(Node *ptr)
         : ptr_(ptr)
     {
       inc();
@@ -110,7 +110,8 @@ namespace ttl::optimizer
   {
     Tag                  tag = NO_TAG;
     int                count = 0;
-    node_ptr     children[2] = {};
+    node_ptr               a = {};
+    node_ptr               b = {};
     Rational               q = { 1 };
     double                 d = 1.0;
     Tensor const*     tensor = nullptr;
@@ -130,13 +131,21 @@ namespace ttl::optimizer
                    ScalarIndex const& scalar_index,
                    bool constant)
         : tag(tag)
-        , children { std::move(a), std::move(b) }
+        , a(std::move(a))
+        , b(std::move(b))
         , q(q)
         , d(d)
         , tensor(tensor)
         , tensor_index(tensor_index)
         , scalar_index(scalar_index)
         , constant(constant)
+    {
+    }
+
+    constexpr Node(tags::binary tag, node_ptr a, node_ptr b)
+        : tag(tag.id)
+        , a(std::move(a))
+        , b(std::move(b))
     {
     }
 
@@ -149,27 +158,7 @@ namespace ttl::optimizer
     constexpr Node(tags::negate, node_ptr a)
         : tag(NEGATE)
     {
-      children[0] = std::move(a);
-    }
-
-    constexpr auto a() const -> node_ptr const&
-    {
-      return children[0];
-    }
-
-    constexpr auto b() const -> node_ptr const&
-    {
-      return children[1];
-    }
-
-    constexpr void a(node_ptr&& a)
-    {
-      children[0] = std::move(a);
-    }
-
-    constexpr void b(node_ptr&& b)
-    {
-      children[1] = std::move(b);
+      a = std::move(a);
     }
 
     constexpr bool is_binary() const
@@ -197,13 +186,23 @@ namespace ttl::optimizer
       return constant;
     }
 
+    constexpr bool is_multiplication() const
+    {
+      return tag_is_multiplication(tag);
+    }
+
+    constexpr bool is_ratio() const
+    {
+      return tag == RATIO;
+    }
+
     constexpr auto outer() const -> Index
     {
       if (is_binary()) {
-        return tag_outer(tag, a()->outer(), b()->outer());
+        return tag_outer(tag, a->outer(), b->outer());
       }
       if (is_unary()) {
-        return tag_outer(tag, a()->outer(), tensor_index);
+        return tag_outer(tag, a->outer(), tensor_index);
       }
       return tag_outer(tag, tensor_index);
     }
@@ -233,6 +232,56 @@ namespace ttl::optimizer
         delete std::exchange(ptr_, nullptr);
       }
     }
+  }
+
+  constexpr node_ptr operator+(node_ptr const& a, node_ptr const& b)
+  {
+    assert(a->is_immediate() and b->is_immediate());
+    node_ptr c = new Node();
+    c->d = a->d + b->d;
+    c->q = a->q + b->q;
+    c->tag = (c->d != 1.0) ? DOUBLE : RATIONAL;
+    return c;
+  }
+
+  constexpr node_ptr operator-(node_ptr const& a, node_ptr const& b)
+  {
+    assert(a->is_immediate() and b->is_immediate());
+    node_ptr c = new Node();
+    c->d = a->d - b->d;
+    c->q = a->q - b->q;
+    c->tag = (c->d != 1.0) ? DOUBLE : RATIONAL;
+    return c;
+  }
+
+  constexpr node_ptr operator*(node_ptr const& a, node_ptr const& b)
+  {
+    assert (a->is_immediate() and b->is_immediate());
+    node_ptr c = new Node();
+    c->d = a->d * b->d;
+    c->q = a->q * b->q;
+    c->tag = (c->d != 1.0) ? DOUBLE : RATIONAL;
+    return c;
+  }
+
+  constexpr node_ptr operator/(node_ptr const& a, node_ptr const& b)
+  {
+    assert(a->is_immediate() and b->is_immediate());
+    node_ptr c = new Node();
+    c->d = a->d / b->d;
+    c->q = a->q / b->q;
+    c->tag = (c->d != 1.0) ? DOUBLE : RATIONAL;
+    return c;
+  }
+
+  constexpr node_ptr inverse(node_ptr const& a)
+  {
+    assert(a->is_immediate());
+    node_ptr c = new Node();
+    c->d = 1.0 / a->d;
+    c->q = a->q.inverse();
+    c->tag = (c->d != 1.0) ? DOUBLE : RATIONAL;
+    return c;
   }
 
   constexpr auto visit(node_ptr const& node, auto&& op, auto&&... args)

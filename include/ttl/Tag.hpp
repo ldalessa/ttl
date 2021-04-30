@@ -8,7 +8,6 @@ namespace ttl
   using tag_id_t = unsigned;
 
   enum Tag : tag_id_t {
-    NO_TAG     = 0,
     SUM        = 1lu << 0,
     DIFFERENCE = 1lu << 1,
     PRODUCT    = 1lu << 2,
@@ -44,6 +43,7 @@ namespace ttl
   /// Tag sets... all of the sets contain MAX to disambiguate single-element
   /// sets from their single element.
   /// @{
+  constexpr inline Tag NO_TAG         = Tag{0};
   constexpr inline Tag ALL            = Tag(MAX | MAX - 1);
   constexpr inline Tag ADDITION       = MAX | SUM | DIFFERENCE;
   constexpr inline Tag MULTIPLICATION = MAX | PRODUCT | RATIO;
@@ -68,7 +68,10 @@ namespace ttl
 
   template <> struct tag_t<ALL> {};
 
-#define make_tag_t(child, parent) template <> struct tag_t<child> : tag_t<parent> {}
+#define make_tag_t(child, parent)                   \
+  template <> struct tag_t<child> : tag_t<parent> { \
+    static constexpr Tag id = child;                \
+  }
 
   /// Binary tag hierarchy
   /// @{
