@@ -50,11 +50,10 @@ namespace ttl::optimizer
 
     constexpr node_ptr& operator=(node_ptr const& b)
     {
-      if (ptr_ != b.ptr_) {
-        dec();
-        ptr_ = b.ptr_;
-        inc();
-      }
+      // increment first prevents early delete
+      b.inc();
+      dec();
+      ptr_ = b.ptr_;
       return *this;
     }
 
@@ -65,19 +64,15 @@ namespace ttl::optimizer
       return *this;
     }
 
-    constexpr node_ptr& operator=(Node *ptr)
-    {
-      if (ptr_ != ptr) {
-        dec();
-        ptr_ = ptr;
-        inc();
-      }
-      return *this;
-    }
+    constexpr node_ptr& operator=(Node* ptr);
 
     constexpr explicit operator bool() const
     {
       return ptr_ != nullptr;
+    }
+
+    constexpr friend void swap(node_ptr& a, node_ptr& b) {
+      std::swap(a.ptr_, b.ptr_);
     }
 
     constexpr friend bool operator==(node_ptr const&, node_ptr const&) = default;
@@ -146,17 +141,20 @@ namespace ttl::optimizer
         : tag(tag.id)
         , a(std::move(a))
         , b(std::move(b))
+        , constant(a->constant && b->constant)
     {
     }
 
     constexpr Node(tags::rational, Rational q)
         : tag(RATIONAL)
         , q(q)
+        , constant(true)
     {
     }
 
     constexpr Node(tags::negate, node_ptr a)
         : tag(NEGATE)
+        , constant(a->constant)
     {
       a = std::move(a);
     }
@@ -216,7 +214,24 @@ namespace ttl::optimizer
     {
       return is_immediate() && q == 1 && d == 1;
     }
+
+    constexpr double as_double() const
+    {
+      assert(is_immediate());
+      return d * as<double>(q);
+    }
   };
+
+  constexpr node_ptr& node_ptr::operator=(Node* ptr)
+  {
+    if (ptr) {
+      ++ptr->count;
+    }
+    dec();
+    ptr_ = ptr;
+    return *this;
+  }
+
 
   constexpr void node_ptr::inc() const
   {
@@ -234,6 +249,22 @@ namespace ttl::optimizer
     }
   }
 
+  constexpr node_ptr operator-(node_ptr const& a)
+  {
+    assert(a->is_immediate());
+    node_ptr c = new Node();
+    if (a->d != 1.0) {
+      c->d = -a->d;
+      a->tag = DOUBLE;
+    }
+    else {
+      c->q = -a->q;
+      a->tag = RATIONAL;
+    }
+    c->constant = true;
+    return c;
+  }
+
   constexpr node_ptr operator+(node_ptr const& a, node_ptr const& b)
   {
     assert(a->is_immediate() and b->is_immediate());
@@ -241,6 +272,7 @@ namespace ttl::optimizer
     c->d = a->d + b->d;
     c->q = a->q + b->q;
     c->tag = (c->d != 1.0) ? DOUBLE : RATIONAL;
+    c->constant = true;
     return c;
   }
 
@@ -251,6 +283,7 @@ namespace ttl::optimizer
     c->d = a->d - b->d;
     c->q = a->q - b->q;
     c->tag = (c->d != 1.0) ? DOUBLE : RATIONAL;
+    c->constant = true;
     return c;
   }
 
@@ -261,6 +294,7 @@ namespace ttl::optimizer
     c->d = a->d * b->d;
     c->q = a->q * b->q;
     c->tag = (c->d != 1.0) ? DOUBLE : RATIONAL;
+    c->constant = true;
     return c;
   }
 
@@ -271,6 +305,7 @@ namespace ttl::optimizer
     c->d = a->d / b->d;
     c->q = a->q / b->q;
     c->tag = (c->d != 1.0) ? DOUBLE : RATIONAL;
+    c->constant = true;
     return c;
   }
 
@@ -281,6 +316,7 @@ namespace ttl::optimizer
     c->d = 1.0 / a->d;
     c->q = a->q.inverse();
     c->tag = (c->d != 1.0) ? DOUBLE : RATIONAL;
+    c->constant = true;
     return c;
   }
 
