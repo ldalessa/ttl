@@ -331,7 +331,7 @@ namespace ttl
       "bind",  // BIND
       "∂", // PARTIAL
       "√", // SQRT
-      "ℇ", // EXP
+      "𝑒", // EXP
       "-", // NEGATE
       "",  // RATIONAL
       "",  // DOUBLE

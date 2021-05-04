@@ -73,9 +73,9 @@ namespace ttl::optimizer
       }
 
       // ∂(u - a) = ∂(u)
-      // if (node->b->is_constant()) {
-      //   return visit(node->a, dx);
-      // }
+      if (node->b->is_constant()) {
+        return visit(node->a, dx);
+      }
 
       node->a = visit(node->a, dx);
       node->b = visit(node->b, dx);
@@ -139,6 +139,27 @@ namespace ttl::optimizer
       node->a = make_difference(duv, udv);
       node->b = v2;
       return node;
+    }
+
+    constexpr auto operator()(tags::pow, node_ptr const& node, Index dx) const
+      -> node_ptr
+    {
+      // ∂(u^n) = n * (∂(u))^n - 1
+      assert(node->b->tag == RATIONAL);
+      node_ptr  n = node->b->copy_tree();;
+      node->b->q -= Rational(1);
+      node_ptr du = visit(node->a, dx);
+      node->a = du;
+      return make_product(n, node);
+    }
+
+    constexpr auto operator()(tags::exp, node_ptr const& node, Index dx) const
+      -> node_ptr
+    {
+      node_ptr a = visit(node->a);
+      node_ptr b = visit(node->a->copy_tree(), dx);
+      node->a = a;
+      return make_product(node, b);
     }
   };
 }

@@ -335,9 +335,8 @@ namespace ttl::optimizer
   {
     assert(a->is_immediate() and b->is_immediate());
     node_ptr c = new Node();
-    c->d = a->d + b->d;
-    c->q = a->q + b->q;
-    c->tag = (c->d != 1.0) ? DOUBLE : RATIONAL;
+    c->d = a->as_double() + b->as_double();
+    c->tag = DOUBLE;
     c->constant = true;
     return c;
   }
@@ -346,9 +345,8 @@ namespace ttl::optimizer
   {
     assert(a->is_immediate() and b->is_immediate());
     node_ptr c = new Node();
-    c->d = a->d - b->d;
-    c->q = a->q - b->q;
-    c->tag = (c->d != 1.0) ? DOUBLE : RATIONAL;
+    c->d = a->as_double() - b->as_double();
+    c->tag = DOUBLE;
     c->constant = true;
     return c;
   }

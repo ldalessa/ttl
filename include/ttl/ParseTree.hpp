@@ -510,19 +510,19 @@ namespace ttl
     return Rational(1,2) * (tree + tree(reverse(outer(tree))));
   }
 
-  // constexpr auto exp(is_parse_expression auto const& a)
-  // {
-  //   return ParseTree(to_parse_tree(a), EXP);
-  // }
+  constexpr auto exp(is_parse_expression auto const& a)
+  {
+    return ParseTree(bind(a), EXP);
+  }
 
-  // constexpr auto pow(is_parse_expression auto const& a, std::integral auto b)
-  // {
-  //   return ParseTree(to_parse_tree(a), to_parse_tree(b), POW);
-  // }
+  constexpr auto pow(is_parse_expression auto const& a, Rational b)
+  {
+    return ParseTree(bind(a), bind(b), POW);
+  }
 
-  // constexpr auto sqrt(is_parse_expression auto const& a)
-  // {
-  //   return ParseTree(to_parse_tree(a), SQRT);
-  // }
+  constexpr auto sqrt(is_parse_expression auto const& a)
+  {
+    return pow(a, Rational(1,2));
+  }
 }
 

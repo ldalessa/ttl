@@ -53,6 +53,11 @@ namespace ttl
       return { a.p * r + b.p * l, l * r };
     }
 
+    constexpr auto operator+=(Rational const& b) -> Rational&
+    {
+      return *this = *this + b;
+    }
+
     constexpr friend auto operator-(Rational const& a, Rational const& b)
       -> Rational
     {
@@ -60,6 +65,11 @@ namespace ttl
       auto l = (a.q / d);
       auto r = (b.q / d);
       return { a.p * r - b.p * l, l * r };
+    }
+
+    constexpr auto operator-=(Rational const& b) -> Rational&
+    {
+      return *this = *this - b;
     }
 
     constexpr friend auto operator*(Rational const& a, Rational const& b)
