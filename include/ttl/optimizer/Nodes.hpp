@@ -1,22 +1,9 @@
 #pragma once
 
 #include "ttl/Tag.hpp"
-#include <raberu.hpp>
 
 namespace ttl::optimizer
 {
-  namespace kw
-  {
-    using namespace rbr::literals;
-    inline constexpr auto a = "a"_kw;
-    inline constexpr auto b = "b"_kw;
-    inline constexpr auto q = "q"_kw;
-    inline constexpr auto d = "d"_kw;
-    inline constexpr auto tensor = "tensor"_kw;
-    inline constexpr auto tensor_index = "tensor_index"_kw;
-    inline constexpr auto scalar_index = "scalar_index"_kw;
-  }
-
   struct Node;
 
   struct node_ptr
@@ -59,8 +46,10 @@ namespace ttl::optimizer
 
     constexpr node_ptr& operator=(node_ptr&& b)
     {
-      dec();
-      ptr_ = std::exchange(b.ptr_, nullptr);
+      if (ptr_ != b.ptr_) {
+        dec();
+        ptr_ = std::exchange(b.ptr_, nullptr);
+      }
       return *this;
     }
 
@@ -76,16 +65,6 @@ namespace ttl::optimizer
     }
 
     constexpr friend bool operator==(node_ptr const&, node_ptr const&) = default;
-
-    constexpr friend bool operator==(node_ptr const& a, Node* b)
-    {
-      return a.ptr_ == b;
-    }
-
-    constexpr friend bool operator==(Node* a, node_ptr const& b)
-    {
-      return a == b.ptr_;
-    }
 
     constexpr auto operator*() const -> Node&
     {
@@ -117,8 +96,8 @@ namespace ttl::optimizer
     constexpr Node() = default;
 
     constexpr Node(Tag tag,
-                   node_ptr&& a,
-                   node_ptr&& b,
+                   node_ptr $a,
+                   node_ptr $b,
                    Rational const& q,
                    double d,
                    Tensor const* tensor,
@@ -126,8 +105,8 @@ namespace ttl::optimizer
                    ScalarIndex const& scalar_index,
                    bool constant)
         : tag(tag)
-        , a(std::move(a))
-        , b(std::move(b))
+        , a($a) // would like to move here but constexpr bugs in gcc-10.3,clang-11
+        , b($b) // would like to move here but constexpr bugs in gcc-10.3,clang-11
         , q(q)
         , d(d)
         , tensor(tensor)
@@ -135,13 +114,31 @@ namespace ttl::optimizer
         , scalar_index(scalar_index)
         , constant(constant)
     {
+      assert(ispow2(tag));
+      if (tag_is_binary(tag)) {
+        assert(a and b);
+      }
+      if (tag_is_unary(tag)) {
+        assert(a and !b);
+      }
+      if (tag_is_leaf(tag)) {
+        assert(!a and !b);
+      }
     }
 
-    constexpr Node(tags::binary tag, node_ptr a, node_ptr b)
+    constexpr Node(tags::is_binary auto tag, node_ptr const& a, node_ptr const& b)
         : tag(tag.id)
-        , a(std::move(a))
-        , b(std::move(b))
+        , a(a)
+        , b(b)
         , constant(a->constant && b->constant)
+    {
+      assert(ispow2(this->tag));
+    }
+
+    constexpr Node(tags::partial, node_ptr const& a, Index i)
+        : tag(PARTIAL)
+        , a(a)
+        , tensor_index(i)
     {
     }
 
@@ -152,11 +149,75 @@ namespace ttl::optimizer
     {
     }
 
+    constexpr Node(tags::floating_point, double d)
+        : tag(DOUBLE)
+        , d(d)
+        , constant(true)
+    {
+    }
+
     constexpr Node(tags::negate, node_ptr a)
         : tag(NEGATE)
+        , a(a)
         , constant(a->constant)
     {
-      a = std::move(a);
+    }
+
+    constexpr node_ptr copy_tree() const
+    {
+      Node *copy = new Node();
+      copy->tag = this->tag;
+      copy->q = this->q;
+      copy->d = this->d;
+      copy->tensor = this->tensor;
+      copy->tensor_index = this->tensor_index;
+      copy->scalar_index = this->scalar_index;
+      copy->constant = this->constant;
+      if (a) copy->a = this->a->copy_tree();
+      if (b) copy->b = this->b->copy_tree();
+      assert(ispow2(copy->tag));
+      return node_ptr(copy);
+    }
+
+    constexpr bool update_tree_constants()
+    {
+      if (a and b) {
+        assert(is_binary());
+        bool aa = a->update_tree_constants();
+        bool bb = b->update_tree_constants();
+        constant = aa and bb;
+        return constant;
+      }
+
+      if (a) {
+        assert(is_unary());
+        constant = a->update_tree_constants();
+        return constant;
+      }
+
+      assert(is_leaf());
+      return constant;
+    }
+
+    constexpr bool verify_tree_constants() const
+    {
+      if (a and b) {
+        assert(is_binary());
+        bool aa = a->verify_tree_constants();
+        bool bb = b->verify_tree_constants();
+        assert(constant == (aa and bb));
+        return constant;
+      }
+
+      if (a) {
+        assert(is_unary());
+        bool aa = a->verify_tree_constants();
+        assert(constant == aa);
+        return constant;
+      }
+
+      assert(is_leaf());
+      return constant;
     }
 
     constexpr bool is_binary() const
@@ -192,6 +253,11 @@ namespace ttl::optimizer
     constexpr bool is_ratio() const
     {
       return tag == RATIO;
+    }
+
+    constexpr bool is_negate() const
+    {
+      return tag == NEGATE;
     }
 
     constexpr auto outer() const -> Index
@@ -255,11 +321,11 @@ namespace ttl::optimizer
     node_ptr c = new Node();
     if (a->d != 1.0) {
       c->d = -a->d;
-      a->tag = DOUBLE;
+      c->tag = DOUBLE;
     }
     else {
       c->q = -a->q;
-      a->tag = RATIONAL;
+      c->tag = RATIONAL;
     }
     c->constant = true;
     return c;
@@ -289,7 +355,7 @@ namespace ttl::optimizer
 
   constexpr node_ptr operator*(node_ptr const& a, node_ptr const& b)
   {
-    assert (a->is_immediate() and b->is_immediate());
+    assert(a->is_immediate() and b->is_immediate());
     node_ptr c = new Node();
     c->d = a->d * b->d;
     c->q = a->q * b->q;

@@ -2,22 +2,24 @@
 
 #include "ttl/Tag.hpp"
 #include "ttl/optimizer/Nodes.hpp"
+#include "ttl/optimizer/Transform.hpp"
+
+#if defined(__GNUC__) && !defined(__clang__)
+#include <cmath>
+#endif
 
 namespace ttl::optimizer
 {
-  struct ConstProp
+  struct ConstProp : Transform<ConstProp>
   {
-    constexpr auto operator()(node_ptr const& node) const
-      -> node_ptr
-    {
-      return visit(node, *this);
-    }
+    using Transform<ConstProp>::operator();
+    using Transform<ConstProp>::visit;
 
     constexpr auto operator()(tags::sum, node_ptr const& node) const
       -> node_ptr
     {
-      node_ptr a = visit(node->a, *this);
-      node_ptr b = visit(node->b, *this);
+      node_ptr a = visit(node->a);
+      node_ptr b = visit(node->b);
 
       if (a->is_zero()) {
         return b;
@@ -39,15 +41,15 @@ namespace ttl::optimizer
     constexpr auto operator()(tags::difference, node_ptr const& node) const
       -> node_ptr
     {
-      node_ptr a = visit(node->a, *this);
-      node_ptr b = visit(node->b, *this);
+      node_ptr a = visit(node->a);
+      node_ptr b = visit(node->b);
 
       if (b->is_zero()) {
         return a;
       }
 
       if (a->is_zero()) {
-        return node_ptr(new Node(tag_v<NEGATE>, std::move(b)));
+        return make_negate(b);
       }
 
       if (a->is_immediate() and b->is_immediate()) {
@@ -62,8 +64,8 @@ namespace ttl::optimizer
     constexpr auto operator()(tags::product tag, node_ptr const& node) const
       -> node_ptr
     {
-      node_ptr a = visit(node->a, *this);
-      node_ptr b = visit(node->b, *this);
+      node_ptr a = visit(node->a);
+      node_ptr b = visit(node->b);
 
       // ? * b -> b * ?
       if (b->is_immediate()) {
@@ -92,8 +94,7 @@ namespace ttl::optimizer
         return a * b;
       }
 
-      // Canonicalize
-      //
+      // Makes sure the left child has a constant `a`, if there is one.
       // ? * (b · ?) -> (b · ?) * ?
       if (b->is_multiplication() and b->a->is_immediate()) {
         swap(a, b);
@@ -127,14 +128,14 @@ namespace ttl::optimizer
         if (b->is_immediate()) {
           // (a · x) * b -> [ab] · x
           a->a = a->a * b;
-          return visit(a, *this);
+          return visit(a);
         }
 
         // (a · x) * y -> a * (y · x)  *maybe transposes x and y*
         node->a = a->a;
         a->a = b;
         node->b = a;
-        return visit(node, *this);
+        return visit(node);
       }
 
       // Handle trees of the form: a * (x · y)
@@ -142,7 +143,7 @@ namespace ttl::optimizer
         // a * (b · y) -> [ab] · y
         if (b->a->is_immediate()) {
           b->a = a * b->a;
-          return visit(b, *this);
+          return visit(b);
         }
 
         // a * (x · y)
@@ -157,8 +158,8 @@ namespace ttl::optimizer
         // (a · y) * (z · w) -> a * ((z · w) · y)
         node->a = a->a;
         a->a = b;
-        node->b = visit(a, *this);
-        return visit(node, *this);
+        node->b = visit(a);
+        return visit(node);
       }
 
       // Handle trees of the form: (a · y) * (b · w)
@@ -171,7 +172,7 @@ namespace ttl::optimizer
           node->b = b->b;
           a->a = a->a * b->a;
           a->b = node;
-          return visit(a, *this);
+          return visit(a);
         }
 
         // (a / y) * (b * w) -> [ab] * (w / y)
@@ -179,7 +180,7 @@ namespace ttl::optimizer
           node->a = a->a * b->a;
           a->a = b->b;
           node->b = a;
-          return visit(node, *this);
+          return visit(node);
         }
 
         // (a * y) * (b · w) -> [ab] * (y · w)
@@ -187,7 +188,7 @@ namespace ttl::optimizer
         node->a = a->a * b->a;
         b->a = a->b;
         node->b = b;
-        return visit(node, *this);
+        return visit(node);
       }
 
       assert(false);
@@ -197,8 +198,8 @@ namespace ttl::optimizer
     constexpr auto operator()(tags::ratio, node_ptr const& node) const
       -> node_ptr
     {
-      node_ptr a = visit(node->a, *this);
-      node_ptr b = visit(node->b, *this);
+      node_ptr a = visit(node->a);
+      node_ptr b = visit(node->b);
 
       if (a->is_zero()) {
         return a;
@@ -217,8 +218,8 @@ namespace ttl::optimizer
       }
 
       if (b->is_immediate()) {
-        node_ptr c = new Node(tag_v<PRODUCT>, inverse(b), a);
-        visit(c, *this);
+        node_ptr c = make_product(inverse(b), a);
+        visit(c);
       }
 
       if (a->is_immediate() and !b->is_multiplication()) {
@@ -245,7 +246,7 @@ namespace ttl::optimizer
         if (a->a->is_immediate()) {
           node->a = a->b;                       // (x / y)
           a->b = node;                          // a · (x / y)
-          return visit(a, *this);
+          return visit(a);
         }
 
         node->a = a;
@@ -259,22 +260,24 @@ namespace ttl::optimizer
         // a / (b · y) -> [a/b] · y
         if (a->is_immediate() and b->a->is_immediate()) {
           b->a = a / b->a;
-          return visit(b, *this);
+          return visit(b);
         }
 
-        if (b->a->is_immediate()) {
+        if (b->a->is_immediate())
+        {
           // x / (a / y) -> 1/a * (x * y)
-          if (b->is_ratio()) {
-            node_ptr c = new Node(tag_v<PRODUCT>, a, b->b); // (x * y)
-            node_ptr d = new Node(tag_v<PRODUCT>, inverse(b->a), c);
-            return visit(d, *this);
+          if (b->is_ratio())
+          {
+            node_ptr c = make_product(a, b->b); // (x * y)
+            node_ptr d = make_product(inverse(b->a), c);
+            return visit(d);
           }
 
           // x / (a * y) -> 1/a * (x/y)
           node->b = b->b;                     // (x / y)
           b->a = inverse(b->a);               // 1/a *
           b->b = node;                        // 1/a * (x / y)
-          return visit(b, *this);
+          return visit(b);
         }
 
         node->a = a;
@@ -289,33 +292,33 @@ namespace ttl::optimizer
         if (a->is_ratio() and b->is_ratio())
         {
           swap(b->a, b->b);
-          b->b = new Node(tag_v<PRODUCT>, a->b, b->b);
-          node_ptr c = new Node(tag_v<PRODUCT>, a->a, b);
-          return visit(c, *this);
+          b->b = make_product(a->b, b->b);
+          node_ptr c = make_product(a->a, b);
+          return visit(c);
         }
 
         // (a / y) / (z * w) -> a / (y * (z * w))
         if (a->is_ratio())
         {
           node->a = a->a;
-          node->b = new Node(tag_v<PRODUCT>, a->b, b);
-          return visit(node, *this);
+          node->b = make_product(a->b, b);
+          return visit(node);
         }
 
         // (a * y) / (z / w) -> a * ((y * w) / z)
         if (b->is_ratio())
         {
           swap(b->a, b->b);
-          b->a = new Node(tag_v<PRODUCT>, a->b, b->a);
+          b->a = make_product(a->b, b->a);
           a->b = b;
-          return visit(a, *this);
+          return visit(a);
         }
 
         // (a * y) / (z * w) -> a * (y / (z * w))
         node->a = a->b;
         node->b = b;
         a->b = node;
-        return visit(a, *this);
+        return visit(a);
       }
 
       // (a · y) / (b · w)
@@ -324,8 +327,8 @@ namespace ttl::optimizer
       // (a / y) / (b / w) -> [a/b] / (y * w)
       if (a->is_ratio() and b->is_ratio()) {
         node->a = a->a / b->a;
-        node->b = new Node(tag_v<PRODUCT>, a->b, b->b);
-        return visit(node, *this);
+        node->b = make_product(a->b, b->b);
+        return visit(node);
       }
 
       // (a / y) / (b * w) -> [ab] * (w / y)
@@ -333,7 +336,7 @@ namespace ttl::optimizer
         b->a = a->a * b->a;
         a->a = b->a;
         b->b = a;
-        return visit(b, *this);
+        return visit(b);
       }
 
       // (a * y) / (b / w) -> [ab] * (y / w)
@@ -341,24 +344,24 @@ namespace ttl::optimizer
         a->a = a->a * b->a;
         b->a = a->b;
         a->b = b;
-        return visit(a, *this);
+        return visit(a);
       }
 
       // (a * y) / (b * w) -> [ab] / (y * w)
       node->a = a->a * a->b;
       b->a = a->b;
       node->b = b;
-      return visit(node, *this);
+      return visit(node);
     }
 
     constexpr auto operator()(tags::pow, node_ptr const& node) const
       -> node_ptr
     {
-      node_ptr a = visit(node->a, *this);
-      node_ptr b = visit(node->b, *this);
+      node_ptr a = visit(node->a);
+      node_ptr b = visit(node->b);
 
       if (b->is_zero()) {
-        return node_ptr(new Node(tag_v<RATIONAL>, 1));
+        return make_rational(1);
       }
 
       if (b->is_one()) {
@@ -370,34 +373,32 @@ namespace ttl::optimizer
       }
 
       if (a->tag == RATIONAL and b->tag == RATIONAL) {
-        return new Node(tag_v<RATIONAL>, pow(a->q, b->q));
+        return make_rational(pow(a->q, b->q));
       }
 
       // gcc can do doubles
+#if defined(__GNUC__) && !defined(__clang__)
+      if (a->is_immediate() and b->is_immediate()) {
+        return make_double(std::pow(a->as_double(), b->as_double()));
+      }
+#endif
 
       node->a = a;
       node->b = b;
       return node;
     }
 
-    constexpr auto operator()(tags::unary, node_ptr const& node) const
-      -> node_ptr
-    {
-      node->a = visit(node->a, *this);
-      return node;
-    }
-
     constexpr auto operator()(tags::negate, node_ptr const& node) const
       -> node_ptr
     {
-      node_ptr a = visit(node->a, *this);
+      node_ptr a = visit(node->a);
 
       if (a->is_immediate()) {
         return -a;
       }
 
       if (a->is_multiplication() and a->a->is_immediate()) {
-        return new Node(tag_v<PRODUCT>, -(a->a), a->b);
+        return make_product(-(a->a), a->b);
       }
 
       node->a = a;
@@ -411,12 +412,6 @@ namespace ttl::optimizer
         assert(false);
       }
       return node_ptr();
-    }
-
-    constexpr auto operator()(tags::leaf, node_ptr const& leaf) const
-      -> node_ptr
-    {
-      return leaf;
     }
   };
 }

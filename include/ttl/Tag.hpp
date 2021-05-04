@@ -116,6 +116,7 @@ namespace ttl
 
   namespace tags
   {
+    using all            = tag_t<ALL> const&;
     using binary         = tag_t<BINARY> const&;
     using addition       = tag_t<ADDITION> const&;
     using sum            = tag_t<SUM> const&;
@@ -144,53 +145,65 @@ namespace ttl
     using variable       = tag_t<VARIABLE> const&;
     using tensor         = tag_t<TENSOR> const&;
     using scalar         = tag_t<SCALAR> const&;
+
+    template <class T>
+    concept is_binary = (T::id | BINARY) != NO_TAG;
+
+    template <class T>
+    concept is_unary = (T::id | UNARY) != NO_TAG;
+
+    template <class T>
+    concept is_leaf = (T::id | LEAF) != NO_TAG;
   }
 
-  constexpr auto visit(Tag tag, auto&& op, auto&&... args) -> decltype(auto)
+  template <class Op, class... Args>
+  constexpr auto visit(Tag tag, Op&& op, Args&&... args)
+    -> decltype(auto)
   {
     switch (tag)
     {
-     case SUM:        return std::forward<decltype(op)>(op)(tag_v<SUM>,        std::forward<decltype(args)>(args)...);
-     case DIFFERENCE: return std::forward<decltype(op)>(op)(tag_v<DIFFERENCE>, std::forward<decltype(args)>(args)...);
-     case PRODUCT:    return std::forward<decltype(op)>(op)(tag_v<PRODUCT>,    std::forward<decltype(args)>(args)...);
-     case RATIO:      return std::forward<decltype(op)>(op)(tag_v<RATIO>,      std::forward<decltype(args)>(args)...);
-     case BIND:       return std::forward<decltype(op)>(op)(tag_v<BIND>,       std::forward<decltype(args)>(args)...);
-     case PARTIAL:    return std::forward<decltype(op)>(op)(tag_v<PARTIAL>,    std::forward<decltype(args)>(args)...);
-     case POW:        return std::forward<decltype(op)>(op)(tag_v<POW>,        std::forward<decltype(args)>(args)...);
-     case SQRT:       return std::forward<decltype(op)>(op)(tag_v<SQRT>,       std::forward<decltype(args)>(args)...);
-     case EXP:        return std::forward<decltype(op)>(op)(tag_v<EXP>,        std::forward<decltype(args)>(args)...);
-     case NEGATE:     return std::forward<decltype(op)>(op)(tag_v<NEGATE>,     std::forward<decltype(args)>(args)...);
-     case RATIONAL:   return std::forward<decltype(op)>(op)(tag_v<RATIONAL>,   std::forward<decltype(args)>(args)...);
-     case DOUBLE:     return std::forward<decltype(op)>(op)(tag_v<DOUBLE>,     std::forward<decltype(args)>(args)...);
-     case TENSOR:     return std::forward<decltype(op)>(op)(tag_v<TENSOR>,     std::forward<decltype(args)>(args)...);
-     case SCALAR:     return std::forward<decltype(op)>(op)(tag_v<SCALAR>,     std::forward<decltype(args)>(args)...);
-     case DELTA:      return std::forward<decltype(op)>(op)(tag_v<DELTA>,      std::forward<decltype(args)>(args)...);
-     case EPSILON:    return std::forward<decltype(op)>(op)(tag_v<EPSILON>,    std::forward<decltype(args)>(args)...);
+     case SUM:        return std::forward<Op>(op)(tag_v<SUM>,        std::forward<Args>(args)...);
+     case DIFFERENCE: return std::forward<Op>(op)(tag_v<DIFFERENCE>, std::forward<Args>(args)...);
+     case PRODUCT:    return std::forward<Op>(op)(tag_v<PRODUCT>,    std::forward<Args>(args)...);
+     case RATIO:      return std::forward<Op>(op)(tag_v<RATIO>,      std::forward<Args>(args)...);
+     case BIND:       return std::forward<Op>(op)(tag_v<BIND>,       std::forward<Args>(args)...);
+     case PARTIAL:    return std::forward<Op>(op)(tag_v<PARTIAL>,    std::forward<Args>(args)...);
+     case POW:        return std::forward<Op>(op)(tag_v<POW>,        std::forward<Args>(args)...);
+     case SQRT:       return std::forward<Op>(op)(tag_v<SQRT>,       std::forward<Args>(args)...);
+     case EXP:        return std::forward<Op>(op)(tag_v<EXP>,        std::forward<Args>(args)...);
+     case NEGATE:     return std::forward<Op>(op)(tag_v<NEGATE>,     std::forward<Args>(args)...);
+     case RATIONAL:   return std::forward<Op>(op)(tag_v<RATIONAL>,   std::forward<Args>(args)...);
+     case DOUBLE:     return std::forward<Op>(op)(tag_v<DOUBLE>,     std::forward<Args>(args)...);
+     case TENSOR:     return std::forward<Op>(op)(tag_v<TENSOR>,     std::forward<Args>(args)...);
+     case SCALAR:     return std::forward<Op>(op)(tag_v<SCALAR>,     std::forward<Args>(args)...);
+     case DELTA:      return std::forward<Op>(op)(tag_v<DELTA>,      std::forward<Args>(args)...);
+     case EPSILON:    return std::forward<Op>(op)(tag_v<EPSILON>,    std::forward<Args>(args)...);
      default:
       assert(false);
     };
     __builtin_unreachable();
   }
 
-  // constexpr auto visit(Tag a, Tag b, auto const& op, auto&&... args)
+  // template <class Op, class... Args>
+  // constexpr auto visit(Tag a, Tag b, auto const& op, Args&&... args)
   // {
   //   switch (b) {
-  //    case SUM:        return visit(a, op, tag_v<SUM>,        std::forward<decltype(args)>(args)...);
-  //    case DIFFERENCE: return visit(a, op, tag_v<Difference>, std::forward<decltype(args)>(args)...);
-  //    case PRODUCT:    return visit(a, op, tag_v<Product>,    std::forward<decltype(args)>(args)...);
-  //    case RATIO:      return visit(a, op, tag_v<Ratio>,      std::forward<decltype(args)>(args)...);
-  //    case BIND:       return visit(a, op, tag_v<Bind>,       std::forward<decltype(args)>(args)...);
-  //    case PARTIAL:    return visit(a, op, tag_v<Partial>,    std::forward<decltype(args)>(args)...);
-  //    case POW:        return visit(a, op, tag_v<Pow>,        std::forward<decltype(args)>(args)...);
-  //    case SQRT:       return visit(a, op, tag_v<Sqrt>,       std::forward<decltype(args)>(args)...);
-  //    case EXP:        return visit(a, op, tag_v<Exp>,        std::forward<decltype(args)>(args)...);
-  //    case NEGATE:     return visit(a, op, tag_v<Negate>,     std::forward<decltype(args)>(args)...);
-  //    case RATIONAL:   return visit(a, op, tag_v<RATIONAL>,   std::forward<decltype(args)>(args)...);
-  //    case DOUBLE:     return visit(a, op, tag_v<DOUBLE>,     std::forward<decltype(args)>(args)...);
-  //    case TENSOR:     return visit(a, op, tag_v<Tensor>,     std::forward<decltype(args)>(args)...);
-  //    case SCALAR:     return visit(a, op, tag_v<Scalar>,     std::forward<decltype(args)>(args)...);
-  //    case DELTA:      return visit(a, op, tag_v<Delta>,      std::forward<decltype(args)>(args)...);
-  //    case EPSILON:    return visit(a, op, tag_v<Epsilon>,    std::forward<decltype(args)>(args)...);
+  //    case SUM:        return visit(a, std::forward<Op>(op), tag_v<SUM>,        std::forward<Args>(args)...);
+  //    case DIFFERENCE: return visit(a, std::forward<Op>(op), tag_v<Difference>, std::forward<Args>(args)...);
+  //    case PRODUCT:    return visit(a, std::forward<Op>(op), tag_v<Product>,    std::forward<Args>(args)...);
+  //    case RATIO:      return visit(a, std::forward<Op>(op), tag_v<Ratio>,      std::forward<Args>(args)...);
+  //    case BIND:       return visit(a, std::forward<Op>(op), tag_v<Bind>,       std::forward<Args>(args)...);
+  //    case PARTIAL:    return visit(a, std::forward<Op>(op), tag_v<Partial>,    std::forward<Args>(args)...);
+  //    case POW:        return visit(a, std::forward<Op>(op), tag_v<Pow>,        std::forward<Args>(args)...);
+  //    case SQRT:       return visit(a, std::forward<Op>(op), tag_v<Sqrt>,       std::forward<Args>(args)...);
+  //    case EXP:        return visit(a, std::forward<Op>(op), tag_v<Exp>,        std::forward<Args>(args)...);
+  //    case NEGATE:     return visit(a, std::forward<Op>(op), tag_v<Negate>,     std::forward<Args>(args)...);
+  //    case RATIONAL:   return visit(a, std::forward<Op>(op), tag_v<RATIONAL>,   std::forward<Args>(args)...);
+  //    case DOUBLE:     return visit(a, std::forward<Op>(op), tag_v<DOUBLE>,     std::forward<Args>(args)...);
+  //    case TENSOR:     return visit(a, std::forward<Op>(op), tag_v<Tensor>,     std::forward<Args>(args)...);
+  //    case SCALAR:     return visit(a, std::forward<Op>(op), tag_v<Scalar>,     std::forward<Args>(args)...);
+  //    case DELTA:      return visit(a, std::forward<Op>(op), tag_v<Delta>,      std::forward<Args>(args)...);
+  //    case EPSILON:    return visit(a, std::forward<Op>(op), tag_v<Epsilon>,    std::forward<Args>(args)...);
   //    default:
   //     assert(false);
   //   };

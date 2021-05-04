@@ -1,9 +1,9 @@
 static constexpr const char USAGE[] =
- R"(sedov: run sedov
+ R"(ns: run the Navier-Stokes example
   Usage:
-      sedov (-h | --help)
-      sedov --version
-      sedov N [--constants] [--scalars] [-ptse] [--eqn <rhs>]... [--dot <rhs>]...
+      ns (-h | --help)
+      ns --version
+      ns N [--constants] [--scalars] [-ptse] [--eqn <rhs>]... [--dot <rhs>]...
 
   Options:
       -h, --help         Show this screen.
@@ -69,7 +69,9 @@ int run_ns(auto& args)
     }), ...);
   });
 
-  constexpr auto b = navier_stokes.simplify_equations(1);
+  // navier_stokes.simplify(ρ <<= ρ_rhs).print(stdout);
+
+  // constexpr auto b = navier_stokes.simplify_equations(1);
 
   navier_stokes.simplify_equations()([](auto const&... eqn) {
     (eqn.print(stdout), ...);

@@ -5,8 +5,10 @@
 #include "ttl/optimizer/ConstProp.hpp"
 #include "ttl/optimizer/Dot.hpp"
 #include "ttl/optimizer/LowerBinds.hpp"
+#include "ttl/optimizer/LowerPartials.hpp"
 #include "ttl/optimizer/Nodes.hpp"
 #include "ttl/optimizer/Print.hpp"
+#include "ttl/optimizer/Simplify.hpp"
 #include "ce/dvector.hpp"
 
 namespace ttl::optimizer
@@ -16,8 +18,10 @@ namespace ttl::optimizer
     ttl::Tensor const* lhs_;
     node_ptr rhs_;
 
-    constexpr static LowerBinds lower_binds = {};
-    constexpr static ConstProp const_prop = {};
+    constexpr static ConstProp         const_prop = {};
+    constexpr static LowerBinds       lower_binds = {};
+    constexpr static LowerPartials lower_partials = {};
+    constexpr static Simplify            simplify = {};
 
     constexpr Tree() = default;
 
@@ -72,6 +76,10 @@ namespace ttl::optimizer
 
       rhs_ = lower_binds(rhs_);
       rhs_ = const_prop(rhs_);
+      rhs_ = simplify(rhs_);
+      rhs_ = lower_partials(rhs_);
+      rhs_ = const_prop(rhs_);
+      rhs_ = simplify(rhs_);
     }
 
     constexpr auto operator()(auto&& op) const
