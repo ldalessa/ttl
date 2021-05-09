@@ -64,7 +64,7 @@ template <int N>
 int run_ns(auto& args)
 {
   navier_stokes.equations([](ttl::is_equation auto const&... eqn) {
-    (eqn([](ttl::Tensor const* lhs, const auto& rhs) {
+    (eqn([](ttl::TensorBase const* lhs, const auto& rhs) {
       fmt::print("{} = {}\n", *lhs, to_string(rhs));
     }), ...);
   });

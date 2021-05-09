@@ -5,7 +5,9 @@
 #include "ttl/ScalarIndex.hpp"
 #include "ttl/Tag.hpp"
 #include "ttl/Tensor.hpp"
+#include "ttl/TensorExpression.hpp"
 #include "ttl/concepts.hpp"
+#include "ttl/rank.hpp"
 #include "ce/dvector.hpp"
 #include <algorithm>
 #include <cassert>
@@ -22,13 +24,13 @@ namespace ttl
   {
     using is_parse_tree_tag = void;
 
-    Tag                 tags[M];
-    int                left_[M];
-    Rational              qs[M];
-    double                ds[M];
-    Tensor const*    tensors[M];
-    Index       tensor_index[M];
-    ScalarIndex scalar_index[M];
+    Tag                  tags[M];
+    int                 left_[M];
+    Rational               qs[M];
+    double                 ds[M];
+    TensorBase const* tensors[M];
+    Index        tensor_index[M];
+    ScalarIndex  scalar_index[M];
 
     int    size_= M;
     int   depth_ = 1;
@@ -96,7 +98,7 @@ namespace ttl
       *copy(begin(a.scalar_index), end(a.scalar_index), scalar_index) = {};
     }
 
-    constexpr ParseTree(Tensor const* a, Index const& i)
+    constexpr ParseTree(TensorBase const* a, Index const& i)
         : tags    { TENSOR }
         , left_   { 0 }
         , qs      { 1 }
@@ -109,7 +111,7 @@ namespace ttl
       assert(a);
     }
 
-    constexpr ParseTree(Tensor const* a, ScalarIndex const& i)
+    constexpr ParseTree(TensorBase const* a, ScalarIndex const& i)
         : tags    { SCALAR }
         , left_   { 0 }
         , qs      { 1 }
@@ -399,6 +401,10 @@ namespace ttl
       }
       return out;
     }
+
+    constexpr friend auto tag_invoke(rank_tag, ParseTree const& tree) {
+      return rank(tree.outer());
+    }
   };
 
   template <int A>
@@ -412,7 +418,19 @@ namespace ttl
     return ParseTree<1>(this, (is + ... + Index{}));
   }
 
-    constexpr auto Tensor::bind_scalar(std::signed_integral auto... is) const
+  constexpr auto Tensor::bind_scalar(std::signed_integral auto... is) const
+  {
+    return ParseTree<1>(this, ScalarIndex(std::in_place, is...));
+  }
+
+  template <kumi::product_type Eqns>
+  constexpr auto TensorExpression<Eqns>::bind_tensor(is_index auto... is) const
+  {
+    return ParseTree<1>(this, (is + ... + Index{}));
+  }
+
+  template <kumi::product_type Eqns>
+  constexpr auto TensorExpression<Eqns>::bind_scalar(std::signed_integral auto... is) const
   {
     return ParseTree<1>(this, ScalarIndex(std::in_place, is...));
   }

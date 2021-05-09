@@ -1,8 +1,9 @@
 #pragma once
 
-#include "ParseTree.hpp"
-#include "Tensor.hpp"
-#include "concepts.hpp"
+#include "ttl/ParseTree.hpp"
+#include "ttl/Tensor.hpp"
+#include "ttl/concepts.hpp"
+#include "ttl/rank.hpp"
 
 namespace ttl
 {
@@ -10,13 +11,14 @@ namespace ttl
   struct Equation {
     using is_equation_tag = void;
 
-    Tensor const* lhs;
+    TensorBase const* lhs;
     ParseTree<M> rhs;
 
-    constexpr Equation(Tensor const* lhs, ParseTree<M> rhs)
+    constexpr Equation(TensorBase const* lhs, ParseTree<M> rhs)
         : lhs(lhs)
         , rhs(std::move(rhs))
     {
+      assert(rank(lhs) == rank(rhs));
     }
 
     constexpr auto operator()(const auto& op) const
@@ -27,7 +29,7 @@ namespace ttl
 
     auto print(FILE* out) const
     {
-      fmt::print(out, "{} = {}\n", *lhs, to_string(*rhs));
+      fmt::print(out, "{} = {}\n", *lhs, to_string(rhs));
     }
 
     auto dot(FILE* file) const
@@ -35,8 +37,12 @@ namespace ttl
       fmt::memory_buffer out;
       fmt::format_to(out, "graph {} {{\n", *lhs);
       rhs.to_dot(out);
-      fmt::format_to(out, "{}", "}}\n");
+      fmt::format_to(out, "{}", "}\n");
       std::fwrite(out.data(), out.size(), 1, file);
+    }
+
+    constexpr friend auto tag_invoke(rank_tag, Equation const& equation) {
+      return rank(equation.lhs);
     }
   };
 

@@ -22,4 +22,9 @@ namespace ttl {
   concept is_system = requires {
     typename std::remove_cvref_t<T>::is_system_tag;
   };
+
+  template <class T>
+  concept is_tensor_expression = requires {
+    typename std::remove_cvref_t<T>::is_tensor_expression_tag;
+  };
 }

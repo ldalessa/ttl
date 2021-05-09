@@ -47,7 +47,7 @@ namespace ttl
     /// Currently limited to just checking to see if the tensor appears on the
     /// left-hand-side of a pde update equation. In the future we would like
     /// this to be more sophisticated.
-    constexpr bool is_constant(Tensor const* t) const
+    constexpr bool is_constant(TensorBase const* t) const
     {
       return lhs([&](auto const& ... u) {
         return ((t != u) && ...);
@@ -58,7 +58,7 @@ namespace ttl
     constexpr auto simplify(is_equation auto const& eqn) const
       -> optimizer::Tree
     {
-      return optimizer::Tree(eqn, [&](Tensor const* tensor) -> bool {
+      return optimizer::Tree(eqn, [&](TensorBase const* tensor) -> bool {
         return is_constant(tensor);
       });
     }

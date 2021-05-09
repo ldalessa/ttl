@@ -15,7 +15,7 @@ namespace ttl::optimizer
 {
   struct Tree
   {
-    ttl::Tensor const* lhs_;
+    ttl::TensorBase const* lhs_;
     node_ptr rhs_;
 
     constexpr static ConstProp         const_prop = {};
@@ -27,7 +27,7 @@ namespace ttl::optimizer
 
     constexpr Tree(is_equation auto const& eqn, auto const& constants)
     {
-      eqn([&](Tensor const* lhs, is_parse_tree auto const& rhs)
+      eqn([&](TensorBase const* lhs, is_parse_tree auto const& rhs)
       {
         lhs_ = lhs;
 

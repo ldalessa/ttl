@@ -1,5 +1,6 @@
 #pragma once
 
+#include "ttl/rank.hpp"
 #include <algorithm>
 #include <cassert>
 #include <concepts>
@@ -208,6 +209,10 @@ namespace ttl
   constexpr auto to_string(Index const& index) -> std::string_view
   {
     return { index.begin(), index.end() };
+  }
+
+  constexpr auto tag_invoke(rank_tag, Index const& index) {
+    return exclusive(index).size();
   }
 }
 

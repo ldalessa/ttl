@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ttl/Tag.hpp"
+#include "ttl/Tensor.hpp"
 
 namespace ttl::optimizer
 {
@@ -88,7 +89,7 @@ namespace ttl::optimizer
     node_ptr               b = {};
     Rational               q = { 1 };
     double                 d = 1.0;
-    Tensor const*     tensor = nullptr;
+    TensorBase const* tensor = nullptr;
     Index       tensor_index = {};
     ScalarIndex scalar_index = {};
     bool            constant = false;
@@ -100,7 +101,7 @@ namespace ttl::optimizer
                    node_ptr $b,
                    Rational const& q,
                    double d,
-                   Tensor const* tensor,
+                   TensorBase const* tensor,
                    Index const& tensor_index,
                    ScalarIndex const& scalar_index,
                    bool constant)

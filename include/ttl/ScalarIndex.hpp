@@ -1,6 +1,7 @@
 #pragma once
 
-#include "Index.hpp"
+#include "ttl/Index.hpp"
+#include "ttl/rank.hpp"
 #include <algorithm>
 #include <concepts>
 
@@ -111,6 +112,10 @@ namespace ttl
         data_[i] = 0;                           // reset and carry
       }
       return false;                             // overflow
+    }
+
+    constexpr friend auto tag_invoke(rank_tag, ScalarIndex const& index) {
+      return index.size();
     }
   };
 }

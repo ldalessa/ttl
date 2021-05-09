@@ -35,10 +35,15 @@ FetchContent_Declare(eve
   GIT_TAG            develop)
 FetchContent_MakeAvailable(eve)
 
+FetchContent_Declare(tag_invoke_wrapper
+  GIT_REPOSITORY     https://github.com/ldalessa/tag_invoke_wrapper.git
+  GIT_TAG            main)
+FetchContent_MakeAvailable(tag_invoke_wrapper)
+
 add_library(ttl_lib INTERFACE)
 target_include_directories(ttl_lib INTERFACE $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>)
 target_compile_definitions(ttl_lib INTERFACE TTL_MAX_PARSE_INDEX=${TTL_MAX_PARSE_INDEX})
-target_link_libraries(ttl_lib INTERFACE ce::ce eve::eve fmt::fmt ofw::ofw)
+target_link_libraries(ttl_lib INTERFACE ce::ce eve::eve fmt::fmt ofw::ofw tag_invoke_wrapper::tag_invoke)
 target_compile_features(ttl_lib INTERFACE cxx_std_20)
 add_library(ttl::ttl ALIAS ttl_lib)
 

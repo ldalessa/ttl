@@ -112,6 +112,11 @@ namespace ttl
       }
       return c;
     }
+
+    constexpr static auto tag_invoke(rank_tag, Rational const&) -> int
+    {
+      return 0;
+    }
   };
 
   namespace literals

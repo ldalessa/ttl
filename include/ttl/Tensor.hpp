@@ -3,12 +3,29 @@
 #include "Index.hpp"
 #include "Rational.hpp"
 #include "concepts.hpp"
+#include "rank.hpp"
 #include <string_view>
 #include <fmt/core.h>
 
 namespace ttl
 {
-  struct Tensor
+  struct TensorBase {
+    constexpr virtual ~TensorBase() = default;
+    constexpr friend bool operator==(TensorBase const&, TensorBase const&) = default;
+    constexpr friend auto operator<=>(TensorBase const&, TensorBase const&) = default;
+
+    constexpr virtual auto rank() const -> int = 0;
+
+    constexpr friend auto tag_invoke(rank_tag, TensorBase const *tensor) {
+      return tensor->rank();
+    }
+
+    constexpr friend auto tag_invoke(rank_tag, TensorBase const& tensor) {
+      return tensor.rank();
+    }
+  };
+
+  struct Tensor : TensorBase
   {
     std::string_view id_ = "";
     int order_ = -1;
@@ -23,6 +40,10 @@ namespace ttl
 
     constexpr friend bool operator==(Tensor const&, Tensor const&) = default;
     constexpr friend auto operator<=>(Tensor const&, Tensor const&) = default;
+
+    constexpr auto rank() const -> int override {
+      return order_;
+    }
 
     constexpr auto order() const -> int
     {
@@ -62,6 +83,14 @@ namespace ttl
     ///
     /// This is implemented in Equation in order to avoid circular includes.
     constexpr auto operator<<=(is_parse_tree auto) const;
+
+    constexpr friend auto tag_invoke(rank_tag, Tensor const *tensor) {
+      return tensor->order();
+    }
+
+    constexpr friend auto tag_invoke(rank_tag, Tensor const& tensor) {
+      return tensor.order();
+    }
   };
 
   constexpr auto to_string(const Tensor& t) -> std::string_view
@@ -86,14 +115,14 @@ namespace ttl
 }
 
 template <>
-struct fmt::formatter<ttl::Tensor>
+struct fmt::formatter<ttl::TensorBase>
 {
   constexpr auto parse(format_parse_context& ctx)
   {
     return ctx.begin();
   }
 
-  constexpr auto format(const ttl::Tensor& tensor, auto& ctx)
+  constexpr auto format(const ttl::TensorBase& tensor, auto& ctx)
   {
     return format_to(ctx.out(), "{}", to_string(tensor));
   }
