@@ -1,42 +1,36 @@
 #pragma once
 
+#include "ttl/Nodes.hpp"
 #include "ttl/Rational.hpp"
 #include "ttl/TensorIndex.hpp"
-#include "ttl/cpos.hpp"
-#include "ttl/tags.hpp"
-#include "ttl/intrusive_ptr.hpp"
-#include <ce/dvector.hpp>
+#include <concepts>
+
+#ifndef FWD
+#define FWD(a) std::forward<decltype(a)>(a)
+#endif
 
 namespace ttl
 {
-  struct LinkedNode
+  template <int A>
+  struct Tree
   {
-    struct LinkedNode_
-    {
-      int count = 0;
-      constexpr virtual void destroy() const = 0;
-      constexpr virtual auto size() const -> int = 0;
-      constexpr virtual auto outer_index() const -> TensorIndex = 0;
-      constexpr virtual auto tag() const -> TreeTag = 0;
-    };
+    using tree_tag_t = void;
 
-    intrusive_ptr<LinkedNode_> root;
+    node_ptr root;
 
-    template <class T>
-    constexpr LinkedNode(T t)
-        : root(new Box_<T>(std::move(t)))
+    constexpr Tree(Node* ptr)
+        : root(ptr)
     {
     }
 
-    template <class T>
-    constexpr LinkedNode(Box_<T> box)
-        : root(std::move(box))
+    constexpr auto tag() const -> int
     {
+      return root->tag();
     }
 
     constexpr auto size() const -> int
     {
-      return root->size();
+      return A;
     }
 
     constexpr auto outer_index() const -> TensorIndex
@@ -44,547 +38,249 @@ namespace ttl
       return root->outer_index();
     }
 
-    constexpr auto tag() const -> TreeTag
+    constexpr auto rank() const -> int
     {
-      return root->tag();
+      return root->rank();
     }
 
-    template <class T>
-    struct Box_ : LinkedNode_
+    constexpr auto operator*() const
+      -> Tree<A + 1>
     {
-      T data_;
-
-      constexpr Box_(T data)
-          : data_(std::move(data))
-      {
-      }
-
-      constexpr void destroy() const override
-      {
-        delete this;
-      }
-
-      constexpr auto size() const -> int override
-      {
-        return ttl::size(this->data_);
-      }
-
-      constexpr auto outer_index() const -> TensorIndex override
-      {
-        return ttl::outer_index(this->data_);
-      }
-
-      constexpr auto tag() const -> TreeTag override
-      {
-        return ttl::tag(this->data_);
-      }
-    };
-  };
-
-  struct Node
-  {
-    int count = 0;
-    TreeTag tag_;
-    constexpr Node(TreeTag tag)
-        : tag_(tag)
-    {
+      return { new Exponent(root) }; // copy root
     }
 
-    constexpr auto tag() const -> TreeTag
+    constexpr auto operator()(std::same_as<TensorIndex> auto... is) const
+      -> Tree<A + 1>
     {
-      return tag_;
+      return { new Bind(root, (is + ...)) }; // copy root
     }
-
-    constexpr virtual void destroy() const = 0;
-
-    constexpr virtual auto size() const -> int
-    {
-      return 1;
-    }
-
-    constexpr virtual auto outer_index() const -> TensorIndex
-    {
-      return {};
-    }
-  };
-
-  template <int N>
-  struct LinkedTree
-  {
-    using linked_tree_tag_t = void;
-
-    LinkedNode root;
-
-    template <class T>
-    constexpr LinkedTree(T t)
-        : root(std::move(t))
-    {
-    }
-
-    constexpr auto tag() const -> int
-    {
-      return root.tag();
-    }
-
-    constexpr auto outer_index() const -> TensorIndex
-    {
-      return root.outer_index();
-    }
-
-    constexpr LinkedTree<N + 1> operator*() const;
-    constexpr LinkedTree<N + 1> operator()(std::same_as<TensorIndex> auto... is) const;
   };
 
   template <class T>
-  concept linked_tree_t = requires {
-    typename std::remove_cvref_t<T>::linked_tree_tag_t;
+  concept tree_t = requires {
+    typename std::remove_cvref_t<T>::tree_tag_t;
   };
 
-  struct Node
+  template <class T>
+  concept expression_t =
+  tree_t<T> ||
+  std::same_as<std::remove_cvref_t<T>, Rational> ||
+  std::integral<T> ||
+  std::floating_point<T>;
+
+  template <expression_t... Exprs>
+  constexpr inline int tree_size_v = (tree_size_v<Exprs> + ... + 1);
+
+  template <expression_t Expr>
+  constexpr inline int tree_size_v<Expr> = 1;
+
+  template <int A>
+  constexpr inline int tree_size_v<Tree<A>> = A;
+
+  constexpr auto promote(tree_t auto&& a) -> node_ptr
   {
-    TreeTag tag_;
-    constexpr Node(TreeTag tag)
-        : tag_(tag)
-    {
-    }
+    return FWD(a).root;
+  }
 
-    constexpr auto tag() const -> TreeTag
-    {
-      return tag_;
-    }
-  };
-
-  struct Binary : Node
+  constexpr auto promote(Rational q) -> node_ptr
   {
-    LinkedNode a;
-    LinkedNode b;
+    return { new Literal(q) };
+  }
 
-    constexpr Binary(TreeTag tag, linked_tree_t auto&& a, linked_tree_t auto&& b)
-        : Node(tag)
-        , a(FWD(a).root)
-        , b(FWD(b).root)
-    {
-    }
-
-    constexpr auto size() const -> int
-    {
-      return a.size() + b.size() + 1;
-    }
-  };
-
-  struct Addition : Binary
+  constexpr auto promote(std::integral auto i) -> node_ptr
   {
-    constexpr Addition(TreeTag tag, linked_tree_t auto&& a, linked_tree_t auto&& b)
-        : Binary(tag, FWD(a), FWD(b))
-    {
-      assert(permutation(ttl::outer_index(this->a), ttl::outer_index(this->b)));
-    }
+    return { new Literal(i) };
+  }
 
-    constexpr auto outer_index() const -> TensorIndex
-    {
-      return ttl::outer_index(a);
-    }
-  };
-
-  struct Sum : Addition
+  constexpr auto promote(std::floating_point auto d) -> node_ptr
   {
-    constexpr Sum(linked_tree_t auto&& a, linked_tree_t auto&& b)
-        : Addition(SUM, FWD(a), FWD(b))
-    {
-    }
-  };
+    return { new Literal(int(d)) };
+  }
 
-  struct Difference : Addition
+  template <expression_t A, expression_t B>
+  constexpr auto operator+(A&& a, B&& b) -> Tree<tree_size_v<A, B>>
   {
-    constexpr Difference(linked_tree_t auto&& a, linked_tree_t auto&& b)
-        : Addition(DIFFERENCE, FWD(a), FWD(b))
-    {
-    }
-  };
+    return { new Sum(promote(FWD(a)), promote(FWD(b))) };
+  }
 
-  struct Contraction : Binary
-  {
-    constexpr Contraction(TreeTag tag, linked_tree_t auto&& a, linked_tree_t auto&& b)
-        : Binary(tag, FWD(a), FWD(b))
-    {
-    }
-
-    constexpr auto outer_index() const -> TensorIndex
-    {
-      return ttl::outer_index(a) ^ ttl::outer_index(b);
-    }
-  };
-
-  struct Product : Contraction
-  {
-    constexpr Product(linked_tree_t auto&& a, linked_tree_t auto&& b)
-        : Contraction(PRODUCT, FWD(a), FWD(b))
-    {
-    }
-  };
-
-  struct Ratio : Contraction
-  {
-    constexpr Ratio(linked_tree_t auto&& a, linked_tree_t auto&& b)
-        : Contraction(RATIO, FWD(a), FWD(b))
-    {
-    }
-  };
-
-  struct Unary : Node
-  {
-    LinkedNode a;
-
-    constexpr Unary(TreeTag tag, linked_tree_t auto&& a)
-        : Node(tag)
-        , a(FWD(a).root)
-    {
-    }
-
-    constexpr auto size() const -> int
-    {
-      return a.size() + 1;
-    }
-
-    constexpr auto outer_index() const -> TensorIndex
-    {
-      return ttl::outer_index(a);
-    }
-  };
-
-  struct Bind : Unary
-  {
-    TensorIndex index;
-
-    constexpr Bind(linked_tree_t auto&& a, TensorIndex i)
-        : Unary(BIND, FWD(a))
-        , index(i)
-    {
-      assert(ttl::rank(this->a) == ttl::rank(index));
-    }
-
-    constexpr auto outer_index() const -> TensorIndex
-    {
-      return index;
-    }
-  };
-
-  struct Negate : Unary
-  {
-    constexpr Negate(linked_tree_t auto&& a)
-        : Unary(NEGATE, FWD(a))
-    {
-    }
-  };
-
-  struct Exponent : Unary
-  {
-    constexpr Exponent(linked_tree_t auto&& a)
-        : Unary(EXPONENT, FWD(a))
-    {
-      assert(ttl::rank(this->a) == 0);
-    }
-  };
-
-  struct Partial : Unary
-  {
-    TensorIndex index;
-
-    constexpr Partial(linked_tree_t auto&& a, std::same_as<TensorIndex> auto... is)
-        : Unary(PARTIAL, FWD(a))
-        , index(is...)
-    {
-    }
-
-    constexpr auto outer_index() const -> TensorIndex
-    {
-      return exclusive(ttl::outer_index(a) + index);
-    }
-  };
-
-  struct CMath : Unary
-  {
-    CMathTag func;
-    Rational q;
-
-    constexpr CMath(linked_tree_t auto&& a, CMathTag f)
-        : Unary(CMATH, FWD(a))
-        , func(f)
-        , q()
-    {
-    }
-
-    constexpr CMath(linked_tree_t auto&& a, Rational q, CMathTag f)
-        : Unary(CMATH, FWD(a))
-        , func(f)
-        , q(std::move(q))
-    {
-    }
-  };
-
-  struct Leaf : Node
-  {
-    constexpr Leaf(TreeTag tag)
-        : Node(tag)
-    {
-    }
-
-    constexpr auto size() const -> int
-    {
-      return 1;
-    }
-  };
-
-  struct Delta : Leaf
-  {
-    TensorIndex index;
-
-    constexpr Delta(TensorIndex i)
-        : Leaf(DELTA)
-        , index(i)
-    {
-      assert(ttl::size(i) == 2);
-      assert(ttl::rank(i) == 2);
-    }
-
-    constexpr auto outer_index() const -> TensorIndex
-    {
-      return index;
-    }
-  };
-
-  struct Epsilon : Leaf
-  {
-    TensorIndex index;
-
-    constexpr Epsilon(TensorIndex i)
-        : Leaf(EPSILON)
-        , index(i)
-    {
-    }
-
-    constexpr auto outer_index() const -> TensorIndex
-    {
-      return index;
-    }
-  };
-
-  constexpr auto promote(linked_tree_t auto&& a) -> decltype(auto)
+  template <expression_t A>
+  constexpr auto operator+(A&& a) -> decltype(auto)
   {
     return FWD(a);
   }
 
-  constexpr auto promote(Rational q) -> LinkedTree<1>
+  template <expression_t A, expression_t B>
+  constexpr auto operator-(A&& a, B&& b) -> Tree<tree_size_v<A, B>>
   {
-    return { q };
+    return { new Difference(promote(FWD(a)), promote(FWD(b))) };
   }
 
-  constexpr auto promote(std::integral auto i) -> LinkedTree<1>
+  template <expression_t A>
+  constexpr auto operator-(A&& a) -> Tree<tree_size_v<A>>
   {
-    return { i };
+    return { new Negate(promote(FWD(a))) };
   }
 
-  constexpr auto promote(std::floating_point auto d) -> LinkedTree<1>
+  template <expression_t A, expression_t B>
+  constexpr auto operator*(A&& a, B&& b) -> Tree<tree_size_v<A, B>>
   {
-    return { d };
+    return { new Product(promote(FWD(a)), promote(FWD(b))) };
   }
 
-  template <int A, int B>
-  constexpr auto operator+(LinkedTree<A> a, LinkedTree<B> b) -> LinkedTree<A + B + 1>
+  template <expression_t A, expression_t B>
+  constexpr auto operator/(A&& a, B&& b) -> Tree<tree_size_v<A, B>>
   {
-    return { Sum(std::move(a), std::move(b)) };
+    return { new Ratio(promote(FWD(a)), promote(FWD(b))) };
   }
 
-  template <int A>
-  constexpr auto operator+(LinkedTree<A> a) -> LinkedTree<A>
+  template <expression_t A>
+  constexpr auto D(A&& a, std::same_as<TensorIndex> auto... is) -> Tree<tree_size_v<A>>
   {
-    return std::move(a);
+    return { new Partial(std::move(a), is...) };
   }
 
-  template <int A, int B>
-  constexpr auto operator-(LinkedTree<A> a, LinkedTree<B> b) -> LinkedTree<A + B + 1>
+  constexpr auto δ(TensorIndex i, TensorIndex j) -> Tree<1>
   {
-    return { Difference(std::move(a), std::move(b)) };
+    return { new Delta(i + j) };
   }
 
-  template <int A>
-  constexpr auto operator-(LinkedTree<A> a) -> LinkedTree<A + 1>
+  constexpr auto ε(std::same_as<TensorIndex> auto... is) -> Tree<1>
   {
-    return { Negate(std::move(a)) };
+    return { new Epsilon((is + ...)) };
   }
 
-  template <int A, int B>
-  constexpr auto operator*(LinkedTree<A> a, LinkedTree<B> b) -> LinkedTree<A + B + 1>
+  template <expression_t A>
+  constexpr auto abs(A&& a) -> Tree<tree_size_v<A>>
   {
-    return { Product(std::move(a), std::move(b)) };
+    assert(a.rank() == 0);
+    return { new CMath(promote(FWD(a)), ABS) };
   }
 
-  template <int A, int B>
-  constexpr auto operator/(LinkedTree<A> a, LinkedTree<B> b) -> LinkedTree<A + B + 1>
+  template <expression_t A>
+  constexpr auto fmin(A&& a, Rational q) -> Tree<tree_size_v<A>>
   {
-    return { Ratio(std::move(a), std::move(b)) };
+    assert(a.rank() == 0);
+    return { new CMath(promote(FWD(a)), std::move(q), FMIN) };
   }
 
-  template <int A>
-  constexpr auto LinkedTree<A>::operator*() const -> LinkedTree<A + 1>
+  template <expression_t A>
+  constexpr auto fmax(A&& a, Rational q) -> Tree<tree_size_v<A>>
   {
-    return { Exponent(*this) };
+    assert(a.rank() == 0);
+    return { new CMath(promote(FWD(a)), std::move(q), FMAX) };
   }
 
-  template <int A>
-  constexpr auto LinkedTree<A>::operator()(std::same_as<TensorIndex> auto... is) const -> LinkedTree<A + 1>
+  template <expression_t A>
+  constexpr auto exp(A&& a) -> Tree<tree_size_v<A>>
   {
-    return { Bind(*this, (is + ...)) };
+    return { new CMath(promote(FWD(a)), EXP) };
   }
 
-  template <int A>
-  constexpr auto D(LinkedTree<A> a, std::same_as<TensorIndex> auto... is) -> LinkedTree<A + 1>
+  template <expression_t A>
+  constexpr auto log(A&& a) -> Tree<tree_size_v<A>>
   {
-    return { Partial(std::move(a), is...) };
+    return { new CMath(promote(FWD(a)), LOG) };
   }
 
-  constexpr auto δ(TensorIndex i, TensorIndex j) -> LinkedTree<1>
+  template <expression_t A>
+  constexpr auto pow(A&& a, Rational q) -> Tree<tree_size_v<A>>
   {
-    return { Delta(i + j) };
+    return { new CMath(promote(FWD(a)), std::move(q), LOG) };
   }
 
-  constexpr auto ε(std::same_as<TensorIndex> auto... is) -> LinkedTree<1>
+  template <expression_t A>
+  constexpr auto sqrt(A&& a) -> Tree<tree_size_v<A>>
   {
-    return { Epsilon((is + ...)) };
+    return { new CMath(promote(FWD(a)), SQRT) };
   }
 
-  template <int A>
-  constexpr auto abs(LinkedTree<A> a) -> LinkedTree<A + 1>
+  template <expression_t A>
+  constexpr auto sin(A&& a) -> Tree<tree_size_v<A>>
   {
-    assert(ttl::rank(a) == 0);
-    return { CMath(std::move(a), ABS) };
+    return { new CMath(promote(FWD(a)), SIN) };
   }
 
-  template <int A>
-  constexpr auto fmin(LinkedTree<A> a, Rational q) -> LinkedTree<A + 1>
+  template <expression_t A>
+  constexpr auto cos(A&& a) -> Tree<tree_size_v<A>>
   {
-    assert(ttl::rank(a) == 0);
-    return { CMath(std::move(a), std::move(q), FMIN) };
+    return { new CMath(promote(FWD(a)), COS) };
   }
 
-  template <int A>
-  constexpr auto fmax(LinkedTree<A> a, Rational q) -> LinkedTree<A + 1>
+  template <expression_t A>
+  constexpr auto tan(A&& a) -> Tree<tree_size_v<A>>
   {
-    assert(ttl::rank(a) == 0);
-    return { CMath(std::move(a), std::move(q), FMAX) };
+    return { new CMath(promote(FWD(a)), TAN) };
   }
 
-  template <int A>
-  constexpr auto exp(LinkedTree<A> a) -> LinkedTree<A + 1>
+  template <expression_t A>
+  constexpr auto asin(A&& a) -> Tree<tree_size_v<A>>
   {
-    return { CMath(std::move(a), EXP) };
+    return { new CMath(promote(FWD(a)), ASIN) };
   }
 
-  template <int A>
-  constexpr auto log(LinkedTree<A> a) -> LinkedTree<A + 1>
+  template <expression_t A>
+  constexpr auto acos(A&& a) -> Tree<tree_size_v<A>>
   {
-    return { CMath(std::move(a), LOG) };
+    return { new CMath(promote(FWD(a)), ACOS) };
   }
 
-  template <int A>
-  constexpr auto pow(LinkedTree<A> a, Rational q) -> LinkedTree<A + 1>
+  template <expression_t A>
+  constexpr auto atan(A&& a) -> Tree<tree_size_v<A>>
   {
-    return { CMath(std::move(a), std::move(q), LOG) };
+    return { new CMath(promote(FWD(a)), ATAN) };
   }
 
-  template <int A>
-  constexpr auto sqrt(LinkedTree<A> a) -> LinkedTree<A + 1>
+  template <expression_t A>
+  constexpr auto atan2(A&& a) -> Tree<tree_size_v<A>>
   {
-    return { CMath(std::move(a), SQRT) };
+    return { new CMath(promote(FWD(a)), ATAN2) };
   }
 
-  template <int A>
-  constexpr auto sin(LinkedTree<A> a) -> LinkedTree<A + 1>
+  template <expression_t A>
+  constexpr auto sinh(A&& a) -> Tree<tree_size_v<A>>
   {
-    return { CMath(std::move(a), SIN) };
+    return { new CMath(promote(FWD(a)), SINH) };
   }
 
-  template <int A>
-  constexpr auto cos(LinkedTree<A> a) -> LinkedTree<A + 1>
+  template <expression_t A>
+  constexpr auto cosh(A&& a) -> Tree<tree_size_v<A>>
   {
-    return { CMath(std::move(a), COS) };
+    return { new CMath(promote(FWD(a)), COSH) };
   }
 
-  template <int A>
-  constexpr auto tan(LinkedTree<A> a) -> LinkedTree<A + 1>
+  template <expression_t A>
+  constexpr auto tanh(A&& a) -> Tree<tree_size_v<A>>
   {
-    return { CMath(std::move(a), TAN) };
+    return { new CMath(promote(FWD(a)), TANH) };
   }
 
-  template <int A>
-  constexpr auto asin(LinkedTree<A> a) -> LinkedTree<A + 1>
+  template <expression_t A>
+  constexpr auto asinh(A&& a) -> Tree<tree_size_v<A>>
   {
-    return { CMath(std::move(a), ASIN) };
+    return { new CMath(promote(FWD(a)), ASINH) };
   }
 
-  template <int A>
-  constexpr auto acos(LinkedTree<A> a) -> LinkedTree<A + 1>
+  template <expression_t A>
+  constexpr auto acosh(A&& a) -> Tree<tree_size_v<A>>
   {
-    return { CMath(std::move(a), ACOS) };
+    return { new CMath(promote(FWD(a)), ACOSH) };
   }
 
-  template <int A>
-  constexpr auto atan(LinkedTree<A> a) -> LinkedTree<A + 1>
+  template <expression_t A>
+  constexpr auto atanh(A&& a) -> Tree<tree_size_v<A>>
   {
-    return { CMath(std::move(a), ATAN) };
+    return { new CMath(promote(FWD(a)), ATANH) };
   }
 
-  template <int A>
-  constexpr auto atan2(LinkedTree<A> a) -> LinkedTree<A + 1>
+  template <expression_t A>
+  constexpr auto ceil(A&& a) -> Tree<tree_size_v<A>>
   {
-    return { CMath(std::move(a), ATAN2) };
+    return { new CMath(promote(FWD(a)), CEIL) };
   }
 
-  template <int A>
-  constexpr auto sinh(LinkedTree<A> a) -> LinkedTree<A + 1>
+  template <expression_t A>
+  constexpr auto floor(A&& a) -> Tree<tree_size_v<A>>
   {
-    return { CMath(std::move(a), SINH) };
-  }
-
-  template <int A>
-  constexpr auto cosh(LinkedTree<A> a) -> LinkedTree<A + 1>
-  {
-    return { CMath(std::move(a), COSH) };
-  }
-
-  template <int A>
-  constexpr auto tanh(LinkedTree<A> a) -> LinkedTree<A + 1>
-  {
-    return { CMath(std::move(a), TANH) };
-  }
-
-  template <int A>
-  constexpr auto asinh(LinkedTree<A> a) -> LinkedTree<A + 1>
-  {
-    return { CMath(std::move(a), ASINH) };
-  }
-
-  template <int A>
-  constexpr auto acosh(LinkedTree<A> a) -> LinkedTree<A + 1>
-  {
-    return { CMath(std::move(a), ACOSH) };
-  }
-
-  template <int A>
-  constexpr auto atanh(LinkedTree<A> a) -> LinkedTree<A + 1>
-  {
-    return { CMath(std::move(a), ATANH) };
-  }
-
-  template <int A>
-  constexpr auto ceil(LinkedTree<A> a) -> LinkedTree<A + 1>
-  {
-    return { CMath(std::move(a), CEIL) };
-  }
-
-  template <int A>
-  constexpr auto floor(LinkedTree<A> a) -> LinkedTree<A + 1>
-  {
-    return { CMath(std::move(a), FLOOR) };
+    return { new CMath(promote(FWD(a)), FLOOR) };
   }
 }

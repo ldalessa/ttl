@@ -30,9 +30,12 @@ constexpr bool foo()
   ttl::TensorIndex i('i');
   ttl::TensorIndex j('j');
   auto a = ttl::δ(i,j);
-  assert(ttl::outer_index(a) == (i + j));
-  ttl::LinkedTree<1> b(2);
-  auto c = a * a;
+  auto b = ttl::δ(i,j);
+  auto c = abs(-(+(a * b + 1) - 2)) * a;
+  auto d = c(j,i);
+  // assert(ttl::outer_index(a) == (i + j));
+  // ttl::LinkedTree<1> b(2);
+  // auto c = a * a;
   // auto c = -(a + a*b - a);
   // assert(ttl::outer_index(c) == (i + j));
   // auto d = c + c;
