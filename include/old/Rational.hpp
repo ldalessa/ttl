@@ -3,6 +3,7 @@
 #include <cassert>
 #include <numeric>
 #include <utility>
+#include <fmt/core.h>
 
 namespace ttl
 {
@@ -26,11 +27,6 @@ namespace ttl
       auto d = std::gcd(p, q);
       p /= d;
       q /= d;
-    }
-
-    constexpr auto rank() const -> int
-    {
-      return 0;
     }
 
     constexpr auto inverse() const -> Rational
@@ -116,6 +112,11 @@ namespace ttl
       }
       return c;
     }
+
+    constexpr static auto tag_invoke(rank_tag, Rational const&) -> int
+    {
+      return 0;
+    }
   };
 
   namespace literals
@@ -126,8 +127,6 @@ namespace ttl
     }
   }
 }
-
-#include <fmt/format.h>
 
 template <>
 struct fmt::formatter<ttl::Rational> {
