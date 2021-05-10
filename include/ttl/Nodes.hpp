@@ -1,8 +1,8 @@
 #pragma once
 
 #include "ttl/Rational.hpp"
+#include "ttl/Tags.hpp"
 #include "ttl/TensorIndex.hpp"
-#include "ttl/tags.hpp"
 
 namespace ttl
 {
