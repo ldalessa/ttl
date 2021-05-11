@@ -2,7 +2,7 @@
 
 #include "ttl/Rational.hpp"
 #include "ttl/TensorIndex.hpp"
-#include "ttl/tags.hpp"
+#include "ttl/Tags.hpp"
 #include <tag_invoke/tag_invoke.hpp>
 #include <utility>
 
@@ -173,4 +173,14 @@ namespace ttl
       return tag_invoke(*this, FWD(obj), FWD(buffer));
     }
   } dot;
+
+  // inline constexpr struct visit_tag_
+  // {
+  //   constexpr auto operator()(auto&&... args) const
+  //     noexcept(is_nothrow_tag_invocable_v<visit_tag_, decltype(args)...>)
+  //     -> tag_invoke_result_t<visit_tag_, decltype(args)...>
+  //   {
+  //     return tag_invoke(*this, FWD(args)...);
+  //   }
+  // } visit;
 }

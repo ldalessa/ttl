@@ -24,38 +24,28 @@ namespace {
   // constexpr ttl::ExecutableSystem<double, 3, test> test3d;
 }
 
-
-constexpr bool foo()
+constexpr auto foo()
 {
   ttl::TensorIndex i('i');
   ttl::TensorIndex j('j');
   auto a = ttl::δ(i,j);
   auto b = ttl::δ(i,j);
-  auto c = abs(-(+(a * b + 1) - 2)) * a;
-  auto d = c(j,i);
-  // assert(ttl::outer_index(a) == (i + j));
-  // ttl::LinkedTree<1> b(2);
-  // auto c = a * a;
-  // auto c = -(a + a*b - a);
-  // assert(ttl::outer_index(c) == (i + j));
-  // auto d = c + c;
-  // assert(ttl::outer_index(d) == (i + j));
-  // auto e = c * d / a;
-  // assert(ttl::outer_index(e) == (i + j));
-  // auto f = D(e, i, j);
-  // assert(ttl::outer_index(f) == ttl::TensorIndex{});
-  // auto g = abs(f);
-  // auto h = a ** g;
-  // auto k = fmin(h * a, 1) * ttl::δ(i,j);
-  // auto l = k(j,i);
-  return true;
+  auto c = a * b * a * b;
+  auto d = c + 1;
+  auto e = +c;
+  auto f = e - 2;
+  auto g = -f;
+  auto h = abs(g);
+  auto k = h * a;
+  auto l = k(j,i);
+  return l;
 }
 
-static_assert(foo());
+constexpr ttl::SerializedTree tree = foo();
 
 int main()
 {
-  foo();
+  ttl::SerializedTree tree = foo();
   // test.simplify_equations()([](auto const&... eqn) {
   //   (eqn.print(stdout), ...);
   // });

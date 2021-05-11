@@ -19,6 +19,21 @@ namespace ttl
     EPSILON
   };
 
+  constexpr inline bool is_binary(TreeTag tag)
+  {
+    return tag < NEGATE;
+  }
+
+  constexpr inline bool is_unary(TreeTag tag)
+  {
+    return NEGATE <= tag and tag < LITERAL;
+  }
+
+  constexpr inline bool is_leaf(TreeTag tag)
+  {
+    return LITERAL <= tag;
+  }
+
   enum CMathTag : int {
     ABS,
     FMIN,
