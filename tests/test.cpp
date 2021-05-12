@@ -48,6 +48,8 @@ int main()
   ttl::SerializedTree tree = foo();
   ttl::print(tree, stdout);
   puts("");
+  ttl::dot(tree, stdout);
+  puts("");
 
   // test.simplify_equations()([](auto const&... eqn) {
   //   (eqn.print(stdout), ...);

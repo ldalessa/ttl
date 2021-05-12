@@ -3,6 +3,7 @@
 #include "ttl/Nodes.hpp"
 #include "ttl/ParseTree.hpp"
 #include "ttl/cpos.hpp"
+#include <ce/dvector.hpp>
 #include <fmt/format.h>
 
 namespace ttl
@@ -15,6 +16,11 @@ namespace ttl
     constexpr SerializedTree(parse::Tree<M>&& tree)
     {
       serialize(*tree.root, 0);
+    }
+
+    constexpr auto id() const -> std::string_view
+    {
+      return "tree";
     }
 
     constexpr auto serialize(parse::Node const& n, int i) -> int
@@ -43,10 +49,23 @@ namespace ttl
       return visit(n, op);
     }
 
-    friend auto tag_invoke(dot_tag_, SerializedTree const& tree, fmt::memory_buffer &out)
-      -> fmt::memory_buffer&
+    void dot(fmt::memory_buffer &out) const
     {
-      return out;
+      ce::dvector<int> stack;
+      for (int i = 0; i < M; ++i) {
+        visit(nodes[i], parse::overloaded {
+            [&]<parse::binary_node_t Binary>(Binary&& node) {
+              node.dot(out, i, stack.pop_back(), stack.pop_back());
+            },
+            [&]<parse::unary_node_t Unary>(Unary&& node) {
+              node.dot(out, i, stack.pop_back());
+            },
+            [&]<parse::leaf_node_t Leaf>(Leaf&& node) {
+              node.dot(out, i);
+            }
+          });
+        stack.push_back(i);
+      }
     }
 
     void print(fmt::memory_buffer &out) const

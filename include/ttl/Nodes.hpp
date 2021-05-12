@@ -150,6 +150,19 @@ namespace ttl::parse
       return a->size() + b->size() + 1;
     }
 
+    void dot(fmt::memory_buffer& out, int i, int b, int a) const
+    {
+      auto outer = outer_index();
+      if (outer.size()) {
+        fmt::format_to(out, "\tnode{}[label=\"{} ↑{}\"]\n", i, tag(), outer);
+      }
+      else {
+        fmt::format_to(out, "\tnode{}[label=\"{}\"]\n", i, tag(), outer);
+      }
+      fmt::format_to(out, "\tnode{} -- node{}\n", i, a);
+      fmt::format_to(out, "\tnode{} -- node{}\n", i, b);
+    }
+
     void print(fmt::memory_buffer& out) const override
     {
       out.append(std::string_view("("));
@@ -291,6 +304,12 @@ namespace ttl::parse
       a->print(out);
       out.append(std::string_view(")"));
     }
+
+    virtual void dot(fmt::memory_buffer& out, int i, int a) const
+    {
+      fmt::format_to(out, "\tnode{}[label=\"{}\"]\n", i, tag());
+      fmt::format_to(out, "\tnode{} -- node{}\n", i, a);
+    }
   };
 
   template <class T>
@@ -298,11 +317,11 @@ namespace ttl::parse
     typename std::remove_cvref_t<T>::unary_node_tag;
   };
 
-  struct Bind final : Unary
+  struct Binder : Unary
   {
     TensorIndex index;
 
-    constexpr Bind(node_ptr a, TensorIndex i)
+    constexpr Binder(node_ptr a, TensorIndex i)
         : Unary(std::move(a))
         , index(i)
     {
@@ -311,7 +330,35 @@ namespace ttl::parse
 
     constexpr auto outer_index() const -> TensorIndex override
     {
-      return index;
+      return exclusive(a->outer_index() + index);
+    }
+
+    void print(fmt::memory_buffer& out) const override
+    {
+      fmt::format_to(out, "{}(", tag());
+      a->print(out);
+      fmt::format_to(out, ",{})", index);
+    }
+
+    void dot(fmt::memory_buffer& out, int i, int a) const override
+    {
+      TensorIndex outer = outer_index();
+      TensorIndex child = this->a->outer_index();
+      if (outer.size()) {
+        fmt::format_to(out, "\tnode{}[label=\"{}({},{}) ↑{}\"]\n", i, tag(), child, index, outer);
+      }
+      else {
+        fmt::format_to(out, "\tnode{}[label=\"{}({},{})\"]\n", i, tag(), child, index);
+      }
+      fmt::format_to(out, "\tnode{} -- node{}\n", i, a);
+    }
+  };
+
+  struct Bind final : Binder
+  {
+    constexpr Bind(node_ptr a, TensorIndex index)
+        : Binder(std::move(a), index)
+    {
     }
 
     constexpr void destroy() const override
@@ -323,12 +370,23 @@ namespace ttl::parse
     {
       return BIND;
     }
+  };
 
-    void print(fmt::memory_buffer& out) const override
+  struct Partial final : Binder
+  {
+    constexpr Partial(node_ptr a, TensorIndex index)
+        : Binder(std::move(a), index)
     {
-      fmt::format_to(out, "{}(", tag());
-      a->print(out);
-      fmt::format_to(out, ",{})", index);
+    }
+
+    constexpr void destroy() const override
+    {
+      delete this;
+    }
+
+    constexpr auto tag() const -> TreeTag override
+    {
+      return PARTIAL;
     }
   };
 
@@ -369,32 +427,6 @@ namespace ttl::parse
     }
   };
 
-  struct Partial final : Unary
-  {
-    TensorIndex index;
-
-    constexpr Partial(node_ptr a, std::same_as<TensorIndex> auto... is)
-        : Unary(std::move(a))
-        , index(is...)
-    {
-    }
-
-    constexpr auto outer_index() const -> TensorIndex override
-    {
-      return exclusive(a->outer_index() + index);
-    }
-
-    constexpr void destroy() const override
-    {
-      delete this;
-    }
-
-    constexpr auto tag() const -> TreeTag override
-    {
-      return PARTIAL;
-    }
-  };
-
   struct CMath final : Unary
   {
     CMathTag func;
@@ -431,11 +463,24 @@ namespace ttl::parse
       out.append(std::string_view(")"));
     }
 
+    void dot(fmt::memory_buffer& out, int i, int a) const override
+    {
+      TensorIndex index = outer_index();
+      if (index.size()) {
+        fmt::format_to(out, "\tnode{}[label=\"{} ↑{}\"]\n", i, func, index);
+      }
+      else {
+        fmt::format_to(out, "\tnode{}[label=\"{}\"]\n", i, func);
+      }
+      fmt::format_to(out, "\tnode{} -- node{}\n", i, a);
+    }
   };
 
   struct Leaf : Node
   {
     using leaf_node_tag = void;
+
+    virtual void dot(fmt::memory_buffer& out, int i) const = 0;
   };
 
   template <class T>
@@ -460,6 +505,11 @@ namespace ttl::parse
     constexpr auto tag() const -> TreeTag override
     {
       return LITERAL;
+    }
+
+    void dot(fmt::memory_buffer& out, int i) const override
+    {
+      fmt::format_to(out, "\tnode{}[label=\"{}()\"]\n", i, tag());
     }
 
     void print(fmt::memory_buffer& out) const override
@@ -494,6 +544,11 @@ namespace ttl::parse
       return DELTA;
     }
 
+    void dot(fmt::memory_buffer& out, int i) const override
+    {
+      fmt::format_to(out, "\tnode{}[label=\"{}({})\"]\n", i, tag(), index);
+    }
+
     void print(fmt::memory_buffer& out) const override
     {
       fmt::format_to(out, "{}({})", tag(), index);
@@ -522,6 +577,11 @@ namespace ttl::parse
     constexpr auto tag() const -> TreeTag override
     {
       return EPSILON;
+    }
+
+    void dot(fmt::memory_buffer& out, int i) const override
+    {
+      fmt::format_to(out, "\tnode{}[label=\"{}({})\"]\n", i, tag(), index);
     }
 
     void print(fmt::memory_buffer& out) const override

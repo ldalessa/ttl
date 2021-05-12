@@ -4,6 +4,7 @@
 #include "ttl/TensorIndex.hpp"
 #include "ttl/Tags.hpp"
 #include <tag_invoke/tag_invoke.hpp>
+#include <string_view>
 #include <utility>
 
 #ifndef FWD
@@ -12,6 +13,35 @@
 
 namespace ttl
 {
+  inline constexpr struct id_tag_
+  {
+    constexpr friend auto tag_invoke(id_tag_, auto&& obj) -> std::string_view
+      requires requires {FWD(obj).id();}
+    {
+      return FWD(obj).id();
+    }
+
+    constexpr friend auto tag_invoke(id_tag_, Rational const&) -> std::string_view
+    {
+      return "";
+    }
+
+    constexpr friend auto tag_invoke(id_tag_, std::integral auto) -> std::string_view
+    {
+      return "";
+    }
+
+    constexpr friend auto tag_invoke(id_tag_, std::floating_point auto) -> std::string_view
+    {
+      return "";
+    }
+
+    constexpr auto operator()(auto&& obj) const -> std::string_view
+    {
+      return tag_invoke(*this, FWD(obj));
+    }
+  } id;
+
   inline constexpr struct size_tag_
   {
     constexpr friend auto tag_invoke(size_tag_, auto&& obj) -> int
@@ -176,16 +206,23 @@ namespace ttl
 
   inline constexpr struct dot_tag_
   {
+    friend auto tag_invoke(dot_tag_, auto&& obj, fmt::memory_buffer& out)
+      requires requires {FWD(obj).dot(out);}
+    {
+      return FWD(obj).dot(out);
+    }
+
     friend void tag_invoke(dot_tag_ tag, auto&& obj, FILE *file)
     {
       fmt::memory_buffer out;
+      fmt::format_to(out, "graph {} {{\n", id(obj));
       tag_invoke(tag, FWD(obj), out);
+      fmt::format_to(out, "}}\n");
       std::fwrite(out.data(), out.size(), 1, file);
     }
 
-    auto operator()(auto&& obj, auto&& buffer) const
+    void operator()(auto&& obj, auto&& buffer) const
       noexcept(is_nothrow_tag_invocable_v<dot_tag_, decltype(obj), decltype(buffer)>)
-      -> tag_invoke_result_t<dot_tag_, decltype(obj), decltype(buffer)>
     {
       return tag_invoke(*this, FWD(obj), FWD(buffer));
     }

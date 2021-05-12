@@ -140,7 +140,7 @@ namespace ttl::parse
   template <expression A>
   constexpr auto D(A&& a, std::same_as<TensorIndex> auto... is) -> tree_t<A>
   {
-    return { new Partial(std::move(a), is...) };
+    return { new Partial(std::move(a), {is...}) };
   }
 
   template <expression A>
