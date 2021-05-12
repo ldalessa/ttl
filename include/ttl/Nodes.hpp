@@ -5,7 +5,7 @@
 #include "ttl/TensorIndex.hpp"
 #include "ttl/cpos.hpp"
 #include <memory>
-#include <variant>
+#include <string_view>
 
 #ifndef FWD
 #define FWD(a) std::forward<decltype(a)>(a)
@@ -39,6 +39,8 @@ namespace ttl::parse
     {
       return outer_index().size();
     }
+
+    constexpr virtual void print(fmt::memory_buffer&) const = 0;
   };
 
   template <class T>
@@ -146,6 +148,15 @@ namespace ttl::parse
     constexpr auto size() const -> int override
     {
       return a->size() + b->size() + 1;
+    }
+
+    void print(fmt::memory_buffer& out) const override
+    {
+      out.append(std::string_view("("));
+      a->print(out);
+      fmt::format_to(out, " {} ", tag());
+      b->print(out);
+      out.append(std::string_view(")"));
     }
   };
 
@@ -273,6 +284,13 @@ namespace ttl::parse
     {
       return a->outer_index();
     }
+
+    void print(fmt::memory_buffer& out) const override
+    {
+      fmt::format_to(out, "{}(", tag());
+      a->print(out);
+      out.append(std::string_view(")"));
+    }
   };
 
   template <class T>
@@ -304,6 +322,13 @@ namespace ttl::parse
     constexpr auto tag() const -> TreeTag override
     {
       return BIND;
+    }
+
+    void print(fmt::memory_buffer& out) const override
+    {
+      fmt::format_to(out, "{}(", tag());
+      a->print(out);
+      fmt::format_to(out, ",{})", index);
     }
   };
 
@@ -378,7 +403,7 @@ namespace ttl::parse
     constexpr CMath(node_ptr a, CMathTag f)
         : Unary(std::move(a))
         , func(f)
-        , q()
+        , q(0)
     {
     }
 
@@ -398,6 +423,14 @@ namespace ttl::parse
     {
       return CMATH;
     }
+
+    void print(fmt::memory_buffer& out) const override
+    {
+      fmt::format_to(out, "{}(", func);
+      a->print(out);
+      out.append(std::string_view(")"));
+    }
+
   };
 
   struct Leaf : Node
@@ -428,6 +461,11 @@ namespace ttl::parse
     {
       return LITERAL;
     }
+
+    void print(fmt::memory_buffer& out) const override
+    {
+      fmt::format_to(out, "{}", q);
+    }
   };
 
   struct Delta final : Leaf
@@ -455,6 +493,11 @@ namespace ttl::parse
     {
       return DELTA;
     }
+
+    void print(fmt::memory_buffer& out) const override
+    {
+      fmt::format_to(out, "{}({})", tag(), index);
+    }
   };
 
   struct Epsilon final : Leaf
@@ -480,6 +523,11 @@ namespace ttl::parse
     {
       return EPSILON;
     }
+
+    void print(fmt::memory_buffer& out) const override
+    {
+      fmt::format_to(out, "{}({})", tag(), index);
+    }
   };
 
   // helper type for the visitor #4
@@ -488,7 +536,7 @@ namespace ttl::parse
   template<class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
   // constexpr auto tag_invoke(visit_tag_, node_t auto const& n, auto&& op)
-  constexpr auto visit(Node const& node, auto&& op)
+  constexpr auto tag_invoke(visit_tag_, Node const& node, auto&& op)
   {
     switch (node.tag())
     {
@@ -510,13 +558,12 @@ namespace ttl::parse
     __builtin_unreachable();
   }
 
-  struct AnyNode : Node
+  struct AnyNode final : Node
   {
     using any_node_tag = void;
 
     TreeTag tag_;
     union {
-      std::monostate _ = {};
       Sum sum;
       Difference difference;
       Product product;
@@ -531,7 +578,7 @@ namespace ttl::parse
       Epsilon epsilon;
     };
 
-    constexpr AnyNode() : _() {}
+    constexpr AnyNode() {}
     constexpr ~AnyNode()
     {
     }
@@ -614,7 +661,7 @@ namespace ttl::parse
       return *std::construct_at(&epsilon, b);
     }
 
-    constexpr friend auto visit(AnyNode const& n, auto&& op)
+    constexpr friend auto tag_invoke(visit_tag_, AnyNode const& n, auto&& op)
     {
       switch (n.tag_)
       {
@@ -640,24 +687,29 @@ namespace ttl::parse
     {
     }
 
-    constexpr virtual auto tag() const -> TreeTag override
+    constexpr auto tag() const -> TreeTag override
     {
       return tag_;
     }
 
-    constexpr virtual auto size() const -> int override
+    constexpr auto size() const -> int override
     {
       return visit(*this, [&](node_t auto&& b) { return FWD(b).size(); });
     }
 
-    constexpr virtual auto outer_index() const -> TensorIndex override
+    constexpr auto outer_index() const -> TensorIndex override
     {
       return visit(*this, [&](node_t auto&& b) { return FWD(b).outer_index(); });
     }
 
-    constexpr virtual auto rank() const -> int override
+    constexpr auto rank() const -> int override
     {
       return visit(*this, [&](node_t auto&& b) { return FWD(b).rank(); });
+    }
+
+    void print(fmt::memory_buffer& out) const override
+    {
+      return visit(*this, [&](node_t auto&& b) { return FWD(b).print(out); });
     }
   };
 

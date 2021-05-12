@@ -12,8 +12,6 @@
 
 namespace ttl
 {
-  enum TreeTag : int;
-
   inline constexpr struct size_tag_
   {
     constexpr friend auto tag_invoke(size_tag_, auto&& obj) -> int
@@ -156,17 +154,36 @@ namespace ttl
 
   inline constexpr struct print_tag_
   {
-    constexpr auto operator()(auto&&... args) const
-      noexcept(is_nothrow_tag_invocable_v<print_tag_, decltype(args)...>)
-      -> tag_invoke_result_t<print_tag_, decltype(args)...>
+    friend auto tag_invoke(print_tag_, auto&& obj, fmt::memory_buffer& out)
+      requires requires {FWD(obj).print(out);}
     {
-      return tag_invoke(*this, FWD(args)...);
+      return FWD(obj).print(out);
+    }
+
+    friend void tag_invoke(print_tag_ tag, auto&& obj, FILE *file)
+    {
+      fmt::memory_buffer out;
+      tag_invoke(tag, FWD(obj), out);
+      std::fwrite(out.data(), out.size(), 1, file);
+    }
+
+    void operator()(auto&& obj, auto&& out) const
+      noexcept(is_nothrow_tag_invocable_v<print_tag_, decltype(obj), decltype(out)>)
+    {
+      return tag_invoke(*this, FWD(obj), FWD(out));
     }
   } print;
 
   inline constexpr struct dot_tag_
   {
-    constexpr auto operator()(auto&& obj, auto&& buffer) const
+    friend void tag_invoke(dot_tag_ tag, auto&& obj, FILE *file)
+    {
+      fmt::memory_buffer out;
+      tag_invoke(tag, FWD(obj), out);
+      std::fwrite(out.data(), out.size(), 1, file);
+    }
+
+    auto operator()(auto&& obj, auto&& buffer) const
       noexcept(is_nothrow_tag_invocable_v<dot_tag_, decltype(obj), decltype(buffer)>)
       -> tag_invoke_result_t<dot_tag_, decltype(obj), decltype(buffer)>
     {
@@ -174,13 +191,13 @@ namespace ttl
     }
   } dot;
 
-  // inline constexpr struct visit_tag_
-  // {
-  //   constexpr auto operator()(auto&&... args) const
-  //     noexcept(is_nothrow_tag_invocable_v<visit_tag_, decltype(args)...>)
-  //     -> tag_invoke_result_t<visit_tag_, decltype(args)...>
-  //   {
-  //     return tag_invoke(*this, FWD(args)...);
-  //   }
-  // } visit;
+  inline constexpr struct visit_tag_
+  {
+    constexpr auto operator()(auto&&... args) const
+      noexcept(is_nothrow_tag_invocable_v<visit_tag_, decltype(args)...>)
+      -> tag_invoke_result_t<visit_tag_, decltype(args)...>
+    {
+      return tag_invoke(*this, FWD(args)...);
+    }
+  } visit;
 }

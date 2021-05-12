@@ -41,11 +41,14 @@ constexpr auto foo()
   return l;
 }
 
-constexpr ttl::SerializedTree tree = foo();
+// constexpr ttl::SerializedTree tree = foo();
 
 int main()
 {
-  // ttl::SerializedTree tree = foo();
+  ttl::SerializedTree tree = foo();
+  ttl::print(tree, stdout);
+  puts("");
+
   // test.simplify_equations()([](auto const&... eqn) {
   //   (eqn.print(stdout), ...);
   // });

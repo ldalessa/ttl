@@ -4,6 +4,7 @@
 
 namespace ttl
 {
+  template <class...>
   struct Tensor
   {
     std::string_view id_ = {};
