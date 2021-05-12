@@ -30,7 +30,7 @@ constexpr auto foo()
   ttl::TensorIndex j('j');
   auto a = ttl::δ(i,j);
   auto b = ttl::δ(i,j);
-  auto c = a * b * a * b;
+  auto c = a * b;
   auto d = c + 1;
   auto e = +c;
   auto f = e - 2;
@@ -45,7 +45,7 @@ constexpr ttl::SerializedTree tree = foo();
 
 int main()
 {
-  ttl::SerializedTree tree = foo();
+  // ttl::SerializedTree tree = foo();
   // test.simplify_equations()([](auto const&... eqn) {
   //   (eqn.print(stdout), ...);
   // });

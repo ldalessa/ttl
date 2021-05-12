@@ -5,6 +5,7 @@
 #include "ttl/TensorIndex.hpp"
 #include "ttl/cpos.hpp"
 #include <memory>
+#include <variant>
 
 #ifndef FWD
 #define FWD(a) std::forward<decltype(a)>(a)
@@ -133,36 +134,18 @@ namespace ttl::parse
   {
     using binary_node_tag = void;
 
-    node_ptr children_[2];
+    node_ptr a;
+    node_ptr b;
 
     constexpr Binary(node_ptr a, node_ptr b)
-        : children_ { std::move(a), std::move(b) }
+        : a(std::move(a))
+        , b(std::move(b))
     {
-    }
-
-    constexpr auto a() const -> node_ptr const&
-    {
-      return children_[0];
-    }
-
-    constexpr auto a() -> node_ptr&
-    {
-      return children_[0];
-    }
-
-    constexpr auto b() const -> node_ptr const&
-    {
-      return children_[1];
-    }
-
-    constexpr auto b() -> node_ptr&
-    {
-      return children_[1];
     }
 
     constexpr auto size() const -> int override
     {
-      return a()->size() + b()->size() + 1;
+      return a->size() + b->size() + 1;
     }
   };
 
@@ -176,12 +159,12 @@ namespace ttl::parse
     constexpr Addition(node_ptr a, node_ptr b)
         : Binary(std::move(a), std::move(b))
     {
-      assert(permutation(this->a()->outer_index(), this->b()->outer_index()));
+      assert(permutation(this->a->outer_index(), this->b->outer_index()));
     }
 
     constexpr auto outer_index() const -> TensorIndex override
     {
-      return a()->outer_index();
+      return a->outer_index();
     }
   };
 
@@ -230,7 +213,7 @@ namespace ttl::parse
 
     constexpr auto outer_index() const -> TensorIndex override
     {
-      return a()->outer_index() ^ b()->outer_index();
+      return a->outer_index() ^ b->outer_index();
     }
   };
 
@@ -274,31 +257,21 @@ namespace ttl::parse
   {
     using unary_node_tag = void;
 
-    node_ptr children_[1];
+    node_ptr a;
 
     constexpr Unary(node_ptr a)
-        : children_ { std::move(a) }
+        : a(std::move(a))
     {
-    }
-
-    constexpr auto a() const -> node_ptr const&
-    {
-      return children_[0];
-    }
-
-    constexpr auto a() -> node_ptr&
-    {
-      return children_[0];
     }
 
     constexpr auto size() const -> int override
     {
-      return a()->size() + 1;
+      return a->size() + 1;
     }
 
     constexpr auto outer_index() const -> TensorIndex override
     {
-      return a()->outer_index();
+      return a->outer_index();
     }
   };
 
@@ -315,7 +288,7 @@ namespace ttl::parse
         : Unary(std::move(a))
         , index(i)
     {
-      assert(this->a()->rank() == index.rank());
+      assert(this->a->rank() == index.rank());
     }
 
     constexpr auto outer_index() const -> TensorIndex override
@@ -357,7 +330,7 @@ namespace ttl::parse
     constexpr Exponent(node_ptr a)
         : Unary(std::move(a))
     {
-      assert(this->a()->rank() == 0);
+      assert(this->a->rank() == 0);
     }
 
     constexpr void destroy() const override
@@ -383,7 +356,7 @@ namespace ttl::parse
 
     constexpr auto outer_index() const -> TensorIndex override
     {
-      return exclusive(a()->outer_index() + index);
+      return exclusive(a->outer_index() + index);
     }
 
     constexpr void destroy() const override
@@ -543,6 +516,7 @@ namespace ttl::parse
 
     TreeTag tag_;
     union {
+      std::monostate _ = {};
       Sum sum;
       Difference difference;
       Product product;
@@ -557,8 +531,10 @@ namespace ttl::parse
       Epsilon epsilon;
     };
 
-    constexpr AnyNode() {}
-    constexpr ~AnyNode() {}
+    constexpr AnyNode() : _() {}
+    constexpr ~AnyNode()
+    {
+    }
 
     constexpr AnyNode& operator=(Node const& b)
     {

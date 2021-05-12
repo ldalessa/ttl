@@ -19,17 +19,17 @@ namespace ttl
     {
       parse::overloaded op = {
         [&]<parse::binary_node_t Binary>(Binary&& n) -> int {
-          int a = i = serialize(*n.a(), i);
-          int b = i = serialize(*n.b(), i);
+          int a = i = serialize(*n.a, i);
+          int b = i = serialize(*n.b, i);
           auto& c = nodes[i] = n;
-          c.a() = nodes + a;
-          c.b() = nodes + b;
+          c.a = nodes + a;
+          c.b = nodes + b;
           return ++i;
         },
         [&]<parse::unary_node_t Unary>(Unary&& n) -> int {
-          int a = i = serialize(*n.a(), i);
+          int a = i = serialize(*n.a, i);
           auto& b = nodes[i] = n;
-          b.a() = nodes + a;
+          b.a = nodes + a;
           return ++i;
         },
         [&]<parse::leaf_node_t Leaf>(Leaf&&) -> int {
