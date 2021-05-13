@@ -24,32 +24,39 @@ namespace {
   // constexpr ttl::ExecutableSystem<double, 3, test> test3d;
 }
 
+constexpr ttl::Tensor α = ttl::scalar("α");
+constexpr ttl::Tensor β = ttl::vector("β");
+
 constexpr auto foo()
 {
   ttl::TensorIndex i('i');
-  ttl::TensorIndex j('j');
-  auto a = ttl::δ(i,j);
-  auto b = ttl::δ(i,j);
-  auto c = a * b;
-  auto d = c + 1;
-  auto e = +c;
-  auto f = e - 2;
-  auto g = -f;
-  auto h = abs(g);
-  auto k = h * a;
-  auto l = k(j,i);
-  return l;
+  auto a = α * β(i);
+  return a;
+  // ttl::TensorIndex j('j');
+  // auto a = ttl::δ(i,j);
+  // auto b = ttl::δ(i,j);
+  // auto c = a * b;
+  // auto d = c + 1;
+  // auto e = +c;
+  // auto f = e - 2;
+  // auto g = -f;
+  // auto h = abs(g);
+  // auto k = h * a;
+  // auto l = k(j,i);
+  // return l;
 }
 
 // constexpr ttl::SerializedTree tree = foo();
 
 int main()
 {
-  ttl::SerializedTree tree = foo();
-  ttl::print(tree, stdout);
+  ttl::Tensor a = foo();
+  ttl::Tensor b = foo();
+  ttl::Tensor c = a + b;
+  ttl::print(c, stdout);
   puts("");
-  ttl::dot(tree, stdout);
-  puts("");
+  // ttl::dot(c, stdout);
+  // puts("");
 
   // test.simplify_equations()([](auto const&... eqn) {
   //   (eqn.print(stdout), ...);

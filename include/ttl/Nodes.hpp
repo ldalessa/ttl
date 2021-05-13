@@ -3,15 +3,23 @@
 #include "ttl/Rational.hpp"
 #include "ttl/Tags.hpp"
 #include "ttl/TensorIndex.hpp"
+#include "ttl/TensorRef.hpp"
 #include "ttl/cpos.hpp"
 #include <memory>
+#include <raberu.hpp>
 #include <string_view>
 
 #ifndef FWD
 #define FWD(a) std::forward<decltype(a)>(a)
 #endif
 
-namespace ttl::parse
+namespace ttl::prop
+{
+  using namespace rbr::literals;
+  inline constexpr auto id = "id"_kw;
+}
+
+namespace ttl::nodes
 {
   struct node_ptr;
 
@@ -20,6 +28,7 @@ namespace ttl::parse
     using node_tag = void;
 
     int count = 0;
+    std::string_view id_;
 
     constexpr virtual void destroy() const = 0;
 
@@ -41,6 +50,18 @@ namespace ttl::parse
     }
 
     constexpr virtual void print(fmt::memory_buffer&) const = 0;
+
+    constexpr auto id() const -> std::string_view
+    {
+      return id_;
+    }
+
+    constexpr Node& operator[](rbr::keyword_parameter auto param)
+    {
+      rbr::settings args = { param };
+      id_ = args[prop::id];
+      return *this;
+    }
   };
 
   template <class T>
@@ -143,6 +164,7 @@ namespace ttl::parse
         : a(std::move(a))
         , b(std::move(b))
     {
+      id_ = this->b->id();
     }
 
     constexpr auto size() const -> int override
@@ -286,6 +308,7 @@ namespace ttl::parse
     constexpr Unary(node_ptr a)
         : a(std::move(a))
     {
+      id_ = this->a->id();
     }
 
     constexpr auto size() const -> int override
@@ -325,12 +348,6 @@ namespace ttl::parse
         : Unary(std::move(a))
         , index(i)
     {
-      assert(this->a->rank() == index.rank());
-    }
-
-    constexpr auto outer_index() const -> TensorIndex override
-    {
-      return exclusive(a->outer_index() + index);
     }
 
     void print(fmt::memory_buffer& out) const override
@@ -359,6 +376,7 @@ namespace ttl::parse
     constexpr Bind(node_ptr a, TensorIndex index)
         : Binder(std::move(a), index)
     {
+      assert(this->a->rank() == index.rank());
     }
 
     constexpr void destroy() const override
@@ -369,6 +387,11 @@ namespace ttl::parse
     constexpr auto tag() const -> TreeTag override
     {
       return BIND;
+    }
+
+    constexpr auto outer_index() const -> TensorIndex override
+    {
+      return exclusive(index);
     }
   };
 
@@ -387,6 +410,11 @@ namespace ttl::parse
     constexpr auto tag() const -> TreeTag override
     {
       return PARTIAL;
+    }
+
+    constexpr auto outer_index() const -> TensorIndex override
+    {
+      return exclusive(a->outer_index() + index);
     }
   };
 
@@ -486,6 +514,52 @@ namespace ttl::parse
   template <class T>
   concept leaf_node_t = node_t<T> and requires {
     typename std::remove_cvref_t<T>::leaf_node_tag;
+  };
+
+  struct Tensor final : Leaf
+  {
+    ttl::TensorRef const *a;
+
+    constexpr Tensor(ttl::TensorRef const *a)
+        : a(a)
+    {
+      id_ = a->id();
+    }
+
+    constexpr void destroy() const override
+    {
+      delete this;
+    }
+
+    constexpr auto rank() const -> int override
+    {
+      return a->rank();
+    }
+
+    constexpr auto tag() const -> TreeTag override
+    {
+      return TENSOR;
+    }
+
+    constexpr auto outer_index() const -> TensorIndex override
+    {
+      return a->outer_index();
+    }
+
+    void print(fmt::memory_buffer& out) const override
+    {
+      if (id().size() == 0) {
+        a->print(out);
+      }
+      else {
+        fmt::format_to(out, "{}", id());
+      }
+    }
+
+    void dot(fmt::memory_buffer& out, int i) const override
+    {
+      fmt::format_to(out, "\tnode{}[label=\"{}\"]\n", i, a->id());
+    }
   };
 
   struct Literal final : Leaf
@@ -610,7 +684,7 @@ namespace ttl::parse
      case PARTIAL:    return FWD(op)(static_cast<Partial const&>(node));
      case CMATH:      return FWD(op)(static_cast<CMath const&>(node));
      case LITERAL:    return FWD(op)(static_cast<Literal const&>(node));
-     case TENSOR:     abort();
+     case TENSOR:     return FWD(op)(static_cast<Tensor const&>(node));
      case SCALAR:     abort();
      case DELTA:      return FWD(op)(static_cast<Delta const&>(node));
      case EPSILON:    return FWD(op)(static_cast<Epsilon const&>(node));
@@ -633,6 +707,7 @@ namespace ttl::parse
       Exponent exponent;
       Partial partial;
       CMath cmath;
+      Tensor tensor;
       Literal literal;
       Delta delta;
       Epsilon epsilon;
@@ -709,6 +784,12 @@ namespace ttl::parse
       return *std::construct_at(&literal, b);
     }
 
+    constexpr auto operator=(Tensor const& b) -> Tensor&
+    {
+      tag_ = TENSOR;
+      return *std::construct_at(&tensor, b);
+    }
+
     constexpr auto operator=(Delta const& b) -> Delta&
     {
       tag_ = DELTA;
@@ -735,7 +816,7 @@ namespace ttl::parse
        case PARTIAL:    return FWD(op)(n.partial);
        case CMATH:      return FWD(op)(n.cmath);
        case LITERAL:    return FWD(op)(n.literal);
-       case TENSOR:     abort();
+       case TENSOR:     return FWD(op)(n.tensor);
        case SCALAR:     abort();
        case DELTA:      return FWD(op)(n.delta);
        case EPSILON:    return FWD(op)(n.epsilon);

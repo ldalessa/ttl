@@ -9,6 +9,8 @@ namespace ttl
 {
   struct TensorIndex
   {
+    using tensor_index_tag = void;
+
     int size_ = 0;
     char data_[TTL_MAX_PARSE_INDEX] = {};
 
@@ -222,6 +224,13 @@ namespace ttl
       return (a - b).size_ == 0 && (b - a).size_ == 0;
     }
   };
+
+  template <class T>
+  concept tensor_index_t = requires {
+    typename std::remove_cvref_t<T>::tensor_index_tag;
+  };
+
+  using Index = TensorIndex;
 }
 
 #include <fmt/format.h>

@@ -72,20 +72,20 @@ template <>
 struct fmt::formatter<ttl::TreeTag>
 {
   constexpr static const char* strings[] = {
-    "+", // SUM
-    "-", // DIFFERENCE
-    "*", // PRODUCT
-    "/", // RATIO
-    "bind",  // BIND
-    "-", // NEGATE
+    "+",  // SUM
+    "-",  // DIFFERENCE
+    "*",  // PRODUCT
+    "/",  // RATIO
+    "",   // BIND
+    "-",  // NEGATE
     "**", // EXPONENT
-    "∂", // PARTIAL
-    "",  // CMATH
-    "",  // LITERAL
-    "",  // TENSOR
-    "",  // SCALAR
-    "δ", // DELTA
-    "ε", // EPSILON
+    "∂",  // PARTIAL
+    "",   // CMATH
+    "",   // LITERAL
+    "",   // TENSOR
+    "",   // SCALAR
+    "δ",  // DELTA
+    "ε",  // EPSILON
   };
 
   static_assert(std::size(strings) == ttl::to_index(ttl::TREE_TAG_MAX));

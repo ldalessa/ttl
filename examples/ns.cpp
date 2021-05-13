@@ -43,47 +43,48 @@ namespace {
   constexpr ttl::Index j = 'j';
 
   /// Constitutive model terms
-  constexpr auto d = symmetrize(D(v(i),j));
-  constexpr auto p = cm::ideal_gas(ρ, e,  γ);
-  constexpr auto σ = cm::newtonian_fluid(p, v, μ, μv);
-  constexpr auto θ = cm::calorically_perfect(e, cv);
-  constexpr auto q = cm::fouriers_law(θ, κ);
+  constexpr ttl::Tensor d = symmetrize(D(v(i),j))             [ttl::prop::id="d"];
+  constexpr ttl::Tensor p = cm::ideal_gas(ρ, e,  γ)           [ttl::prop::id="p"];
+  constexpr ttl::Tensor σ = cm::newtonian_fluid(p, v, μ, μv)  [ttl::prop::id="σ"];
+  constexpr ttl::Tensor θ = cm::calorically_perfect(e, cv)    [ttl::prop::id="θ"];
+  constexpr ttl::Tensor q = cm::fouriers_law(θ, κ)            [ttl::prop::id="q"];
 
   /// System of equations.
-  constexpr auto ρ_rhs = - D(ρ,i) * v(i) - ρ * D(v(i),i);
-  constexpr auto v_rhs = - D(v(i),j) * v(j) + D(σ(i,j),j) / ρ + g(i);
-  constexpr auto e_rhs = - v(i) * D(e,i) + σ(i,j) * d(i,j) / ρ - D(q(i),i) / ρ;
+  constexpr ttl::Tensor ρ_rhs = - D(ρ,i) * v(i) - ρ * D(v(i),i);
+  constexpr ttl::Tensor v_rhs = - D(v(i),j) * v(j) + D(σ(i,j),j) / ρ + g(i);
+  constexpr ttl::Tensor e_rhs = - v(i) * D(e,i) + σ(i,j) * d(i,j) / ρ - D(q(i),i) / ρ;
 
-  constexpr ttl::System navier_stokes = {
-    ρ <<= ρ_rhs,
-    v <<= v_rhs,
-    e <<= e_rhs
-  };
+  // constexpr ttl::System navier_stokes = {
+  //   ρ <<= ρ_rhs,
+  //   v <<= v_rhs,
+  //   e <<= e_rhs
+  // };
 }
 template <int N>
 int run_ns(auto& args)
 {
-  navier_stokes.equations([](ttl::is_equation auto const&... eqn) {
-    (eqn([](ttl::TensorBase const* lhs, const auto& rhs) {
-      fmt::print("{} = {}\n", *lhs, to_string(rhs));
-    }), ...);
-  });
+  ttl::print(v_rhs, stdout);
+  // navier_stokes.equations([](ttl::is_equation auto const&... eqn) {
+  //   (eqn([](ttl::TensorBase const* lhs, const auto& rhs) {
+  //     fmt::print("{} = {}\n", *lhs, to_string(rhs));
+  //   }), ...);
+  // });
 
   // navier_stokes.simplify(ρ <<= ρ_rhs).print(stdout);
 
   // constexpr auto b = navier_stokes.simplify_equations(1);
 
-  navier_stokes.simplify_equations()([](auto const&... eqn) {
-    (eqn.print(stdout), ...);
-  });
+  // navier_stokes.simplify_equations()([](auto const&... eqn) {
+  //   (eqn.print(stdout), ...);
+  // });
 
-  navier_stokes.equations([](ttl::is_equation auto const&... eqn) {
-    (eqn.dot(stdout), ...);
-  });
+  // navier_stokes.equations([](ttl::is_equation auto const&... eqn) {
+  //   (eqn.dot(stdout), ...);
+  // });
 
-  navier_stokes.simplify_equations()([](auto const&... eqn) {
-    (eqn.dot(stdout), ...);
-  });
+  // navier_stokes.simplify_equations()([](auto const&... eqn) {
+  //   (eqn.dot(stdout), ...);
+  // });
 
   // constexpr ttl::ExecutableSystem<double, N, navier_stokes> navier_stokes_Nd;
 
