@@ -8,10 +8,12 @@ namespace ttl
   struct TensorRef
   {
     using tensor_ref_tag = void;
-    constexpr virtual auto   id() const -> std::string_view = 0;
+    constexpr virtual auto id() const -> std::string_view = 0;
+    constexpr virtual auto n_trees() const -> int = 0;
     constexpr virtual auto rank() const -> int = 0;
     constexpr virtual auto outer_index() const -> TensorIndex = 0;
-    constexpr virtual void print(fmt::memory_buffer& out) const = 0;
+    constexpr virtual void print(fmt::memory_buffer& out, bool follow_links) const = 0;
+    constexpr virtual auto dot(fmt::memory_buffer& out, int i) const -> int = 0;
   };
 
   template <class T>

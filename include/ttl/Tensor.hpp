@@ -36,6 +36,11 @@ namespace ttl
       return id_;
     }
 
+    constexpr auto n_trees() const -> int override
+    {
+      return sizeof...(Trees);
+    }
+
     constexpr auto rank() const -> int override
     {
       return rank_;
@@ -64,16 +69,29 @@ namespace ttl
       return promote_tensor({is...});
     }
 
-    void print(fmt::memory_buffer &out) const override
+    void print(fmt::memory_buffer &out, bool follow_links) const override
     {
       if constexpr (sizeof...(Trees) == 0) {
         fmt::format_to(out, "{}", id());
       }
       else {
         trees_([&](auto const&... trees) {
-          (trees.print(out), ...);
+          (trees.print(out, follow_links), ...);
         });
       }
+    }
+
+    auto dot(fmt::memory_buffer &out, int i) const -> int override
+    {
+      if constexpr (sizeof...(Trees) == 0) {
+        fmt::format_to(out, "\tnode{}[label=\"{}\"]\n", i, id());
+      }
+      else {
+        trees_([&](auto const&... trees) {
+          (((i = trees.dot(out, i)), ++i), ...);
+        });
+      }
+      return i - 1;
     }
   };
 

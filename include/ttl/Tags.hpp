@@ -76,7 +76,7 @@ struct fmt::formatter<ttl::TreeTag>
     "-",  // DIFFERENCE
     "*",  // PRODUCT
     "/",  // RATIO
-    "",   // BIND
+    "bind",   // BIND
     "-",  // NEGATE
     "**", // EXPONENT
     "∂",  // PARTIAL

@@ -43,11 +43,11 @@ namespace {
   constexpr ttl::Index j = 'j';
 
   /// Constitutive model terms
-  constexpr ttl::Tensor d = symmetrize(D(v(i),j))             [ttl::prop::id="d"];
-  constexpr ttl::Tensor p = cm::ideal_gas(ρ, e,  γ)           [ttl::prop::id="p"];
-  constexpr ttl::Tensor σ = cm::newtonian_fluid(p, v, μ, μv)  [ttl::prop::id="σ"];
-  constexpr ttl::Tensor θ = cm::calorically_perfect(e, cv)    [ttl::prop::id="θ"];
-  constexpr ttl::Tensor q = cm::fouriers_law(θ, κ)            [ttl::prop::id="q"];
+  constexpr ttl::Tensor d = symmetrize(D(v(i),j))             [ttl::id="d"];
+  constexpr ttl::Tensor p = cm::ideal_gas(ρ, e, γ)            [ttl::id="p"];
+  constexpr ttl::Tensor σ = cm::newtonian_fluid(p, v, μ, μv)  [ttl::id="σ"];
+  constexpr ttl::Tensor θ = cm::calorically_perfect(e, cv)    [ttl::id="θ"];
+  constexpr ttl::Tensor q = cm::fouriers_law(θ, κ)            [ttl::id="q"];
 
   /// System of equations.
   constexpr ttl::Tensor ρ_rhs = - D(ρ,i) * v(i) - ρ * D(v(i),i);
@@ -64,6 +64,23 @@ template <int N>
 int run_ns(auto& args)
 {
   ttl::print(v_rhs, stdout);
+  puts("");
+  ttl::print(v_rhs, stdout, true);
+  puts("");
+
+  ttl::dot(v_rhs, stdout);
+  puts("");
+
+  ttl::print(d, stdout);
+  puts("");
+  ttl::dot(d, stdout);
+  puts("");
+
+  ttl::print(q, stdout);
+  puts("");
+  ttl::dot(q, stdout);
+  puts("");
+
   // navier_stokes.equations([](ttl::is_equation auto const&... eqn) {
   //   (eqn([](ttl::TensorBase const* lhs, const auto& rhs) {
   //     fmt::print("{} = {}\n", *lhs, to_string(rhs));

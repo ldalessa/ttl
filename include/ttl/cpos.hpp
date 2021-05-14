@@ -13,25 +13,25 @@
 
 namespace ttl
 {
-  inline constexpr struct id_tag_
+  inline constexpr struct identifier_tag_
   {
-    constexpr friend auto tag_invoke(id_tag_, auto&& obj) -> std::string_view
+    constexpr friend auto tag_invoke(identifier_tag_, auto&& obj) -> std::string_view
       requires requires {FWD(obj).id();}
     {
       return FWD(obj).id();
     }
 
-    constexpr friend auto tag_invoke(id_tag_, Rational const&) -> std::string_view
+    constexpr friend auto tag_invoke(identifier_tag_, Rational const&) -> std::string_view
     {
       return "";
     }
 
-    constexpr friend auto tag_invoke(id_tag_, std::integral auto) -> std::string_view
+    constexpr friend auto tag_invoke(identifier_tag_, std::integral auto) -> std::string_view
     {
       return "";
     }
 
-    constexpr friend auto tag_invoke(id_tag_, std::floating_point auto) -> std::string_view
+    constexpr friend auto tag_invoke(identifier_tag_, std::floating_point auto) -> std::string_view
     {
       return "";
     }
@@ -40,7 +40,7 @@ namespace ttl
     {
       return tag_invoke(*this, FWD(obj));
     }
-  } id;
+  } identifier;
 
   inline constexpr struct size_tag_
   {
@@ -184,47 +184,47 @@ namespace ttl
 
   inline constexpr struct print_tag_
   {
-    friend auto tag_invoke(print_tag_, auto&& obj, fmt::memory_buffer& out)
-      requires requires {FWD(obj).print(out);}
+    friend auto tag_invoke(print_tag_, auto&& obj, fmt::memory_buffer& out, bool follow_links)
+      requires requires {FWD(obj).print(out, follow_links);}
     {
-      return FWD(obj).print(out);
+      return FWD(obj).print(out, follow_links);
     }
 
-    friend void tag_invoke(print_tag_ tag, auto&& obj, FILE *file)
+    friend void tag_invoke(print_tag_ tag, auto&& obj, FILE *file, bool follow_links)
     {
       fmt::memory_buffer out;
-      tag_invoke(tag, FWD(obj), out);
+      tag_invoke(tag, FWD(obj), out, follow_links);
       std::fwrite(out.data(), out.size(), 1, file);
     }
 
-    void operator()(auto&& obj, auto&& out) const
-      noexcept(is_nothrow_tag_invocable_v<print_tag_, decltype(obj), decltype(out)>)
+    void operator()(auto&& obj, auto&& out, bool follow_links = false) const
+      noexcept(is_nothrow_tag_invocable_v<print_tag_, decltype(obj), decltype(out), bool>)
     {
-      return tag_invoke(*this, FWD(obj), FWD(out));
+      return tag_invoke(*this, FWD(obj), FWD(out), follow_links);
     }
   } print;
 
   inline constexpr struct dot_tag_
   {
-    friend auto tag_invoke(dot_tag_, auto&& obj, fmt::memory_buffer& out)
-      requires requires {FWD(obj).dot(out);}
+    friend auto tag_invoke(dot_tag_, auto&& obj, fmt::memory_buffer& out, int i)
+      requires requires {FWD(obj).dot(out, i);}
     {
-      return FWD(obj).dot(out);
+      return FWD(obj).dot(out, i);
     }
 
-    friend void tag_invoke(dot_tag_ tag, auto&& obj, FILE *file)
+    friend void tag_invoke(dot_tag_ tag, auto&& obj, FILE *file, int i)
     {
       fmt::memory_buffer out;
-      fmt::format_to(out, "graph {} {{\n", id(obj));
-      tag_invoke(tag, FWD(obj), out);
+      fmt::format_to(out, "graph {} {{\n", identifier(obj));
+      tag_invoke(tag, FWD(obj), out, 0);
       fmt::format_to(out, "}}\n");
       std::fwrite(out.data(), out.size(), 1, file);
     }
 
-    void operator()(auto&& obj, auto&& buffer) const
-      noexcept(is_nothrow_tag_invocable_v<dot_tag_, decltype(obj), decltype(buffer)>)
+    void operator()(auto&& obj, auto&& buffer, int i = 0) const
+      noexcept(is_nothrow_tag_invocable_v<dot_tag_, decltype(obj), decltype(buffer), int>)
     {
-      return tag_invoke(*this, FWD(obj), FWD(buffer));
+      return tag_invoke(*this, FWD(obj), FWD(buffer), i);
     }
   } dot;
 

@@ -13,7 +13,7 @@
 #define FWD(a) std::forward<decltype(a)>(a)
 #endif
 
-namespace ttl::prop
+namespace ttl
 {
   using namespace rbr::literals;
   inline constexpr auto id = "id"_kw;
@@ -39,27 +39,25 @@ namespace ttl::nodes
       return 1;
     }
 
-    constexpr virtual auto outer_index() const -> TensorIndex
-    {
-      return {};
-    }
+    constexpr virtual auto outer_index() const -> TensorIndex = 0;
 
     constexpr virtual auto rank() const -> int
     {
       return outer_index().size();
     }
 
-    constexpr virtual void print(fmt::memory_buffer&) const = 0;
+    constexpr virtual void print(fmt::memory_buffer&, bool) const = 0;
 
     constexpr auto id() const -> std::string_view
     {
       return id_;
     }
 
-    constexpr Node& operator[](rbr::keyword_parameter auto param)
+    template <rbr::keyword_parameter Id>
+    constexpr Node& operator[](Id id) requires (rbr::match<Id>::with(ttl::id))
     {
-      rbr::settings args = { param };
-      id_ = args[prop::id];
+      rbr::settings args = { id };
+      id_ = args[ttl::id];
       return *this;
     }
   };
@@ -172,7 +170,7 @@ namespace ttl::nodes
       return a->size() + b->size() + 1;
     }
 
-    void dot(fmt::memory_buffer& out, int i, int b, int a) const
+    auto dot(fmt::memory_buffer& out, int i, int b, int a) const -> int
     {
       auto outer = outer_index();
       if (outer.size()) {
@@ -183,14 +181,15 @@ namespace ttl::nodes
       }
       fmt::format_to(out, "\tnode{} -- node{}\n", i, a);
       fmt::format_to(out, "\tnode{} -- node{}\n", i, b);
+      return i;
     }
 
-    void print(fmt::memory_buffer& out) const override
+    void print(fmt::memory_buffer& out, bool follow_links) const override
     {
       out.append(std::string_view("("));
-      a->print(out);
+      a->print(out, follow_links);
       fmt::format_to(out, " {} ", tag());
-      b->print(out);
+      b->print(out, follow_links);
       out.append(std::string_view(")"));
     }
   };
@@ -321,17 +320,18 @@ namespace ttl::nodes
       return a->outer_index();
     }
 
-    void print(fmt::memory_buffer& out) const override
+    void print(fmt::memory_buffer& out, bool follow_links) const override
     {
       fmt::format_to(out, "{}(", tag());
-      a->print(out);
+      a->print(out, follow_links);
       out.append(std::string_view(")"));
     }
 
-    virtual void dot(fmt::memory_buffer& out, int i, int a) const
+    virtual auto dot(fmt::memory_buffer& out, int i, int a) const -> int
     {
       fmt::format_to(out, "\tnode{}[label=\"{}\"]\n", i, tag());
       fmt::format_to(out, "\tnode{} -- node{}\n", i, a);
+      return i;
     }
   };
 
@@ -350,24 +350,21 @@ namespace ttl::nodes
     {
     }
 
-    void print(fmt::memory_buffer& out) const override
-    {
-      fmt::format_to(out, "{}(", tag());
-      a->print(out);
-      fmt::format_to(out, ",{})", index);
-    }
-
-    void dot(fmt::memory_buffer& out, int i, int a) const override
+    auto dot(fmt::memory_buffer& out, int i, int a) const -> int override
     {
       TensorIndex outer = outer_index();
       TensorIndex child = this->a->outer_index();
       if (outer.size()) {
         fmt::format_to(out, "\tnode{}[label=\"{}({},{}) ↑{}\"]\n", i, tag(), child, index, outer);
       }
-      else {
+      else if (index.size()) {
         fmt::format_to(out, "\tnode{}[label=\"{}({},{})\"]\n", i, tag(), child, index);
       }
+      else {
+        fmt::format_to(out, "\tnode{}[label=\"{}\"]\n", i, tag());
+      }
       fmt::format_to(out, "\tnode{} -- node{}\n", i, a);
+      return i;
     }
   };
 
@@ -393,6 +390,18 @@ namespace ttl::nodes
     {
       return exclusive(index);
     }
+
+    void print(fmt::memory_buffer& out, bool follow_links) const override
+    {
+      if (index.size()) {
+        fmt::format_to(out, "(");
+        a->print(out, follow_links);
+        fmt::format_to(out, ",{})", index);
+      }
+      else {
+        a->print(out, follow_links);
+      }
+    }
   };
 
   struct Partial final : Binder
@@ -415,6 +424,13 @@ namespace ttl::nodes
     constexpr auto outer_index() const -> TensorIndex override
     {
       return exclusive(a->outer_index() + index);
+    }
+
+    void print(fmt::memory_buffer& out, bool follow_links) const override
+    {
+      fmt::format_to(out, "{}(", tag());
+      a->print(out, follow_links);
+      fmt::format_to(out, ",{})", index);
     }
   };
 
@@ -484,14 +500,14 @@ namespace ttl::nodes
       return CMATH;
     }
 
-    void print(fmt::memory_buffer& out) const override
+    void print(fmt::memory_buffer& out, bool follow_links) const override
     {
       fmt::format_to(out, "{}(", func);
-      a->print(out);
+      a->print(out, follow_links);
       out.append(std::string_view(")"));
     }
 
-    void dot(fmt::memory_buffer& out, int i, int a) const override
+    auto dot(fmt::memory_buffer& out, int i, int a) const -> int override
     {
       TensorIndex index = outer_index();
       if (index.size()) {
@@ -501,6 +517,7 @@ namespace ttl::nodes
         fmt::format_to(out, "\tnode{}[label=\"{}\"]\n", i, func);
       }
       fmt::format_to(out, "\tnode{} -- node{}\n", i, a);
+      return i;
     }
   };
 
@@ -508,7 +525,7 @@ namespace ttl::nodes
   {
     using leaf_node_tag = void;
 
-    virtual void dot(fmt::memory_buffer& out, int i) const = 0;
+    virtual auto dot(fmt::memory_buffer& out, int i) const -> int = 0;
   };
 
   template <class T>
@@ -546,19 +563,29 @@ namespace ttl::nodes
       return a->outer_index();
     }
 
-    void print(fmt::memory_buffer& out) const override
+    void print(fmt::memory_buffer& out, bool follow_links) const override
     {
-      if (id().size() == 0) {
-        a->print(out);
+      if (follow_links) {
+        a->print(out, follow_links);
       }
       else {
         fmt::format_to(out, "{}", id());
       }
     }
 
-    void dot(fmt::memory_buffer& out, int i) const override
+    auto dot(fmt::memory_buffer& out, int i) const -> int override
     {
-      fmt::format_to(out, "\tnode{}[label=\"{}\"]\n", i, a->id());
+      // Right now dot inlines all the trees.
+      if (a->n_trees()) {
+        i = a->dot(out, i);
+        fmt::format_to(out, "\tnode{}[label=\"{}\"]\n", i + 1, id());
+        fmt::format_to(out, "\tnode{} -- node{}\n", i + 1, i);
+        return i + 1;
+      }
+      else {
+        fmt::format_to(out, "\tnode{}[label=\"{}\"]\n", i, id());
+        return i;
+      }
     }
   };
 
@@ -581,12 +608,18 @@ namespace ttl::nodes
       return LITERAL;
     }
 
-    void dot(fmt::memory_buffer& out, int i) const override
+    constexpr auto outer_index() const -> TensorIndex override
     {
-      fmt::format_to(out, "\tnode{}[label=\"{}()\"]\n", i, tag());
+      return {};
     }
 
-    void print(fmt::memory_buffer& out) const override
+    auto dot(fmt::memory_buffer& out, int i) const -> int override
+    {
+      fmt::format_to(out, "\tnode{}[label=\"{}\"]\n", i, q);
+      return i;
+    }
+
+    void print(fmt::memory_buffer& out, bool) const override
     {
       fmt::format_to(out, "{}", q);
     }
@@ -618,12 +651,13 @@ namespace ttl::nodes
       return DELTA;
     }
 
-    void dot(fmt::memory_buffer& out, int i) const override
+    auto dot(fmt::memory_buffer& out, int i) const -> int override
     {
       fmt::format_to(out, "\tnode{}[label=\"{}({})\"]\n", i, tag(), index);
+      return i;
     }
 
-    void print(fmt::memory_buffer& out) const override
+    void print(fmt::memory_buffer& out, bool) const override
     {
       fmt::format_to(out, "{}({})", tag(), index);
     }
@@ -653,12 +687,13 @@ namespace ttl::nodes
       return EPSILON;
     }
 
-    void dot(fmt::memory_buffer& out, int i) const override
+    auto dot(fmt::memory_buffer& out, int i) const -> int override
     {
       fmt::format_to(out, "\tnode{}[label=\"{}({})\"]\n", i, tag(), index);
+      return i;
     }
 
-    void print(fmt::memory_buffer& out) const override
+    void print(fmt::memory_buffer& out, bool) const override
     {
       fmt::format_to(out, "{}({})", tag(), index);
     }
@@ -848,9 +883,11 @@ namespace ttl::nodes
       return visit(*this, [&](node_t auto&& b) { return FWD(b).rank(); });
     }
 
-    void print(fmt::memory_buffer& out) const override
+    void print(fmt::memory_buffer& out, bool follow_links) const override
     {
-      return visit(*this, [&](node_t auto&& b) { return FWD(b).print(out); });
+      return visit(*this, [&](node_t auto&& b) {
+        return FWD(b).print(out, follow_links);
+      });
     }
   };
 
@@ -860,5 +897,5 @@ namespace ttl::nodes
   };
 
   static_assert(node_t<Sum const&> and binary_node_t<Sum const&> and not
-  unary_node_t<Sum const&> and not leaf_node_t<Sum const&>);
+                unary_node_t<Sum const&> and not leaf_node_t<Sum const&>);
 }

@@ -59,28 +59,30 @@ namespace ttl
       return visit(n, op);
     }
 
-    void dot(fmt::memory_buffer &out) const
+    auto dot(fmt::memory_buffer &out, int i) const -> int
     {
       ce::dvector<int> stack;
-      for (int i = 0; i < M; ++i) {
-        visit(nodes[i], nodes::overloaded {
+      for (auto&& node : nodes) {
+        i = visit(node, nodes::overloaded {
             [&]<nodes::binary_node_t Binary>(Binary&& node) {
-              node.dot(out, i, stack.pop_back(), stack.pop_back());
+              return node.dot(out, i, stack.pop_back(), stack.pop_back());
             },
             [&]<nodes::unary_node_t Unary>(Unary&& node) {
-              node.dot(out, i, stack.pop_back());
+              return node.dot(out, i, stack.pop_back());
             },
             [&]<nodes::leaf_node_t Leaf>(Leaf&& node) {
-              node.dot(out, i);
+              return node.dot(out, i);
             }
           });
-        stack.push_back(i);
+        stack.push_back(i++);
       }
+      assert(stack.size() == 1);
+      return stack.pop_back();
     }
 
-    void print(fmt::memory_buffer &out) const
+    void print(fmt::memory_buffer &out, bool follow_links) const
     {
-      return nodes[M-1].print(out);
+      return nodes[M-1].print(out, follow_links);
     }
   };
 }
