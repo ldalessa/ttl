@@ -22,26 +22,26 @@ namespace ttl
     decltype(shape) debug_shape = shape;
 
     // Arrays of compressed data.
-    char        indices_[shape.n_indices];        //!< `ij` outer index
-    char  inner_indices_[shape.n_inner_indices];  //!< `ij` contracted
-    char tensor_indices_[shape.n_tensor_indices]; //!< `iij` tensor
-    int      scalar_ids_[shape.n_scalars];        //!< scalar ids for tensors
-    uint64_t immediates_[shape.n_immediates];     //!< just double in gcc-11
-    char     tensor_ids_[shape.n_tensor_ids];
+    std::array<char,shape.n_indices>        indices_;        //!< `ij` outer index
+    std::array<char,shape.n_inner_indices>  inner_indices_;  //!< `ij` contracted
+    std::array<char,shape.n_tensor_indices> tensor_indices_; //!< `iij` tensor
+    std::array<int,shape.n_scalars>         scalar_ids_;     //!< scalar ids for tensors
+    std::array<uint64_t,shape.n_immediates> immediates_;     //!< just double in gcc-11
+    std::array<char,shape.n_tensor_ids>     tensor_ids_;
 
     // Per-node state.
-    exec::Tag tags [shape.n_nodes];             //!< type of each node
-    int        rvo_[shape.n_nodes];             //!< return stack slot
-    int       left_[shape.n_nodes];             //!< index of left child (if any)
-    int      order_[shape.n_nodes];             //!< tensor order (if any)
+    std::array<exec::Tag,shape.n_nodes> tags ;             //!< type of each node
+    std::array<int,shape.n_nodes>        rvo_;             //!< return stack slot
+    std::array<int,shape.n_nodes>       left_;             //!< index of left child (if any)
+    std::array<int,shape.n_nodes>      order_;             //!< tensor order (if any)
 
     // Per-node offsets into the compressed data.
-    int        index_offsets_[shape.n_nodes + 1];
-    int  inner_index_offsets_[shape.n_nodes + 1];
-    int tensor_index_offsets_[shape.n_nodes + 1];
-    int   scalar_ids_offsets_[shape.n_nodes + 1];
-    int    immediate_offsets_[shape.n_nodes + 1];
-    int   tensor_ids_offsets_[shape.n_nodes + 1];
+    std::array<int,shape.n_nodes + 1>        index_offsets_;
+    std::array<int,shape.n_nodes + 1>  inner_index_offsets_;
+    std::array<int,shape.n_nodes + 1> tensor_index_offsets_;
+    std::array<int,shape.n_nodes + 1>   scalar_ids_offsets_;
+    std::array<int,shape.n_nodes + 1>    immediate_offsets_;
+    std::array<int,shape.n_nodes + 1>   tensor_ids_offsets_;
 
     /// Create a serialized tree from a tensor tree
     constexpr SerializedTree(TensorTree const& tree,
