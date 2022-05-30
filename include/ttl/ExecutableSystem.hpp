@@ -5,7 +5,7 @@
 #include "ttl/Tag.hpp"
 #include "ttl/TensorTree.hpp"
 #include "ttl/TreeShape.hpp"
-#include "kumi.hpp"
+#include <kumi/tuple.hpp>
 #include <array>
 #include <bitset>
 

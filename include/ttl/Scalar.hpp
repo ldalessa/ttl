@@ -5,7 +5,7 @@
 #include "ttl/Tag.hpp"
 #include "ttl/Tensor.hpp"
 #include "ttl/pow.hpp"
-#include <kumi.hpp>
+#include <kumi/tuple.hpp>
 #include <cassert>
 #include <bit>
 
