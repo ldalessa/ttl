@@ -4,6 +4,8 @@
 #include <optional>
 #include <utility>
 
+#include "ttl/Scalar.hpp"
+
 namespace ttl
 {
   template <typename T>

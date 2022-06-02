@@ -30,15 +30,7 @@ namespace ttl
     int        n_indices;
     int      stack_depth;
 
-    constexpr TreeShape(rbr::keyword_parameter auto... params)
-      requires(rbr::match<decltype(params)...>::with(kw::dims |
-                                                     kw::n_immediates |
-                                                     kw::n_scalars |
-                                                     kw::n_indices |
-                                                     kw::n_inner_indices |
-                                                     kw::n_tensor_indices |
-                                                     kw::stack_depth |
-                                                     kw::n_tensor_ids))
+    constexpr TreeShape(rbr::concepts::option auto... params)
     {
       rbr::settings args = { params... };
       n_scalars        = args[kw::n_scalars        | 0]; // default: 0
@@ -51,9 +43,7 @@ namespace ttl
       stack_depth      = args[kw::stack_depth];          // required
     }
 
-    constexpr TreeShape(TreeShape const& a, TreeShape const& b, rbr::keyword_parameter auto... params)
-      requires(rbr::match<decltype(params)...>::with(kw::n_indices |
-                                                     kw::n_inner_indices))
+    constexpr TreeShape(TreeShape const& a, TreeShape const& b, rbr::concepts::option auto... params)
         : tree_depth(std::max(a.tree_depth, b.tree_depth) + 1)
         , n_nodes(a.n_nodes + b.n_nodes + 1)
         , n_scalars(a.n_scalars + b.n_scalars)

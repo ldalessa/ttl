@@ -4,9 +4,9 @@
 #include "ParseTree.hpp"
 #include "TensorTree.hpp"
 #include "concepts.hpp"
-#include "kumi.hpp"
 #include "pow.hpp"
 #include "set.hpp"
+#include <kumi/tuple.hpp>
 
 namespace ttl
 {
