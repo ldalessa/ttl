@@ -297,7 +297,7 @@ namespace ttl
              assert(node->tag != ttl::RATIO || node->b()->order() == 0);
 
              int l = map(node->a(), scalars, constants);
-             int r = map(node->b(), scalars, constants);
+             int r = map(node->b(), scalars, constants); std::ignore = r;
              assert(l < r);
              assert(r == i - 1);
 
