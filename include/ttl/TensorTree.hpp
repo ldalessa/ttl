@@ -226,38 +226,40 @@ namespace ttl
            // Merge the children tree shape data and append the indiex counts
            // from this node.
            return TreeShape(a, b,
-                            kw::n_indices = order(),
-                            kw::n_inner_indices = all().size());
+                            {
+                            .n_inner_indices = all().size(), .n_indices = order()});
          }
 
          case INDEX: {
            assert(index.size() == 2);
            assert(order() == 2);
-           return TreeShape(kw::dims = dim,
-                            kw::stack_depth = stack.back(),
-                            kw::n_indices = 2);
+           return TreeShape({.dims = dim,
+                            .n_indices = 2,
+                            .stack_depth = stack.back() });
          }
 
          case DOUBLE:
          case RATIONAL: {
            assert(index.size() == 0);
            assert(order() == 0);
-           return TreeShape(kw::dims = dim,
-                            kw::stack_depth = stack.back(),
-                            kw::n_immediates = 1,
-                            kw::n_indices = 0);
+           return TreeShape({
+                          .n_immediates = 1,
+                          .dims = dim,
+                          .n_indices = 0,
+                          .stack_depth = stack.back()});
          }
 
          case TENSOR: {
            int m = all().size();
            int n = ttl::pow(dim, m);
-           return TreeShape(kw::dims = dim,
-                            kw::stack_depth = stack.back(),
-                            kw::n_scalars = n,
-                            kw::n_indices = order(),
-                            kw::n_tensor_indices = index.size(),
-                            kw::n_inner_indices = m,
-                            kw::n_tensor_ids = tensor.id().size());
+           return TreeShape({
+                          .n_scalars = n,
+                          .n_inner_indices = m,
+                          .n_tensor_indices = index.size(),
+                          .n_tensor_ids = (int)tensor.id().size(),
+                          .dims = dim,
+                          .n_indices = order(),
+                          .stack_depth = stack.back()});
          }
 
           default: assert(false);
