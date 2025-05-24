@@ -5,7 +5,6 @@
 #include "ttl/TensorTree.hpp"
 #include "ttl/TreeShape.hpp"
 #include "ttl/exec.hpp"
-#include "ttl/pack_fp.hpp"
 #include "ttl/set.hpp"
 #include <array>
 #include <format>
@@ -29,7 +28,7 @@ namespace ttl
     std::array<char,shape.n_inner_indices>  inner_indices_;  //!< `ij` contracted
     std::array<char,shape.n_tensor_indices> tensor_indices_; //!< `iij` tensor
     std::array<int,shape.n_scalars>         scalar_ids_;     //!< scalar ids for tensors
-    std::array<uint64_t,shape.n_immediates> immediates_;     //!< just double in gcc-11
+    std::array<double,shape.n_immediates> immediates_;     //!< just double in gcc-11
     std::array<char,shape.n_tensor_ids>     tensor_ids_;
 
     // Per-node state.
@@ -123,7 +122,7 @@ namespace ttl
 
     constexpr double immediate(int k) const
     {
-      return unpack_fp(immediates_[immediate_offsets_[k]]);
+      return immediates_[immediate_offsets_[k]];
     }
 
     constexpr Tensor tensor(int k) const
@@ -320,12 +319,12 @@ namespace ttl
 
          case ttl::RATIONAL:
           record(node, top_of_stack);;
-          tree.immediates_[immediate++] = pack_fp(as<T>(node->q));
+          tree.immediates_[immediate++] = as<T>(node->q);
           break;
 
          case ttl::DOUBLE:
           record(node, top_of_stack);
-          tree.immediates_[immediate++] = pack_fp(node->d);
+          tree.immediates_[immediate++] = node->d;
           break;
 
          default:
