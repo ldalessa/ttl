@@ -12,4 +12,4 @@ fi
 sudo apt -y update
 sudo apt -y full-upgrade
 sudo apt -y autoremove
-sudo apt -y install man-db emacs elpa-cmake-mode elpa-lua-mode elpa-dockerfile-mode ispell
+sudo apt -y install man-db emacs elpa-cmake-mode elpa-lua-mode elpa-dockerfile-mode ispell cmake-curses-gui
