@@ -7,6 +7,8 @@
 #include "TreeShape.hpp"
 #include "pow.hpp"
 #include "set.hpp"
+#include <cstdio>
+#include <format>
 #include <memory>
 #include <vector>
 
@@ -208,7 +210,7 @@ namespace ttl
         stack.push_back(top_of_stack + tensor_size(dim));
 
         if (!std::is_constant_evaluated()) {
-          fmt::print("tree shape stack:{} ({} + {})\n", stack.back(), top_of_stack, tensor_size(dim));
+          std::printf("%s", std::format("tree shape stack:{} ({} + {})\n", stack.back(), top_of_stack, tensor_size(dim)).c_str());
         }
 
         switch (tag) {
@@ -284,17 +286,17 @@ namespace ttl
          case DIFFERENCE:
          case PRODUCT:
          case RATIO:
-          return fmt::format("({} {} {})", a_->to_string(), tag, b_->to_string());
+          return std::format("({} {} {})", a_->to_string(), tag, b_->to_string());
 
-         case INDEX:    return fmt::format("{}", index);
-         case RATIONAL: return fmt::format("{}", q);
-         case DOUBLE:   return fmt::format("{}", d);
+         case INDEX:    return std::format("{}", index);
+         case RATIONAL: return std::format("{}", q);
+         case DOUBLE:   return std::format("{}", d);
          case TENSOR:
           if (index.size()) {
-            return fmt::format("{}({})", tensor, index);
+            return std::format("{}({})", tensor, index);
           }
           else {
-            return fmt::format("{}", tensor);
+            return std::format("{}", tensor);
           }
          default: assert(false);
         }

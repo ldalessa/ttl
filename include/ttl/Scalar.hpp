@@ -6,8 +6,9 @@
 #include "ttl/Tensor.hpp"
 #include "ttl/pow.hpp"
 #include <kumi/tuple.hpp>
-#include <cassert>
 #include <bit>
+#include <cassert>
+#include <format>
 
 namespace ttl
 {
@@ -164,10 +165,8 @@ namespace ttl
   }
 }
 
-#include <fmt/format.h>
-
 template <>
-struct fmt::formatter<ttl::Scalar>
+struct std::formatter<ttl::Scalar>
 {
   static constexpr auto parse(format_parse_context& ctx)
   {

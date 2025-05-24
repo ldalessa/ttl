@@ -2,6 +2,7 @@
 
 #include <raberu/raberu.hpp>
 #include <algorithm>
+#include <format>
 
 namespace ttl
 {
@@ -63,16 +64,14 @@ namespace ttl
   };
 }
 
-#include <fmt/format.h>
-
 template <>
-struct fmt::formatter<ttl::TreeShape>
+struct std::formatter<ttl::TreeShape>
 {
-  constexpr auto parse(format_parse_context& ctx) {
+  static constexpr auto parse(format_parse_context& ctx) {
     return ctx.begin();
   }
 
-  constexpr auto format(ttl::TreeShape shape, auto& ctx) {
+  static constexpr auto format(ttl::TreeShape shape, auto& ctx) {
     constexpr const char* fmt =  "tree_depth:{} n_nodes:{} n_scalars:{} n_immediates:{} n_indices:{} n_inner_indices:{} stack_depth:{}";
     return format_to(ctx.out(), fmt,
                      shape.tree_depth,

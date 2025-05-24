@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Index.hpp"
-#include <fmt/core.h>
+#include <format>
 
 namespace ttl {
 enum Tag {
@@ -53,7 +53,7 @@ constexpr bool tag_is_binary(Tag tag) {
 }
 
 template <>
-struct fmt::formatter<ttl::Tag>
+struct std::formatter<ttl::Tag>
 {
   constexpr static const char* tag_strings[] = {
     "+",                                        // SUM

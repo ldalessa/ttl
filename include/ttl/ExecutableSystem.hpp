@@ -7,6 +7,8 @@
 #include "ttl/TreeShape.hpp"
 #include <kumi/tuple.hpp>
 #include <array>
+#include <cstdio>
+#include <format>
 #include <bitset>
 
 namespace ttl
@@ -120,7 +122,7 @@ namespace ttl
         scalar.constant = true;
         if (!scalar.validate(N)) {
           if (!std::is_constant_evaluated()) {
-            fmt::print("ignoring impossible constant: {}\n", scalar);
+            std::printf("%s", std::format("ignoring impossible constant: {}\n", scalar).c_str());
           }
           return;
         }
@@ -132,11 +134,11 @@ namespace ttl
             bits.set(n);
           }
           else {
-            fmt::print("ignoring multiply specified constant: {}\n", scalar);
+            std::printf("%s", std::format("ignoring multiply specified constant: {}\n", scalar).c_str());
           }
         }
         else {
-          fmt::print("invalid constant: {}\n", scalar);
+          std::printf("%s", std::format("invalid constant: {}\n", scalar).c_str());
         }
       }(), ...);
 
@@ -144,7 +146,7 @@ namespace ttl
         for (int i = 0; i < M; ++i) {
           if (!bits[i]) {
             if (!std::is_constant_evaluated()) {
-              fmt::print("missing constant: {}\n", constants[i]);
+              std::printf("%s", std::format("missing constant: {}\n", constants[i]).c_str());
             }
           }
         }

@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cassert>
 #include <concepts>
+#include <format>
 #include <optional>
 #include <string_view>
 
@@ -209,10 +210,8 @@ namespace ttl
   }
 }
 
-#include <fmt/format.h>
-
 template <>
-struct fmt::formatter<ttl::Index>
+struct std::formatter<ttl::Index>
 {
   static constexpr auto parse(format_parse_context& ctx)
   {

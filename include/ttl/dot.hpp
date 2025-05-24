@@ -1,6 +1,6 @@
 #pragma once
 
-#include <fmt/core.h>
+#include <format>
 
 namespace ttl {
 template <typename T>
@@ -11,7 +11,7 @@ struct dot {
 }
 
 template <typename T>
-struct fmt::formatter<ttl::dot<T>>
+struct std::formatter<ttl::dot<T>>
 {
   static constexpr auto parse(format_parse_context& ctx) {
     return ctx.begin();

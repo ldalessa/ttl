@@ -80,27 +80,27 @@ namespace ttl
        case DIFFERENCE:
        case PRODUCT:
        case RATIO:
-        return fmt::format("({} {} {})", a()->to_string(), tag, b()->to_string());
+        return std::format("({} {} {})", a()->to_string(), tag, b()->to_string());
 
        case PARTIAL:
-        return fmt::format("D({},{})", a()->to_string(), b()->to_string());
+        return std::format("D({},{})", a()->to_string(), b()->to_string());
 
        case INDEX:
-        return fmt::format("{}", index);
+        return std::format("{}", index);
 
        case TENSOR:
         if (index.size()) {
-          return fmt::format("{}({})", tensor, index);
+          return std::format("{}({})", tensor, index);
         }
         else {
-          return fmt::format("{}", tensor);
+          return std::format("{}", tensor);
         }
 
        case RATIONAL:
-        return fmt::format("{}", q);
+        return std::format("{}", q);
 
        case DOUBLE:
-        return fmt::format("{}", d);
+        return std::format("{}", d);
 
        default: assert(false);
       }

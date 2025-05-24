@@ -3,7 +3,7 @@
 #include "Index.hpp"
 #include "concepts.hpp"
 #include <string_view>
-#include <fmt/core.h>
+#include <format>
 
 namespace ttl
 {
@@ -90,7 +90,7 @@ namespace ttl
 }
 
 template <>
-struct fmt::formatter<ttl::Tensor>
+struct std::formatter<ttl::Tensor>
 {
   static constexpr auto parse(format_parse_context& ctx)
   {

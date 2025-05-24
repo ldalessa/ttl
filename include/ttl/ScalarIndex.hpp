@@ -3,6 +3,7 @@
 #include "Index.hpp"
 #include <algorithm>
 #include <concepts>
+#include <format>
 
 namespace ttl
 {
@@ -115,10 +116,8 @@ struct ScalarIndex
 };
 }
 
-#include <fmt/format.h>
-
 template <>
-struct fmt::formatter<ttl::ScalarIndex>
+struct std::formatter<ttl::ScalarIndex>
 {
   constexpr auto parse(format_parse_context& ctx)
   {

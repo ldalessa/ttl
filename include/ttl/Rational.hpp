@@ -1,9 +1,9 @@
 #pragma once
 
 #include <cassert>
+#include <format>
 #include <numeric>
 #include <utility>
-#include <fmt/core.h>
 
 namespace ttl
 {
@@ -94,7 +94,7 @@ namespace ttl
 }
 
 template <>
-struct fmt::formatter<ttl::Rational> {
+struct std::formatter<ttl::Rational> {
   static constexpr auto parse(format_parse_context& ctx) {
     return ctx.begin();
   }
