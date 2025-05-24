@@ -1,0 +1,18 @@
+{
+    "cmake.useCMakePresets": "always",
+    "C_Cpp.intelliSenseEngine": "disabled",
+    "cmake.copyCompileCommands": "${workspaceFolder}/build/compile_commands.json",
+    "clangd.arguments": [
+        "-j=4",
+        "--background-index",
+        "--compile-commands-dir=${workspaceFolder}/build",
+        "--clang-tidy",
+        "--completion-style=detailed",
+        "--header-insertion=never"
+    ],
+    "C_Cpp.formatting": "clangFormat",
+    "clang-format.fallbackStyle": "WebKit",
+    "editor.unicodeHighlight.allowedCharacters": {
+        "ʹ": true
+    }
+}
