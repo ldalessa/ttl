@@ -33,8 +33,8 @@ namespace ttl
 
     constexpr ParseNode(const Tensor& t, const Index& i)
         : tag(TENSOR)
-        , tensor(t)
         , index(i)
+        , tensor(t)
     {
       assert(tensor.order() <= i.size());
     }
