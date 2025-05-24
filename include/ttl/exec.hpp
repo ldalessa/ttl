@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <array>
 #include <cassert>
+#include <utility>
 
 namespace ttl::exec
 {
@@ -57,7 +58,7 @@ namespace ttl::exec
           return ii - i;
         }
       }
-      assert(false);
+      std::unreachable();
     }
   };
 
