@@ -10,7 +10,7 @@ RUN apt -y modernize-sources
 RUN apt -y install wget sudo make ninja-build valgrind git cmake locales locales-all
 RUN	apt -y install gawk flex bison libgmp-dev libmpfr-dev libmpc-dev python3-dev binutils perl libisl-dev libzstd-dev tar gzip bzip2
 RUN apt -y install clang-$LLVM_VERSION clangd-$LLVM_VERSION clang-tidy-$LLVM_VERSION clang-format-$LLVM_VERSION clang-tools-$LLVM_VERSION llvm-$LLVM_VERSION-dev lld-$LLVM_VERSION lldb-$LLVM_VERSION llvm-$LLVM_VERSION-tools libomp-$LLVM_VERSION-dev libc++-$LLVM_VERSION-dev libc++abi-$LLVM_VERSION-dev libclang-common-$LLVM_VERSION-dev libclang-$LLVM_VERSION-dev libclang-cpp$LLVM_VERSION-dev libunwind-$LLVM_VERSION-dev libclang-rt-$LLVM_VERSION-dev libpolly-$LLVM_VERSION-dev
-RUN apt -y install build-essential gcc-15 g++-15 gdb
+RUN apt -y install build-essential gcc g++ gdb
 RUN apt -y autoremove
 
 RUN useradd -rms /bin/bash -G sudo -p "$(openssl passwd -6 devcontainer)" $USER_NAME
