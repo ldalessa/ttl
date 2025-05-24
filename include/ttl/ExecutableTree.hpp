@@ -44,7 +44,7 @@ namespace ttl
       constexpr static int M = ci.size();
       constexpr static std::array b_map = exec::make_map<N, M>(ci, bi);
 
-      for (int i = 0; i < b_map.size(); ++i) {
+      for (unsigned i = 0; i < b_map.size(); ++i) {
         c[i] = a[i] + b[b_map[i]];
       }
     }
@@ -75,7 +75,7 @@ namespace ttl
       constexpr static int M = ci.size();
       constexpr static std::array b_map = exec::make_map<N, M>(ci, bi);
 
-      for (int i = 0; i < b_map.size(); ++i) {
+      for (unsigned i = 0; i < b_map.size(); ++i) {
         c[i] = a[i] - b[b_map[i]];
       }
     }
@@ -109,11 +109,11 @@ namespace ttl
       // Don't know the state of the stack but we're going to need to accumulate
       // there so we need to zero it first (it's nearly certainly dirty, either
       // from previous frame or from previous evaluation)
-      for (int i = 0; i < c_map.size(); ++i) {
+      for (unsigned i = 0; i < c_map.size(); ++i) {
         c[i] = T();
       }
 
-      for (int i = 0; i < c_map.size(); ++i) {
+      for (unsigned i = 0; i < c_map.size(); ++i) {
         c[c_map[i]] += a[a_map[i]] * b[b_map[i]];
       }
     }
@@ -180,7 +180,7 @@ namespace ttl
       constexpr static std::array c_map = exec::make_map<N, M>(all_index, outer_index);
       constexpr static std::array id_map = exec::make_map<N, M>(all_index, tensor_index);
 
-      for (int ii = 0; ii < c_map.size(); ++ii) {
+      for (unsigned ii = 0; ii < c_map.size(); ++ii) {
         c[c_map[ii]] += scalars(ids[id_map[ii]], i);
       }
     }
