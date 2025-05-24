@@ -8,6 +8,7 @@
 #include "pow.hpp"
 #include "set.hpp"
 #include <memory>
+#include <vector>
 
 namespace ttl
 {
@@ -201,7 +202,7 @@ namespace ttl
       /// The shape is a set of aggregate statistics about the tree, including
       /// information like the number of nodes, the tree depth, the indices,
       /// etc.
-      constexpr auto shape(int dim, ce::dvector<int>& stack) const -> TreeShape
+      constexpr auto shape(int dim, std::vector<int>& stack) const -> TreeShape
       {
         int top_of_stack = stack.back();
         stack.push_back(top_of_stack + tensor_size(dim));
@@ -378,7 +379,8 @@ namespace ttl
     constexpr auto shape(int dim) const -> TreeShape
     {
       // allocate space on the stack for the returned tensor
-      ce::dvector<int> stack { std::in_place, 0 };
+      std::vector<int> stack;
+      stack.push_back(0);
       TreeShape out = root_->shape(dim, stack);
       assert(stack.size() == 2);
       assert(stack.back() == root_->tensor_size(dim));

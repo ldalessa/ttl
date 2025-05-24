@@ -8,6 +8,7 @@
 #include "ttl/pack_fp.hpp"
 #include "ttl/set.hpp"
 #include <array>
+#include <vector>
 
 namespace ttl
 {
@@ -172,7 +173,7 @@ namespace ttl
       int tensor = 0;
       int scalar = 0;
       int immediate = 0;
-      ce::dvector<int> stack;
+      std::vector<int> stack;
 
       constexpr Builder_(SerializedTree& tree)
           : tree(tree)

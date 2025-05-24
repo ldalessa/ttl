@@ -1,17 +1,17 @@
 #pragma once
 
-#include <ce/dvector.hpp>
 #include <optional>
 #include <utility>
+#include <vector>
 
 #include "ttl/Scalar.hpp"
 
 namespace ttl
 {
   template <typename T>
-  struct set : ce::dvector<T>
+  struct set : std::vector<T>
   {
-    using ce::dvector<T>::dvector;
+    using set::vector::vector;
 
     constexpr bool contains(const T& value) const
     {
