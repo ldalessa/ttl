@@ -13,12 +13,12 @@ struct dot {
 template <typename T>
 struct fmt::formatter<ttl::dot<T>>
 {
-  constexpr auto parse(format_parse_context& ctx) {
+  static constexpr auto parse(format_parse_context& ctx) {
     return ctx.begin();
   }
 
   template <typename FormatContext>
-  constexpr auto format(ttl::dot<T> box, FormatContext& ctx)
+  static constexpr auto format(ttl::dot<T> box, FormatContext& ctx)
   {
     using namespace ttl;
     int i = 0;

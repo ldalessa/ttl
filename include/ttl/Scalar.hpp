@@ -117,7 +117,7 @@ namespace ttl
 
       str.append(tensor.id());
 
-      for (int i : index) {
+      for (unsigned i : index) {
         assert(i < std::size(ids));
         str.append(1, ids[i]);
       }
@@ -132,7 +132,7 @@ namespace ttl
 
       for (int n = 0; n < α.size(); ++n) {
         for (int i = 0; i < α[n]; ++i) {
-          assert(i < std::size(ids));
+			assert((unsigned)i < std::size(ids));
           str.append(1, ids[n]);
         }
       }
@@ -169,12 +169,12 @@ namespace ttl
 template <>
 struct fmt::formatter<ttl::Scalar>
 {
-  constexpr auto parse(format_parse_context& ctx)
+  static constexpr auto parse(format_parse_context& ctx)
   {
     return ctx.begin();
   }
 
-  auto format(ttl::Scalar const& p, auto& ctx)
+  static auto format(ttl::Scalar const& p, auto& ctx)
   {
     return format_to(ctx.out(), "{}", p.to_string());
   }

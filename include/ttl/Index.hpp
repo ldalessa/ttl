@@ -214,12 +214,12 @@ namespace ttl
 template <>
 struct fmt::formatter<ttl::Index>
 {
-  constexpr auto parse(format_parse_context& ctx)
+  static constexpr auto parse(format_parse_context& ctx)
   {
     return ctx.begin();
   }
 
-  constexpr auto format(ttl::Index const& index, auto& ctx)
+  static constexpr auto format(ttl::Index const& index, auto& ctx)
   {
     return format_to(ctx.out(), "{}", to_string(index));
   }

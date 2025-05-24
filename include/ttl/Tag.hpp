@@ -67,11 +67,11 @@ struct fmt::formatter<ttl::Tag>
     ""                                          // DOUBLE
   };
 
-  constexpr auto parse(format_parse_context& ctx) {
+  static constexpr auto parse(format_parse_context& ctx) {
     return ctx.begin();
   }
 
-  constexpr auto format(ttl::Tag tag, auto& ctx) {
+  static constexpr auto format(ttl::Tag tag, auto& ctx) {
     return format_to(ctx.out(), "{}", tag_strings[tag]);
   }
 };

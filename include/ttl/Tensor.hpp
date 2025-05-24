@@ -92,12 +92,12 @@ namespace ttl
 template <>
 struct fmt::formatter<ttl::Tensor>
 {
-  constexpr auto parse(format_parse_context& ctx)
+  static constexpr auto parse(format_parse_context& ctx)
   {
     return ctx.begin();
   }
 
-  constexpr auto format(const ttl::Tensor& tensor, auto& ctx)
+  static constexpr auto format(const ttl::Tensor& tensor, auto& ctx)
   {
     return format_to(ctx.out(), "{}", to_string(tensor));
   }

@@ -95,12 +95,12 @@ namespace ttl
 
 template <>
 struct fmt::formatter<ttl::Rational> {
-  constexpr auto parse(format_parse_context& ctx) {
+  static constexpr auto parse(format_parse_context& ctx) {
     return ctx.begin();
   }
 
   template <typename FormatContext>
-  constexpr auto format(const ttl::Rational& q, FormatContext& ctx) {
+  static constexpr auto format(const ttl::Rational& q, FormatContext& ctx) {
     if (q.q != 1) {
       return format_to(ctx.out(), "{}/{}", q.p, q.q);
     }
