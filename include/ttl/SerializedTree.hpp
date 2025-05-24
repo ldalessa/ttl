@@ -8,8 +8,8 @@
 #include "ttl/pack_fp.hpp"
 #include "ttl/set.hpp"
 #include <array>
-#include <cstdio>
 #include <format>
+#include <print>
 #include <vector>
 
 namespace ttl
@@ -285,7 +285,7 @@ namespace ttl
         stack.push_back(top_of_stack + node->tensor_size(shape.dims));
 
         if (!std::is_constant_evaluated()) {
-          std::printf("%s", std::format("serialize stack:{}\n", stack.back()).c_str());
+          std::print("serialize stack:{}\n", stack.back());
         }
 
         switch (node->tag)

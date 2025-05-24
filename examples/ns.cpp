@@ -21,8 +21,8 @@ static constexpr const char USAGE[] =
 #include "cm.hpp"
 #include <ttl/ttl.hpp>
 #include <docopt.h>
-#include <cstdio>
 #include <format>
+#include <print>
 #include <vector>
 
 namespace {
@@ -75,7 +75,7 @@ int run_ns(auto& args)
   {
     puts("constants:");
     for (int i = 0; auto&& c : navier_stokes_Nd.constants) {
-      std::printf("%s", std::format("{}: {}\n", i++, c).c_str());
+      std::print("{}: {}\n", i++, c);
     }
     puts("");
   }
@@ -84,7 +84,7 @@ int run_ns(auto& args)
   {
     puts("scalars:");
     for (int i = 0; auto&& c : navier_stokes_Nd.scalars) {
-      std::printf("%s", std::format("{}: {}\n", i++, c).c_str());
+      std::print("{}: {}\n", i++, c);
     }
     puts("");
   }
@@ -92,83 +92,83 @@ int run_ns(auto& args)
   auto eqns = args["--eqn"].asStringList();
   if (std::find(eqns.begin(), eqns.end(), "ρ") != eqns.end()) {
     if (args["-p"].asBool()) {
-      std::printf("%s", std::format("parse: {} = {}\n", ρ, ρ_rhs.to_string()).c_str());
+      std::print("parse: {} = {}\n", ρ, ρ_rhs.to_string());
     }
     if (args["-t"].asBool()) {
-      std::printf("%s", std::format("tensor: {}\n", ttl::TensorTree(ρ, ρ_rhs, navier_stokes).to_string()).c_str());
+      std::print("tensor: {}\n", ttl::TensorTree(ρ, ρ_rhs, navier_stokes).to_string());
     }
     // if (args["-e"].asBool()) {
     //   constexpr int M = sedov3dscalar.scalars(ρ);
-    //   std::printf("%s", std::format("exec ρ: {}\n", kumi::get<M>(sedov3dscalar.executable).to_string()).c_str());
+    //   std::print("exec ρ: {}\n", kumi::get<M>(sedov3dscalar.executable).to_string());
     // }
   }
 
   if (std::find(eqns.begin(), eqns.end(), "v") != eqns.end()) {
     if (args["-p"].asBool()) {
-      std::printf("%s", std::format("parse: {} = {}\n", v, v_rhs.to_string()).c_str());
+      std::print("parse: {} = {}\n", v, v_rhs.to_string());
     }
   //   if (args["-t"].asBool()) {
-  //     std::printf("%s", std::format("tensor: {}\n", sedov.simplify(v, v_rhs).to_string()).c_str());
+  //     std::print("tensor: {}\n", sedov.simplify(v, v_rhs).to_string());
   //   }
   //   if (args["-e"].asBool()) {
   //     [&]<std::size_t... n>(std::index_sequence<n...>) {
-  //       (std::printf("%s", std::format("exec v[{}]: {}\n", n, kumi::get<sedov3dscalar.scalars(v, n)>(sedov3dscalar.executable).to_string()), ...).c_str());
+  //       (std::print("exec v[{}]: {}\n", n, kumi::get<sedov3dscalar.scalars(v, n)>(sedov3dscalar.executable).to_string()), ...);
   //     }(std::make_index_sequence<sedov3dscalar.dim()>());
   //   }
   }
 
   if (std::find(eqns.begin(), eqns.end(), "e") != eqns.end()) {
     if (args["-p"].asBool()) {
-      std::printf("%s", std::format("parse: {} = {}\n", e, e_rhs.to_string()).c_str());
+      std::print("parse: {} = {}\n", e, e_rhs.to_string());
     }
   //   if (args["-t"].asBool()) {
-  //     std::printf("%s", std::format("tensor: {}\n", sedov.simplify(e, e_rhs).to_string()).c_str());
+  //     std::print("tensor: {}\n", sedov.simplify(e, e_rhs).to_string());
   //   }
   //   if (args["-e"].asBool()) {
   //     constexpr int M = sedov3dscalar.scalars(e);
-  //     std::printf("%s", std::format("exec e: {}\n", kumi::get<M>(sedov3dscalar.executable).to_string()).c_str());
+  //     std::print("exec e: {}\n", kumi::get<M>(sedov3dscalar.executable).to_string());
   //   }
   }
 
   auto dots = args["--dot"].asStringList();
   if (std::find(dots.begin(), dots.end(), "ρ") != dots.end()) {
     if (args["-p"].asBool()) {
-      std::printf("%s", std::format("graph ρ_parse {{\n{}}}\n", ttl::dot(ρ_rhs)).c_str());
+      std::print("graph ρ_parse {{\n{}}}\n", ttl::dot(ρ_rhs));
     }
   //   if (args["-t"].asBool()) {
-  //     std::printf("%s", std::format("graph ρ_tensor {{\n{}}}\n", ttl::dot(sedov.simplify(ρ, ρ_rhs))).c_str());
+  //     std::print("graph ρ_tensor {{\n{}}}\n", ttl::dot(sedov.simplify(ρ, ρ_rhs)));
   //   }
   //   if (args["-s"].asBool()) {
   //     for (int i = 0; auto&& tree : sedov.scalar_trees(N, sedov.simplify(ρ, ρ_rhs))) {
-  //       std::printf("%s", std::format("graph ρ{} {{\n{}}}\n", i++, ttl::dot(tree)).c_str());
+  //       std::print("graph ρ{} {{\n{}}}\n", i++, ttl::dot(tree));
   //     }
   //   }
   }
 
   if (std::find(dots.begin(), dots.end(), "v") != dots.end()) {
     if (args["-p"].asBool()) {
-      std::printf("%s", std::format("graph v_parse {{\n{}}}\n", ttl::dot(v_rhs)).c_str());
+      std::print("graph v_parse {{\n{}}}\n", ttl::dot(v_rhs));
     }
   //   if (args["-t"].asBool()) {
-  //     std::printf("%s", std::format("graph v_tensor {{\n{}}}\n", ttl::dot(sedov.simplify(v, v_rhs))).c_str());
+  //     std::print("graph v_tensor {{\n{}}}\n", ttl::dot(sedov.simplify(v, v_rhs)));
   //   }
   //   if (args["-s"].asBool()) {
   //     for (int i = 0; auto&& tree : sedov.scalar_trees(N, sedov.simplify(v, v_rhs))) {
-  //       std::printf("%s", std::format("graph v{} {{\n{}}}\n", i++, ttl::dot(tree)).c_str());
+  //       std::print("graph v{} {{\n{}}}\n", i++, ttl::dot(tree));
   //     }
   //   }
   }
 
   if (std::find(dots.begin(), dots.end(), "e") != dots.end()) {
     if (args["-p"].asBool()) {
-      std::printf("%s", std::format("graph e_parse {{\n{}}}\n", ttl::dot(e_rhs)).c_str());
+      std::print("graph e_parse {{\n{}}}\n", ttl::dot(e_rhs));
     }
   //   if (args["-t"].asBool()) {
-  //     std::printf("%s", std::format("graph e_tensor {{\n{}}}\n", ttl::dot(sedov.simplify(e, e_rhs))).c_str());
+  //     std::print("graph e_tensor {{\n{}}}\n", ttl::dot(sedov.simplify(e, e_rhs)));
   //   }
   //   if (args["-s"].asBool()) {
   //     for (int i = 0; auto&& tree : sedov.scalar_trees(N, sedov.simplify(e, e_rhs))) {
-  //       std::printf("%s", std::format("graph e{} {{\n{}}}\n", i++, ttl::dot(tree)).c_str());
+  //       std::print("graph e{} {{\n{}}}\n", i++, ttl::dot(tree));
   //     }
   //   }
   }
@@ -241,6 +241,6 @@ int main(int argc, char* const argv[])
    case 3: return run_ns<3>(args);
   }
 
-  std::printf("%s", std::format("navier stokes only supports N=1,2,3 ({})\n", args["N"].asLong()).c_str());
+  std::print("navier stokes only supports N=1,2,3 ({})\n", args["N"].asLong());
   return 0;
 }

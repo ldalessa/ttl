@@ -7,9 +7,9 @@
 #include "TreeShape.hpp"
 #include "pow.hpp"
 #include "set.hpp"
-#include <cstdio>
 #include <format>
 #include <memory>
+#include <print>
 #include <vector>
 
 namespace ttl
@@ -210,7 +210,7 @@ namespace ttl
         stack.push_back(top_of_stack + tensor_size(dim));
 
         if (!std::is_constant_evaluated()) {
-          std::printf("%s", std::format("tree shape stack:{} ({} + {})\n", stack.back(), top_of_stack, tensor_size(dim)).c_str());
+          std::print("tree shape stack:{} ({} + {})\n", stack.back(), top_of_stack, tensor_size(dim));
         }
 
         switch (tag) {
