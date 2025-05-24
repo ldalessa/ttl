@@ -1,14 +1,22 @@
 {
-		"name": "ttl",
-		"build": {
-				"dockerfile": "Dockerfile"
+	"name": "ttl",
+	"build": {
+		"dockerfile": "Dockerfile",
         "args": {
-            "USER_NAME": "${localEnv:USER}"
+        	"USER_NAME": "${localEnv:USER}"
         }
-		},
-		"workspaceMount": "source=${localWorkspaceFolder},target=/home/${localEnv:USER}/ttl,type=bind",
-		"workspaceFolder": "/home/${localEnv:USER}/ttl",
+	},
+	"workspaceMount": "source=${localWorkspaceFolder},target=/home/${localEnv:USER}/ttl,type=bind",
+	"workspaceFolder": "/home/${localEnv:USER}/ttl",
     "mounts": [
         "type=bind,source=${localEnv:HOME}/.ssh,target=/home/${localEnv:USER}/.ssh,readonly"
-    ]
+	],
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"llvm-vs-code-extensions.vscode-clangd",
+				"ms-vscode.cmake-tools"
+			]
+		}
+	}
 }
