@@ -1,12 +1,6 @@
 cmake_minimum_required(VERSION 3.18)
 project(ttl CXX)
 
-set(TTL_SANITIZE "" CACHE STRING "-fsanitize compiler options")
-if (TTL_SANITIZE)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-omit-frame-pointer -fsanitize=${TTL_SANITIZE}")
-  set(CMAKE_LINKER_FLAGS "${CMAKE_LINKER_FLAGS} -fsanitize=${TTL_SANITIZE}")
-endif (TTL_SANITIZE)
-
 set(TTL_MAX_PARSE_INDEX "16" CACHE STRING "The largest tensor index supported in the expression parser")
 
 # -----------------------------------------------------------------------------
