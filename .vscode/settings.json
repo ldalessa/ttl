@@ -14,5 +14,8 @@
     "clang-format.fallbackStyle": "WebKit",
     "editor.unicodeHighlight.allowedCharacters": {
         "ʹ": true
-    }
+    },
+    "cmake.configureArgs": [
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=1"
+    ]
 }
