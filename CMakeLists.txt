@@ -20,15 +20,10 @@ FetchContent_Declare(raberu
 set(RABERU_BUILD_TEST OFF CACHE INTERNAL "OFF")
 FetchContent_MakeAvailable(raberu)
 
-FetchContent_Declare(eve
-  GIT_REPOSITORY     https://github.com/jfalcou/eve.git
-  GIT_TAG            main)
-FetchContent_MakeAvailable(eve)
-
 add_library(ttl_lib INTERFACE)
 target_include_directories(ttl_lib INTERFACE $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>)
 target_compile_definitions(ttl_lib INTERFACE TTL_MAX_PARSE_INDEX=${TTL_MAX_PARSE_INDEX})
-target_link_libraries(ttl_lib INTERFACE eve::eve kumi::kumi raberu::raberu)
+target_link_libraries(ttl_lib INTERFACE kumi::kumi raberu::raberu)
 target_compile_features(ttl_lib INTERFACE cxx_std_20)
 add_library(ttl::ttl ALIAS ttl_lib)
 
