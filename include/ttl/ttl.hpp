@@ -1,8 +1,9 @@
 #pragma once
 
-#include "ExecutableSystem.hpp"
-#include "Index.hpp"
-#include "Tensor.hpp"
-#include "System.hpp"
-#include "dot.hpp"
-#include "grammar.hpp"
+#include "ttl/Equation.hpp"
+#include "ttl/ExecutableSystem.hpp"
+#include "ttl/Index.hpp"
+#include "ttl/System.hpp"
+#include "ttl/Tensor.hpp"
+#include "ttl/dot.hpp"
+#include "ttl/grammar.hpp"

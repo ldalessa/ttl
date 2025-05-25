@@ -17,5 +17,8 @@
     },
     "cmake.configureArgs": [
         "-DCMAKE_EXPORT_COMPILE_COMMANDS=1"
-    ]
+    ],
+    "editor.formatOnSave": true,
+    "clang-format.assumeFilename": ".clang-format",
+    "editor.tabSize": 4
 }
