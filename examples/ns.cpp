@@ -3,6 +3,7 @@
 #include <kumi/tuple.hpp>
 
 import ttl;
+import std;
 
 namespace
 {
@@ -35,7 +36,7 @@ namespace
 	constexpr auto v_rhs = -D(v(i), j) * v(j) + D(σ(i, j), j) / ρ + g(i);
 	constexpr auto e_rhs = -v(i) * D(e, i) + σ(i, j) * d(i, j) / ρ - D(q(i), i) / ρ;
 
-	constexpr ttl::System navier_stokes = {
+	constexpr auto navier_stokes = ttl::System {
 		ρ <<= ρ_rhs,
 		v <<= v_rhs,
 		e <<= e_rhs
@@ -57,7 +58,7 @@ namespace options
 template <int N>
 int run_ns()
 {
-	static constexpr ttl::ExecutableSystem<double, N, navier_stokes> navier_stokes_Nd;
+	static constexpr auto navier_stokes_Nd = ttl::ExecutableSystem<double, N, navier_stokes>();
 
 	// constexpr auto trees = sedov3d.serialized_tensor_trees;
 	// auto ser = sedov3d.serialize_tensor_trees();
