@@ -1,5 +1,12 @@
-cmake_minimum_required(VERSION 3.18)
+cmake_minimum_required(VERSION 4.0.2)
+
+set(CMAKE_CXX_FLAGS "-stdlib=libc++")
+set(CMAKE_CXX_STANDARD 26)
+set(CMAKE_EXPERIMENTAL_CXX_IMPORT_STD "a9e1cf81-9932-4810-974b-6eccaf14e457")
+set(CMAKE_CXX_STANDARD_REQUIRED OFF)
+set(CMAKE_CXX_MODULE_STD 1)
 project(ttl CXX)
+unset(CMAKE_CXX_FLAGS)
 
 set(TTL_MAX_PARSE_INDEX "16" CACHE STRING "The largest tensor index supported in the expression parser")
 

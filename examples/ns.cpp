@@ -1,25 +1,5 @@
-static constexpr const char USAGE[] =
-    R"(sedov: run sedov
-  Usage:
-      sedov (-h | --help)
-      sedov --version
-      sedov N [--constants] [--scalars] [-ptse] [--eqn <rhs>]... [--dot <rhs>]...
-
-  Options:
-      -h, --help         Show this screen.
-      --version          Show version information.
-      --eqn <rhs>        Print an eqn for <rhs>
-      --dot <rhs>        Print a dotfile for <rhs>
-      --constants        Print a list of the constant scalars in the system
-      --scalars          Print a list of the scalars in the system
-      -p                 Print parse trees
-      -t                 Print tensor trees
-      -s                 Print scalar trees
-      -e                 Print executable trees
-)";
-
 #include "cm.hpp"
-#include <docopt.h>
+#include <CLI/CLI.hpp>
 #include <format>
 #include <print>
 #include <ttl/ttl.hpp>
@@ -62,16 +42,27 @@ constexpr ttl::System navier_stokes = {
 };
 }
 
+namespace options {
+std::vector<std::string> eqns;
+std::vector<std::string> dots;
+bool print_constants = false;
+bool print_scalars = false;
+bool print_parse_trees = false;
+bool print_tensor_trees = false;
+bool print_scalar_trees = false;
+bool print_executable_trees = false;
+}
+
 template <int N>
-int run_ns(auto& args)
+int run_ns()
 {
-    constexpr ttl::ExecutableSystem<double, N, navier_stokes> navier_stokes_Nd;
+    static constexpr ttl::ExecutableSystem<double, N, navier_stokes> navier_stokes_Nd;
 
     // constexpr auto trees = sedov3d.serialized_tensor_trees;
     // auto ser = sedov3d.serialize_tensor_trees();
     // auto trees = sedov3d.make_executable_tensor_trees();
 
-    if (args["--constants"].asBool()) {
+    if (options::print_constants) {
         puts("constants:");
         for (int i = 0; auto&& c : navier_stokes_Nd.constants) {
             std::print("{}: {}\n", i++, c);
@@ -79,7 +70,7 @@ int run_ns(auto& args)
         puts("");
     }
 
-    if (args["--scalars"].asBool()) {
+    if (options::print_scalars) {
         puts("scalars:");
         for (int i = 0; auto&& c : navier_stokes_Nd.scalars) {
             std::print("{}: {}\n", i++, c);
@@ -87,84 +78,82 @@ int run_ns(auto& args)
         puts("");
     }
 
-    auto eqns = args["--eqn"].asStringList();
-    if (std::find(eqns.begin(), eqns.end(), "ρ") != eqns.end()) {
-        if (args["-p"].asBool()) {
+    if (std::find(options::eqns.begin(), options::eqns.end(), "ρ") != options::eqns.end()) {
+        if (options::print_parse_trees) {
             std::print("parse: {} = {}\n", ρ, ρ_rhs.to_string());
         }
-        if (args["-t"].asBool()) {
+        if (options::print_tensor_trees) {
             std::print("tensor: {}\n", ttl::TensorTree(ρ, ρ_rhs, navier_stokes).to_string());
         }
-        // if (args["-e"].asBool()) {
+        // if (options::print_executable_trees) {
         //   constexpr int M = sedov3dscalar.scalars(ρ);
         //   std::print("exec ρ: {}\n", kumi::get<M>(sedov3dscalar.executable).to_string());
         // }
     }
 
-    if (std::find(eqns.begin(), eqns.end(), "v") != eqns.end()) {
-        if (args["-p"].asBool()) {
+    if (std::find(options::eqns.begin(), options::eqns.end(), "v") != options::eqns.end()) {
+        if (options::print_parse_trees) {
             std::print("parse: {} = {}\n", v, v_rhs.to_string());
         }
-        //   if (args["-t"].asBool()) {
+        //   if (options::print_tensor_trees) {
         //     std::print("tensor: {}\n", sedov.simplify(v, v_rhs).to_string());
         //   }
-        //   if (args["-e"].asBool()) {
+        //   if (options::print_executable_trees) {
         //     [&]<std::size_t... n>(std::index_sequence<n...>) {
         //       (std::print("exec v[{}]: {}\n", n, kumi::get<sedov3dscalar.scalars(v, n)>(sedov3dscalar.executable).to_string()), ...);
         //     }(std::make_index_sequence<sedov3dscalar.dim()>());
         //   }
     }
 
-    if (std::find(eqns.begin(), eqns.end(), "e") != eqns.end()) {
-        if (args["-p"].asBool()) {
+    if (std::find(options::eqns.begin(), options::eqns.end(), "e") != options::eqns.end()) {
+        if (options::print_parse_trees) {
             std::print("parse: {} = {}\n", e, e_rhs.to_string());
         }
-        //   if (args["-t"].asBool()) {
+        //   if (options::print_tensor_trees) {
         //     std::print("tensor: {}\n", sedov.simplify(e, e_rhs).to_string());
         //   }
-        //   if (args["-e"].asBool()) {
+        //   if (options::print_executable_trees) {
         //     constexpr int M = sedov3dscalar.scalars(e);
         //     std::print("exec e: {}\n", kumi::get<M>(sedov3dscalar.executable).to_string());
         //   }
     }
 
-    auto dots = args["--dot"].asStringList();
-    if (std::find(dots.begin(), dots.end(), "ρ") != dots.end()) {
-        if (args["-p"].asBool()) {
+    if (std::find(options::dots.begin(), options::dots.end(), "ρ") != options::dots.end()) {
+        if (options::print_parse_trees) {
             std::print("graph ρ_parse {{\n{}}}\n", ttl::dot(ρ_rhs));
         }
-        //   if (args["-t"].asBool()) {
+        //   if (options::print_tensor_trees) {
         //     std::print("graph ρ_tensor {{\n{}}}\n", ttl::dot(sedov.simplify(ρ, ρ_rhs)));
         //   }
-        //   if (args["-s"].asBool()) {
+        //   if (options::print_executable_trees) {
         //     for (int i = 0; auto&& tree : sedov.scalar_trees(N, sedov.simplify(ρ, ρ_rhs))) {
         //       std::print("graph ρ{} {{\n{}}}\n", i++, ttl::dot(tree));
         //     }
         //   }
     }
 
-    if (std::find(dots.begin(), dots.end(), "v") != dots.end()) {
-        if (args["-p"].asBool()) {
+    if (std::find(options::dots.begin(), options::dots.end(), "v") != options::dots.end()) {
+        if (options::print_parse_trees) {
             std::print("graph v_parse {{\n{}}}\n", ttl::dot(v_rhs));
         }
-        //   if (args["-t"].asBool()) {
+        //   if (options::print_tensor_trees) {
         //     std::print("graph v_tensor {{\n{}}}\n", ttl::dot(sedov.simplify(v, v_rhs)));
         //   }
-        //   if (args["-s"].asBool()) {
+        //   if (options::print_executable_trees) {
         //     for (int i = 0; auto&& tree : sedov.scalar_trees(N, sedov.simplify(v, v_rhs))) {
         //       std::print("graph v{} {{\n{}}}\n", i++, ttl::dot(tree));
         //     }
         //   }
     }
 
-    if (std::find(dots.begin(), dots.end(), "e") != dots.end()) {
-        if (args["-p"].asBool()) {
+    if (std::find(options::dots.begin(), options::dots.end(), "e") != options::dots.end()) {
+        if (options::print_parse_trees) {
             std::print("graph e_parse {{\n{}}}\n", ttl::dot(e_rhs));
         }
-        //   if (args["-t"].asBool()) {
+        //   if (options::print_tensor_trees) {
         //     std::print("graph e_tensor {{\n{}}}\n", ttl::dot(sedov.simplify(e, e_rhs)));
         //   }
-        //   if (args["-s"].asBool()) {
+        //   if (options::print_executable_trees) {
         //     for (int i = 0; auto&& tree : sedov.scalar_trees(N, sedov.simplify(e, e_rhs))) {
         //       std::print("graph e{} {{\n{}}}\n", i++, ttl::dot(tree));
         //     }
@@ -227,19 +216,31 @@ int run_ns(auto& args)
     return 0;
 }
 
-int main(int argc, char* const argv[])
+int main(int argc, char** argv)
 {
-    std::map args = docopt::docopt(USAGE, { argv + 1, argv + argc });
+    int N;
 
-    switch (args["N"].asLong()) {
+    auto app = CLI::App();
+    app.add_option("N", N, "Dimensionality");
+    app.add_option("--eqns", options::eqns, "Equations to print.");
+    app.add_option("--dot", options::dots, "Equations to print as dot graphs");
+    app.add_option("--constants", options::print_constants, "Print a list of the constants in the system");
+    app.add_option("--scalars", options::print_scalars, "Print a list of the scalars in the system");
+    app.add_option("-p", options::print_parse_trees, "Print the parse trees");
+    app.add_option("-t", options::print_tensor_trees, "Print the tensor trees");
+    app.add_option("-s", options::print_scalar_trees, "Print the scalar trees");
+    app.add_option("-e", options::print_executable_trees, "Print the executable trees");
+    app.parse(argc, app.ensure_utf8(argv));
+
+    switch (N) {
     case 1:
-        return run_ns<1>(args);
+        return run_ns<1>();
     case 2:
-        return run_ns<2>(args);
+        return run_ns<2>();
     case 3:
-        return run_ns<3>(args);
+        return run_ns<3>();
     }
 
-    std::print("navier stokes only supports N=1,2,3 ({})\n", args["N"].asLong());
+    std::print("navier stokes only supports N=1,2,3 ({})\n", N);
     return 0;
 }

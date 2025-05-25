@@ -20,5 +20,6 @@
     ],
     "editor.formatOnSave": true,
     "clang-format.assumeFilename": ".clang-format",
-    "editor.tabSize": 4
+    "editor.tabSize": 4,
+    "cmake.generator": "Ninja"
 }
