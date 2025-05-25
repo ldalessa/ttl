@@ -1,2 +1,2 @@
 add_executable(test test.cpp)
-target_link_libraries(test PRIVATE ttl::ttl)
+target_link_libraries(test PRIVATE ttl_mod)

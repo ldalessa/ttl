@@ -1,7 +1,7 @@
 // constitutive modeling for sedov
 #pragma once
 
-#include <ttl/ttl.hpp>
+import ttl;
 
 namespace cm {
 template <typename Density, typename Energy, typename T>

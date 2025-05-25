@@ -1,9 +1,8 @@
 #include "cm.hpp"
 #include <CLI/CLI.hpp>
-#include <format>
-#include <print>
-#include <ttl/ttl.hpp>
-#include <vector>
+#include <kumi/tuple.hpp>
+
+import ttl;
 
 namespace {
 /// Model parameters

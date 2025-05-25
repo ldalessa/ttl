@@ -28,5 +28,10 @@ target_link_libraries(ttl_lib INTERFACE kumi::kumi)
 target_compile_features(ttl_lib INTERFACE cxx_std_26)
 add_library(ttl::ttl ALIAS ttl_lib)
 
+add_library(ttl_mod)
+target_sources(ttl_mod PUBLIC FILE_SET cxx_modules TYPE CXX_MODULES FILES include/ttl/ttl.cppm)
+target_compile_features(ttl_mod PUBLIC cxx_std_26)
+target_link_libraries(ttl_mod PUBLIC ttl_lib)
+
 add_subdirectory(examples)
 add_subdirectory(tests)

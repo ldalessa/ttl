@@ -5,7 +5,7 @@ FetchContent_Declare(CLI11
 FetchContent_MakeAvailable(CLI11)
 
 add_executable(burgers burgers.cpp)
-target_link_libraries(burgers PRIVATE ttl::ttl)
+target_link_libraries(burgers PRIVATE ttl_mod)
 
 add_executable(ns ns.cpp)
-target_link_libraries(ns PRIVATE ttl::ttl CLI11::CLI11)
+target_link_libraries(ns PRIVATE ttl_mod CLI11::CLI11)

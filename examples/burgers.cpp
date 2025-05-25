@@ -1,4 +1,4 @@
-#include <ttl/ttl.hpp>
+import ttl;
 
 namespace {
 /// Model parameters
