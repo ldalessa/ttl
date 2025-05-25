@@ -4,6 +4,7 @@ module;
 #include "ttl/Index.hpp"
 #include "ttl/System.hpp"
 #include "ttl/Tensor.hpp"
+#include "ttl/TensorTree.hpp"
 #include "ttl/dot.hpp"
 #include "ttl/grammar.hpp"
 export module ttl;

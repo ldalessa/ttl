@@ -21,17 +21,19 @@ FetchContent_Declare(kumi
 set(KUMI_BUILD_TEST OFF CACHE INTERNAL "OFF")
 FetchContent_MakeAvailable(kumi)
 
-add_library(ttl_lib INTERFACE)
-target_include_directories(ttl_lib INTERFACE $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>)
-target_compile_definitions(ttl_lib INTERFACE TTL_MAX_PARSE_INDEX=${TTL_MAX_PARSE_INDEX})
-target_link_libraries(ttl_lib INTERFACE kumi::kumi)
-target_compile_features(ttl_lib INTERFACE cxx_std_26)
-add_library(ttl::ttl ALIAS ttl_lib)
+add_library(ttl_impl INTERFACE)
+target_include_directories(ttl_impl INTERFACE $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>)
+target_compile_definitions(ttl_impl INTERFACE TTL_MAX_PARSE_INDEX=${TTL_MAX_PARSE_INDEX})
+target_link_libraries(ttl_impl INTERFACE kumi::kumi)
+target_compile_features(ttl_impl INTERFACE cxx_std_26)
+target_compile_options(ttl_impl INTERFACE
+  --include=ttl/FWD.hpp
+  --include=ttl/ARROW.hpp)
 
 add_library(ttl_mod)
 target_sources(ttl_mod PUBLIC FILE_SET cxx_modules TYPE CXX_MODULES FILES include/ttl/ttl.cppm)
 target_compile_features(ttl_mod PUBLIC cxx_std_26)
-target_link_libraries(ttl_mod PUBLIC ttl_lib)
+target_link_libraries(ttl_mod PUBLIC ttl_impl)
 
 add_subdirectory(examples)
 add_subdirectory(tests)
