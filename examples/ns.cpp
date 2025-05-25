@@ -87,79 +87,39 @@ int run_ns()
 		if (options::print_tensor_trees) {
 			std::print("tensor: {}\n", ttl::TensorTree(ρ, ρ_rhs, navier_stokes).to_string());
 		}
-		// if (options::print_executable_trees) {
-		//   constexpr int M = sedov3dscalar.scalars(ρ);
-		//   std::print("exec ρ: {}\n", kumi::get<M>(sedov3dscalar.executable).to_string());
-		// }
 	}
 
 	if (std::find(options::eqns.begin(), options::eqns.end(), "v") != options::eqns.end()) {
 		if (options::print_parse_trees) {
 			std::print("parse: {} = {}\n", v, v_rhs.to_string());
 		}
-		//   if (options::print_tensor_trees) {
-		//     std::print("tensor: {}\n", sedov.simplify(v, v_rhs).to_string());
-		//   }
-		//   if (options::print_executable_trees) {
-		//     [&]<std::size_t... n>(std::index_sequence<n...>) {
-		//       (std::print("exec v[{}]: {}\n", n, kumi::get<sedov3dscalar.scalars(v, n)>(sedov3dscalar.executable).to_string()), ...);
-		//     }(std::make_index_sequence<sedov3dscalar.dim()>());
-		//   }
+		if (options::print_tensor_trees) {
+			std::print("tensor: {}\n", ttl::TensorTree(v, v_rhs, navier_stokes).to_string());
+		}
 	}
 
 	if (std::find(options::eqns.begin(), options::eqns.end(), "e") != options::eqns.end()) {
 		if (options::print_parse_trees) {
 			std::print("parse: {} = {}\n", e, e_rhs.to_string());
 		}
-		//   if (options::print_tensor_trees) {
-		//     std::print("tensor: {}\n", sedov.simplify(e, e_rhs).to_string());
-		//   }
-		//   if (options::print_executable_trees) {
-		//     constexpr int M = sedov3dscalar.scalars(e);
-		//     std::print("exec e: {}\n", kumi::get<M>(sedov3dscalar.executable).to_string());
-		//   }
 	}
 
 	if (std::find(options::dots.begin(), options::dots.end(), "ρ") != options::dots.end()) {
 		if (options::print_parse_trees) {
 			std::print("graph ρ_parse {{\n{}}}\n", ttl::dot(ρ_rhs));
 		}
-		//   if (options::print_tensor_trees) {
-		//     std::print("graph ρ_tensor {{\n{}}}\n", ttl::dot(sedov.simplify(ρ, ρ_rhs)));
-		//   }
-		//   if (options::print_executable_trees) {
-		//     for (int i = 0; auto&& tree : sedov.scalar_trees(N, sedov.simplify(ρ, ρ_rhs))) {
-		//       std::print("graph ρ{} {{\n{}}}\n", i++, ttl::dot(tree));
-		//     }
-		//   }
 	}
 
 	if (std::find(options::dots.begin(), options::dots.end(), "v") != options::dots.end()) {
 		if (options::print_parse_trees) {
 			std::print("graph v_parse {{\n{}}}\n", ttl::dot(v_rhs));
 		}
-		//   if (options::print_tensor_trees) {
-		//     std::print("graph v_tensor {{\n{}}}\n", ttl::dot(sedov.simplify(v, v_rhs)));
-		//   }
-		//   if (options::print_executable_trees) {
-		//     for (int i = 0; auto&& tree : sedov.scalar_trees(N, sedov.simplify(v, v_rhs))) {
-		//       std::print("graph v{} {{\n{}}}\n", i++, ttl::dot(tree));
-		//     }
-		//   }
 	}
 
 	if (std::find(options::dots.begin(), options::dots.end(), "e") != options::dots.end()) {
 		if (options::print_parse_trees) {
 			std::print("graph e_parse {{\n{}}}\n", ttl::dot(e_rhs));
 		}
-		//   if (options::print_tensor_trees) {
-		//     std::print("graph e_tensor {{\n{}}}\n", ttl::dot(sedov.simplify(e, e_rhs)));
-		//   }
-		//   if (options::print_executable_trees) {
-		//     for (int i = 0; auto&& tree : sedov.scalar_trees(N, sedov.simplify(e, e_rhs))) {
-		//       std::print("graph e{} {{\n{}}}\n", i++, ttl::dot(tree));
-		//     }
-		//   }
 	}
 
 	const std::array constants = navier_stokes_Nd.map_constants(
