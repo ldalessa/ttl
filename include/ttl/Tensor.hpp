@@ -1,103 +1,62 @@
 #pragma once
 
-#include "ttl/Index.hpp"
-#include "ttl/Rational.hpp"
-#include "ttl/concepts.hpp"
 #include <format>
-#include <string_view>
+#include <ttl/expect.hpp>
+#include <ttl/index.hpp>
 
 namespace ttl
 {
-	struct Tensor {
-		std::string_view id_ = "";
-		int order_ = -1;
-
-		constexpr Tensor() = default;
-
-		constexpr Tensor(std::string_view id, int order)
-			: id_(id)
-			, order_(order)
-		{
-		}
-
-		constexpr friend bool operator==(Tensor const&, Tensor const&) = default;
-		constexpr friend auto operator<=>(Tensor const&, Tensor const&) = default;
-
-		constexpr auto order() const -> int
-		{
-			return order_;
-		}
-
-		constexpr auto id() const -> std::string_view
-		{
-			return id_;
-		}
-
-		/// Bind a tensor with an index in an expression.
-		///
-		/// The resulting tree can be captured as constexpr.
-		///
-		/// Implemented in ParseTree.hpp to avoid circular include.
-		constexpr auto bind_tensor(std::same_as<Index> auto... is) const;
-
-		constexpr auto operator()(Index i, std::same_as<Index> auto... is) const
-		{
-			return bind_tensor(i, is...);
-		}
-
-		/// Bind a tensor with a scalar index.
-		///
-		/// The resulting Scalar cannot be captured as a constexpr, but can be used
-		/// inside of a constexpr expression context.
-		///
-		/// This is implemented in Scalar.hpp to avoid circular include.
-		constexpr auto bind_scalar(std::signed_integral auto... is) const;
-
-		constexpr auto operator()(std::signed_integral auto i, std::signed_integral auto... is) const
-		{
-			return bind_scalar(i, is...);
-		}
-
-		constexpr auto operator=(std::floating_point auto d) const;
-		constexpr auto operator=(std::integral auto i) const;
-		constexpr auto operator=(Rational q) const;
-
-		/// Create a differential equation of dt.
-		///
-		/// This is implemented in Equation in order to avoid circular includes.
-		constexpr auto operator<<=(is_tree auto&&) const;
-	};
-
-	constexpr auto to_string(const Tensor& t) -> std::string_view
+	namespace parse
 	{
-		return t.id();
+		template <std::size_t, std::size_t>
+		struct Tree;
 	}
 
-	constexpr auto scalar(std::string_view id) -> ttl::Tensor
+	struct tensor {
+		std::string_view _id;
+		std::size_t _rank;
+
+		constexpr auto rank() const -> std::size_t
+		{
+			return _rank;
+		}
+
+		consteval auto operator()(auto... is) const -> parse::Tree<1, sizeof...(is)>
+		{
+			expect(sizeof...(is) == _rank);
+			return _bind(index(is)...);
+		}
+
+	private:
+		// implemented in parse/tree.hpp
+		consteval auto _bind(auto... is) const -> parse::Tree<1, sizeof...(is)>;
+	};
+
+	consteval auto scalar(char const* id) -> ttl::tensor
 	{
 		return { id, 0 };
 	}
 
-	constexpr auto vector(std::string_view id) -> ttl::Tensor
+	consteval auto vector(char const* id) -> ttl::tensor
 	{
 		return { id, 1 };
 	}
 
-	constexpr auto matrix(std::string_view id) -> ttl::Tensor
+	consteval auto matrix(char const* id) -> ttl::tensor
 	{
 		return { id, 2 };
 	}
 }
 
 template <>
-struct std::formatter<ttl::Tensor> {
-	static constexpr auto parse(format_parse_context& ctx)
+struct std::formatter<ttl::tensor> {
+	static constexpr auto parse(auto& ctx)
 	{
 		return ctx.begin();
 	}
 
-	static constexpr auto format(const ttl::Tensor& tensor, auto& ctx)
+	static constexpr auto format(ttl::tensor const& a, auto& ctx)
 	{
-		return format_to(ctx.out(), "{}", to_string(tensor));
+		return std::format_to(ctx.out(), "{}", a._id);
 	}
 };

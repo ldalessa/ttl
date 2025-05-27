@@ -35,5 +35,5 @@ target_sources(ttl_mod PUBLIC FILE_SET cxx_modules TYPE CXX_MODULES FILES includ
 target_compile_features(ttl_mod PUBLIC cxx_std_26)
 target_link_libraries(ttl_mod PUBLIC ttl_impl)
 
-add_subdirectory(examples)
+# add_subdirectory(examples)
 add_subdirectory(tests)
